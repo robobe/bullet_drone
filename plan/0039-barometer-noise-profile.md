@@ -21,4 +21,4 @@ A 3000-sample check at 10 m measured 2.289 Pa pressure and 0.191 m altitude
 standard deviation, with repeatable reset. The sensor-default test now clears
 demo pose selections before disabling sensors so its fixture remains independent.
 `git diff --check` passed.
-Implementation commit: Pending.
+Implementation commit: `ce54722cebbcea1ccac78eb70008de4b5e23c14f`.

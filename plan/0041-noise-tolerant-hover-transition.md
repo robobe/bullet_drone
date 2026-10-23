@@ -34,4 +34,4 @@ Cause: instantaneous noise-amplified velocity repeatedly restarted the three-
 second dwell. The mission now fits sensor altitude history solely for transition
 qualification, with regression coverage for noise and real sustained motion.
 No temporary instrumentation was added to repository source.
-Implementation commit: Pending.
+Implementation commit: `9b85374f70a0e87ad7f8d873922847e540258d66`.

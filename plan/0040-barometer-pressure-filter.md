@@ -26,4 +26,4 @@ attitude, telemetry, publisher, spawn and RC-simulation checks passed. A 3000-sa
 stationary check at 10 m measured 0.191 m raw and 0.030 m filtered altitude
 standard deviation after settling. `git diff --check` passed. Full flight and
 hardware validation were not run.
-Implementation commit: Pending.
+Implementation commit: `ce54722cebbcea1ccac78eb70008de4b5e23c14f`.
