@@ -83,7 +83,7 @@ def test_running_and_heartbeat_timeout_rejected(wire):
 
 
 @pytest.mark.parametrize("cleanup_fails", [False, True])
-def test_runner_replaces_only_after_success_and_reset_keeps_spawn(tmp_path, monkeypatch, cleanup_fails):
+def test_runner_replaces_only_after_success_and_reset_keeps_spawn(tmp_path, monkeypatch, cleanup_fails, capsys):
     from examples.external_rc import main as runner
     from bullet_drone.simulation import RcSimulation
     transport = tmp_path / 'transport.json'
@@ -138,6 +138,12 @@ def test_runner_replaces_only_after_success_and_reset_keeps_spawn(tmp_path, monk
     monkeypatch.setattr(runner, 'SimulationControl', Control)
     with pytest.raises(KeyboardInterrupt):
         runner.run('unused', simulation_factory=Simulation)
+    stdout = capsys.readouterr().out
+    assert stdout.count('=== bullet_drone loaded configuration ===') == 1
+    banner = json.loads(stdout.split('\n', 1)[1])
+    assert banner['physics_config_path'] is None
+    assert banner['simulation']['pose_sources'] == dict(altitude='ground_truth', attitude='ground_truth')
+    assert banner['simulation']['sensors']['imu']['gyro_stddev_rad_s'] == [0., 0., 0.]
     assert len(instances) == 3
     assert all(value in closed for value in instances)
     initial, applied, reset = [state for _, state in states]

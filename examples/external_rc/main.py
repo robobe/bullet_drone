@@ -1,5 +1,6 @@
 """Godot lifecycle with app-owned expiring RC and selectable sensor pose."""
-from dataclasses import replace
+from dataclasses import asdict, replace
+import json
 import sys
 import time
 from pathlib import Path
@@ -70,7 +71,6 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
         lease = FlightLease(control.physics_id)
         receiver = FlightReceiver(transport['flight_command_endpoint'], lease)
         vehicle = load_racer_parameters()
-        simulation = simulation_factory(config, FLIGHT_CONTROL_SETTINGS, vehicle)
         platform = dict(schema_version=1, physics_id=control.physics_id, stream_id=renderer.stream,
                         mass_kg=config.drone.mass_kg, gravity_m_s2=-gravity[2],
                         max_thrust_n=len(vehicle.rotor_positions_m) * vehicle.max_thrust_per_rotor_n,
@@ -80,6 +80,18 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
                         arm_channel=config.rc.arm_channel, mode_channel=config.rc.mode_channel,
                         camera=renderer.config['camera'], attitude_model=('imu_complementary' if config.pose_sources.attitude == 'imu' else 'ideal'),
                         physics_hz=physics_hz, feedback_hz=FEEDBACK_HZ, command_hz=COMMAND_HZ)
+        click.echo('=== bullet_drone loaded configuration ===\n' + json.dumps({
+            'physics_config_path': str(Path(config_path).resolve()) if config_path is not None else None,
+            'simulation': asdict(config),
+            'flight_control': asdict(FLIGHT_CONTROL_SETTINGS),
+            'vehicle': asdict(vehicle),
+            'render_config_path': str(Path(path).resolve()),
+            'render': renderer.config,
+            'transport_config_path': str(renderer.transport_path.resolve()),
+            'transport': transport,
+            'platform': platform,
+        }, indent=2))
+        simulation = simulation_factory(config, FLIGHT_CONTROL_SETTINGS, vehicle)
         observation = simulation.reset()
         applied_sequence = 0
         armed, mode = False, 'angle'

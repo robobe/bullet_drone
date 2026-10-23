@@ -186,3 +186,10 @@ sensor noise and pose settings. Set `pose_sources.altitude: barometer` and
 `pose_sources.attitude: imu` to use measured render height and an IMU complementary
 filter for both camera and app attitude. Existing launches retain their defaults.
 See [configuration, noise and estimator limits](docs/design/sensors.md#sensor-pose-selection-and-attitude-estimation).
+
+The external-RC runner prints a `bullet_drone loaded configuration` banner to
+stdout once at startup. Its indented JSON contains the effective simulation
+settings (including defaults and the headless override), flight control, vehicle,
+render, transport and advertised platform configuration, plus configuration paths.
+`physics_config_path: null` means the built-in defaults were used. Diagnostics
+continue on stderr; the banner precedes physics initialization.

@@ -12,7 +12,7 @@ from bullet_drone.pose import resolve_pose
 from tools.zmq_render.publisher import RenderPublisher
 
 
-def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, monkeypatch):
+def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, monkeypatch, capsys):
     from examples.external_rc import main as runner
     data = asdict(config)
     data['simulation']['gui'] = True  # The external runner remains headless.
@@ -62,6 +62,20 @@ def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, mo
     assert runner.CliParser().parse(['--config', str(physics), '--render-config', str(render)]) == (render, physics)
     with pytest.raises(KeyboardInterrupt):
         runner.run(render, config_path=physics)
+    stdout = capsys.readouterr().out
+    assert stdout.count('=== bullet_drone loaded configuration ===') == 1
+    banner = json.loads(stdout.split('\n', 1)[1])
+    assert banner['physics_config_path'] == str(physics.resolve())
+    expected = yaml.safe_load(physics.read_text())
+    expected['simulation']['gui'] = False
+    assert banner['simulation'] == expected
+    assert banner['flight_control'] == json.loads(json.dumps(asdict(runner.FLIGHT_CONTROL_SETTINGS)))
+    assert banner['vehicle']['rotor_positions_m']
+    assert banner['render_config_path'] == str(render.resolve())
+    assert banner['render'] == output.config
+    assert banner['transport_config_path'] == str(transport.resolve())
+    assert banner['transport'] == json.loads(transport.read_text())
+    assert banner['platform']['attitude_model'] == 'imu_complementary'
     factory.assert_called_once_with(render, pose_sources=PoseSources('barometer', 'imu'))
     observations = output.consume.call_args_list
     feedbacks = output.set_flight.call_args_list
@@ -69,6 +83,7 @@ def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, mo
     for capture, feedback in zip(observations, feedbacks):
         observation = capture.args[0]
         platform, packet = feedback.args
+        assert banner['platform'] == platform
         expected = resolve_pose(observation, output.pose_sources)
         assert platform['attitude_model'] == 'imu_complementary'
         assert packet['orientation_xyzw'] == list(expected.orientation_xyzw)
