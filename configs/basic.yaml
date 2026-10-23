@@ -1,0 +1,180 @@
+# Required physics and viewer settings; applications own the execution loop.
+simulation:
+  # Required positive, finite physics-step duration in seconds; this value runs at 240 Hz.
+  timestep_s: 0.004166666666666667
+  # Required positive integer step budget for callers; RcSimulation does not enforce it.
+  # At the configured timestep, 1200 steps represent 5 simulated seconds.
+  max_steps: 1200
+  # Show the PyBullet GUI when true (requires a display); false is headless.
+  # Optional boolean; defaults to false when omitted.
+  gui: true
+  # Required finite world-frame [X, Y, Z] gravity acceleration in m/s^2.
+  # World Z points up, so negative Z accelerates the drone toward the ground.
+  gravity_m_s2: [0.0, 0.0, -9.81]
+
+# Required vehicle identity, mass and initial world position.
+drone:
+  # Stable identity retained across resets and used in telemetry headers.
+  # Optional nonblank string of at most 128 characters; defaults to drone_1.
+  drone_id: drone_1
+  # Required positive, finite total drone mass in kg; scales the model's mass and inertia.
+  mass_kg: 1.0
+  # Required finite world-frame [X, Y, Z] spawn position in metres; Z is height above zero.
+  initial_position_m: [0.0, 0.0, 1.0]
+
+# Optional measurement settings assembled by RcSimulation; controllers still use ground truth.
+# Omitting this section enables both sensors with zero noise and their default seeds.
+sensors:
+  # Optional aligned body-frame accelerometer and gyro settings; omitted fields use defaults.
+  imu:
+    # Optional boolean, default true; false makes observation.sensors.imu None.
+    enabled: true
+    # Per-sample Gaussian standard deviations on body [X, Y, Z] specific force in m/s^2.
+    # Each component must be finite and nonnegative; defaults to [0, 0, 0] (no noise).
+    accelerometer_stddev_m_s2: [0.0, 0.0, 0.0]
+    # Per-sample Gaussian standard deviations on body [X, Y, Z] angular velocity in rad/s.
+    # Each component must be finite and nonnegative; defaults to [0, 0, 0] (no noise).
+    gyro_stddev_rad_s: [0.0, 0.0, 0.0]
+    # Fixed body-axis accelerometer bias in m/s^2; three finite values, default [0, 0, 0].
+    accelerometer_bias_m_s2: [0.0, 0.0, 0.0]
+    # Fixed body-axis gyro bias in rad/s; three finite values, default [0, 0, 0].
+    gyro_bias_rad_s: [0.0, 0.0, 0.0]
+    # Integer random seed, default 0; reset repeats the sequence. Use distinct seeds across drones.
+    seed: 0
+  # Optional pressure sensor settings; altitude is derived from measured pressure using world Z.
+  # Omitted reference settings use 101325 Pa at Z = 0 m and constant temperature 288.15 K.
+  barometer:
+    # Optional boolean, default true; false makes observation.sensors.barometer None.
+    enabled: true
+    # Per-sample Gaussian pressure standard deviation in Pa, applied before altitude conversion.
+    # Must be finite and nonnegative; defaults to 0 (no noise).
+    pressure_stddev_pa: 0.0
+    # Fixed pressure bias in Pa, finite; default 0. Applied before altitude conversion.
+    pressure_bias_pa: 0.0
+    # Integer random seed, default 1; reset repeats the sequence. Keep distinct from the IMU seed.
+    seed: 1
+
+# Optional published-pose sources. Omitted fields preserve ground-truth rendering.
+# Used by external_rc --config; app altitude feedback always uses the barometer.
+pose_sources:
+  # Render Z: ground_truth (default) or barometer; X/Y always remain ground truth.
+  altitude: barometer #  ground_truth
+  # Render and app attitude: ground_truth (default) or imu. IMU requires enabled IMU and nonzero gravity.
+  attitude: imu #ground_truth
+
+# Optional IMU attitude filter; runs every physics step only when pose_sources.attitude is imu.
+# Starts from the known reset pose, then uses sensor readings only. No absolute yaw correction.
+attitude_estimator:
+  # Accelerometer tilt correction gain in 1/s, finite and nonnegative; default 2.0.
+  kp_s_inv: 2.0
+  # Gyro bias adaptation gain in 1/s^2, finite and nonnegative; default 0.05.
+  ki_s_inv2: 0.05
+  # Accept acceleration correction within this fraction of gravity magnitude.
+  # Finite and strictly between 0 and 1; default 0.2. Otherwise use gyro only and freeze bias.
+  acceleration_rejection_fraction: 0.2
+
+# Optional aerodynamic teaching models; every effect defaults to enabled when omitted.
+# These coefficients are illustrative, not calibrated measurements of the bundled vehicle.
+forces:
+  # Positive finite air density in kg/m^3, shared by body drag and wakes; default 1.225.
+  air_density_kg_m3: 1.225
+  # Positive finite rotor disk radius in m for tip speed/wakes/ground effect; default 0.0635.
+  rotor_radius_m: 0.0635
+  # Quadratic airframe resistance applied at the center of mass in body axes.
+  body_drag:
+    # Boolean, default true; false removes quadratic body drag only.
+    enabled: true
+    # Body [X,Y,Z] drag coefficient times projected area in m^2; finite/nonnegative.
+    # Defaults to [0.02,0.02,0.03]; zero components remove drag on those axes.
+    cd_area_m2: [0.02, 0.02, 0.03]
+  # Linear resistance proportional to summed actual rotor speeds and relative airflow.
+  rotor_drag:
+    # Boolean, default true; false removes rotor-dependent linear drag only.
+    enabled: true
+    # Body-axis coefficients in N/((rad/s)*(m/s)); finite/nonnegative.
+    # Defaults below use rad/s, not RPM. Multiply RPM-based coefficients by 60/(2*pi).
+    coefficients_n_per_rad_s_m_s: [0.00001, 0.00001, 0.000011]
+  # Aerodynamic torque opposing roll/pitch/yaw rates; default PyBullet damping stays zero.
+  angular_damping:
+    # Boolean, default true; false removes this explicit damping torque.
+    enabled: true
+    # Body [roll,pitch,yaw] resistance in N*m/(rad/s); finite/nonnegative, defaults below.
+    coefficients_nm_per_rad_s: [0.002, 0.002, 0.001]
+  # Per-rotor bounded thrust reduction from horizontal advance ratio.
+  inflow:
+    # Boolean, default true; false restores unmodified inflow thrust.
+    enabled: true
+    # Dimensionless nonnegative reduction strength; default 1.0; zero removes reduction.
+    coefficient: 1.0
+    # Smallest allowed thrust multiplier, in (0,1]; default 0.5; 1 removes reduction.
+    minimum_multiplier: 0.5
+  # Per-rotor in-plane force opposing horizontal local airflow; generates offset torque.
+  flapping:
+    # Boolean, default true; false removes flapping force only.
+    enabled: true
+    # Dimensionless nonnegative strength multiplying thrust/tip speed; default 0.1.
+    coefficient: 0.1
+  # Reaction from transporting rotor angular momentum as the body turns.
+  gyroscopic:
+    # Boolean, default true; false removes gyro torque only, preserving reaction yaw torque.
+    enabled: true
+    # Nonnegative inertia of each rotor about its spin axis in kg*m^2; default 0.00001.
+    rotor_inertia_kg_m2: 0.00001
+  # Per-rotor thrust increase from read-only collision-surface queries; own drone is excluded.
+  ground_effect:
+    # Boolean, default true; false removes the gain and skips surface queries.
+    enabled: true
+    # Dimensionless nonnegative gain coefficient; default 0.1.
+    coefficient: 0.1
+    # Finite multiplier >= 1, default 1.2; caps near-surface thrust increase.
+    maximum_multiplier: 1.2
+    # Positive world-down ray length in m, default 1.0; no hit means no extra lift.
+    query_range_m: 1.0
+    # Positive distance floor in m, default 0.01; must not exceed query_range_m.
+    minimum_distance_m: 0.01
+  # Local downstream airflow, fed to aerodynamic models; no separate propwash wrench.
+  propwash:
+    # Boolean, default true; false removes wake airflow while preserving ambient wind.
+    enabled: true
+    # Nonnegative dimensionless wake widening per downstream metre; default 0.1.
+    spread: 0.1
+    # Positive combined wake-speed cap in m/s, default 20; bounds overlapping wakes.
+    maximum_speed_m_s: 20.0
+    # Finite body [X,Y,Z] wake sample offset in m; default [0,0,-0.03].
+    # Approximates body exposure below coplanar rotors; drag is still applied at the COM.
+    body_sample_offset_m: [0.0, 0.0, -0.03]
+
+# Optional ambient airflow; enabled but calm by default. Propwash is configured separately.
+wind:
+  # Boolean, default true; false supplies zero ambient wind, without disabling propwash.
+  enabled: true
+  # 'constant' (default) or 'gusts'; gusts add seeded, correlated Gaussian fluctuations.
+  behavior: constant
+  # Finite world [X,Y,Z] air velocity in m/s, default [0,0,0]; positive X blows toward +X.
+  velocity_world_m_s: [0.0, 0.0, 0.0]
+  # Nonnegative per-axis stationary gust standard deviations in m/s, default zero.
+  # Used only with behavior: gusts; these are not per-step noise densities.
+  gust_stddev_m_s: [0.0, 0.0, 0.0]
+  # Positive gust correlation time in simulation seconds, default 1; larger is smoother.
+  correlation_time_s: 1.0
+  # Integer random seed (not boolean), default 2; reset repeats the gust sequence from zero.
+  seed: 2
+
+# Optional telemetry topic selection; every flag defaults to true when omitted.
+# These switches select schemas only; they do not start recording or affect physics/sensors.
+# Ground truth, initialized configuration and events are mandatory and have no switches.
+telemetry:
+  # Boolean, default true; select measured IMU/barometer telemetry (not sensor enablement).
+  sensors: true
+  # Boolean, default true; select the 18 raw RC channels before decoding.
+  rc_input: true
+  # Boolean, default true; select decoded angle/Acro requests, arming and thrust.
+  control: true
+  # Boolean, default true; select mixer targets, predicted wrench and saturation.
+  allocation: true
+  # Boolean, default true; select modeled forces/torques and per-effect contributions.
+  forces: true
+  # Boolean, default true; select ambient wind, gusts, local wakes and relative airflow.
+  airflow: true
+  # Boolean, default true; select simulation/wall elapsed time and real-time factor.
+  timing: true

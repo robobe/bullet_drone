@@ -1,0 +1,32 @@
+[project]
+name = "bullet-drone"
+version = "0.1.0"
+description = "A PyBullet-based quadcopter simulation package."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.5.0",
+    "loguru>=0.7.3",
+    "pybullet>=3.2.7",
+    "pyyaml>=6.0.3",
+]
+
+[project.optional-dependencies]
+render = ["pyzmq>=27,<28", "bullet-msgs"]
+
+[build-system]
+requires = ["uv_build>=0.9.25,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "jsonschema>=4.26.0",
+    "pytest>=9.1.1",
+]
+
+[tool.uv.sources]
+bullet-msgs = { workspace = true }

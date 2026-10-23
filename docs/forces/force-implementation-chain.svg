@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1300" viewBox="0 0 1600 1300" role="img" aria-labelledby="title description">
+<title id="title">Force and effect ownership: control, mixer, actuators and physics</title>
+<desc id="description">Numbered tips map to rows 1 through 15 in force-implementation-map.md. Controllers request a wrench, the mixer allocates targets, actual motors drive propeller models, and PyBullet applies and integrates forces. Green badges mark implemented effects; amber badges mark future or partial models. Wind and battery are inputs, and lag is dynamics rather than a force.</desc>
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+  <marker id="future-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#b7791f"/></marker>
+  <marker id="feedback-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#059669"/></marker>
+  <style>
+    text {font-family: Arial, Helvetica, sans-serif; fill:#17283f}
+    .title {font-size:30px;font-weight:700}
+    .section {font-size:21px;font-weight:700}
+    .label {font-size:19px;font-weight:700}
+    .body {font-size:16px;fill:#475569}
+    .small {font-size:14px;fill:#475569}
+    .number {font-size:17px;font-weight:700;fill:white;text-anchor:middle;dominant-baseline:central}
+    .flow {fill:none;stroke:#475569;stroke-width:2.5;marker-end:url(#arrow)}
+    .future {fill:none;stroke:#b7791f;stroke-width:2.5;stroke-dasharray:7 5;marker-end:url(#future-arrow)}
+    .feedback {fill:none;stroke:#059669;stroke-width:2.5;stroke-dasharray:7 5;marker-end:url(#feedback-arrow)}
+    a:hover circle,a:focus circle {stroke:#17283f;stroke-width:3}
+  </style>
+</defs>
+<rect width="1600" height="1300" fill="#f6f8fc"/>
+
+<text x="60" y="48" class="title">Where each force or effect belongs</text>
+<text x="60" y="79" class="body">Source review + local implementation map · numbers 1–13 match the course; 14 contact and 15 battery/KV are local additions</text>
+<circle cx="78" cy="112" r="9" fill="#059669"/>
+<text x="96" y="117" class="small">Implemented</text>
+<circle cx="228" cy="112" r="9" fill="#b7791f"/>
+<text x="246" y="117" class="small">Future / partial</text>
+<text x="440" y="117" class="small">Open SVG directly: hover for a tip; click or press Enter to open the table row.</text>
+<rect x="60" y="155" width="400" height="145" rx="14" fill="#eaf2ff" stroke="#77a3fb" stroke-width="1.8"/>
+<rect x="500" y="155" width="330" height="145" rx="14" fill="#eaf2ff" stroke="#77a3fb" stroke-width="1.8"/>
+<rect x="880" y="155" width="660" height="145" rx="14" fill="#fff7eb" stroke="#e6ad55" stroke-width="1.8"/>
+<text x="85" y="190" class="section">Control + RC stabilization</text>
+<text x="85" y="222" class="body">Position / altitude → attitude / rate PID</text>
+<text x="85" y="250" class="body">Requests: collective N + body torque N·m</text>
+<text x="85" y="278" class="small">Compensation requests ≠ applied physical forces</text>
+<text x="525" y="190" class="section">MotorMixer</text>
+<text x="525" y="222" class="body">Wrench → four rotor speed targets</text>
+<text x="525" y="250" class="body">Thrust / torque models + geometry</text>
+<text x="525" y="278" class="small">Allocation only · no physical force application</text>
+<text x="905" y="185" class="section">Actuator pipeline · actual rotor speeds</text>
+<a id="effect-tip-15" data-effect-index="15" href="force-implementation-map.md#effect-15" tabindex="0" aria-label="15: Battery / motor KV"><title>15. Battery / motor KV — Future electrical state and actuator capacity input after nominal allocation, before motor response. Dynamic available limits may inform allocation. Added local non-force index.</title><circle cx="922" cy="224" r="18" fill="#b7791f"/><text x="922" y="224" class="number">15</text></a>
+<text x="950" y="220" class="label">Battery / KV</text>
+<text x="950" y="245" class="small">Future electrical capacity</text>
+<a id="effect-tip-8" data-effect-index="8" href="force-implementation-map.md#effect-8" tabindex="0" aria-label="8: Motor dynamics"><title>8. Motor dynamics — Actuator stage after the mixer. Only ideal instantaneous response is implemented; a lag adapter fits the existing MotorDynamics contract.</title><circle cx="1232" cy="224" r="18" fill="#b7791f"/><text x="1232" y="224" class="number">8</text></a>
+<text x="1260" y="220" class="label">Motor response</text>
+<text x="1260" y="245" class="small">Ideal now · lag is future</text>
+<text x="905" y="281" class="small">Targets → speed/capacity limits → actual rad/s → propeller forces</text>
+<path d="M460 230H500" class="flow"/>
+<path d="M830 230H880" class="flow"/>
+<path d="M1210 300V325H770V350" class="flow"/>
+<path d="M905 155V137H665V155" class="future"/>
+<text x="925" y="143" class="small">Future available-capacity feedback to allocation</text>
+<rect x="60" y="350" width="420" height="390" rx="14" fill="#effaf6" stroke="#91cdb6" stroke-width="1.8"/>
+<rect x="530" y="350" width="480" height="390" rx="14" fill="#effaf6" stroke="#91cdb6" stroke-width="1.8"/>
+<rect x="1060" y="350" width="480" height="390" rx="14" fill="#effaf6" stroke="#91cdb6" stroke-width="1.8"/>
+<text x="85" y="388" class="section">Read-only environment / airflow</text>
+<text x="555" y="388" class="section">Rotor force models</text>
+<text x="1085" y="388" class="section">Body aero + momentum models</text>
+<rect x="85" y="411" width="370" height="78" rx="14" fill="#ffffff" stroke="#91cdb6" stroke-width="1.8"/>
+<a id="effect-tip-11" data-effect-index="11" href="force-implementation-map.md#effect-11" tabindex="0" aria-label="11: Wind"><title>Wind — Implemented constant world velocity or seeded simulation-time correlated gusts; airflow input to aerodynamic models.</title><circle cx="113" cy="441" r="18" fill="#059669"/><text x="113" y="441" class="number">11</text></a>
+<text x="143" y="438" class="label">Wind velocity field</text>
+<text x="143" y="466" class="small">Constant / seeded gusts · world m/s</text>
+<rect x="85" y="507" width="370" height="78" rx="14" fill="#ffffff" stroke="#91cdb6" stroke-width="1.8"/>
+<a id="effect-tip-13" data-effect-index="13" href="force-implementation-map.md#effect-13" tabindex="0" aria-label="13: Propwash / induced airflow"><title>Propwash — Implemented local downstream wake airflow with own-rotor exclusion and bounded combined speed; single drone.</title><circle cx="113" cy="537" r="18" fill="#059669"/><text x="113" y="537" class="number">13</text></a>
+<text x="143" y="534" class="label">Propwash / induced airflow</text>
+<text x="143" y="563" class="small">Bounded local wake · airflow input</text>
+<rect x="85" y="609" width="370" height="99" rx="14" fill="#ffffff" stroke="#91cdb6" stroke-width="1.8"/>
+<text x="105" y="638" class="label">State + scene-distance queries</text>
+<text x="105" y="666" class="small">Pre-step state + self-excluding surface rays</text>
+<text x="105" y="689" class="small">Velocity minus wind / wakes → body airflow</text>
+<rect x="550" y="411" width="205" height="110" rx="14" fill="#ffffff" stroke="#a6bddc" stroke-width="1.8"/>
+<a id="effect-tip-2" data-effect-index="2" href="force-implementation-map.md#effect-2" tabindex="0" aria-label="2: Motor thrust"><title>2. Motor thrust — Implemented propeller model uses actual rotor rad/s squared; apply each body-frame force at its rotor position.</title><circle cx="578" cy="441" r="18" fill="#059669"/><text x="578" y="441" class="number">2</text></a>
+<text x="608" y="439" class="label">Thrust</text>
+<text x="567" y="474" class="body">k_f × actual speed²</text>
+<text x="567" y="502" class="small">Implemented</text>
+<rect x="780" y="411" width="210" height="110" rx="14" fill="#ffffff" stroke="#a6bddc" stroke-width="1.8"/>
+<a id="effect-tip-3" data-effect-index="3" href="force-implementation-map.md#effect-3" tabindex="0" aria-label="3: Motor reaction torque"><title>3. Motor reaction torque — Implemented signed drag-reaction torque is calculated from actual rotor speeds and applied once to the body.</title><circle cx="808" cy="441" r="18" fill="#059669"/><text x="808" y="441" class="number">3</text></a>
+<text x="838" y="439" class="label">Yaw reaction</text>
+<text x="796" y="474" class="body">Signed k_m × speed²</text>
+<text x="796" y="502" class="small">Implemented</text>
+<rect x="550" y="548" width="440" height="138" rx="14" fill="#ffffff" stroke="#91cdb6" stroke-width="1.8"/>
+<a id="effect-tip-9" data-effect-index="9" href="force-implementation-map.md#effect-9" tabindex="0" aria-label="9: Rotor inflow / blade flapping"><title>Rotor inflow / flapping — Implemented separate modules for bounded axial thrust reduction and offset in-plane resistance.</title><circle cx="578" cy="578" r="18" fill="#059669"/><text x="578" y="578" class="number">9</text></a>
+<text x="608" y="575" class="label">Inflow / blade flapping</text>
+<text x="608" y="599" class="small">Bounded thrust + in-plane corrections</text>
+<a id="effect-tip-12" data-effect-index="12" href="force-implementation-map.md#effect-12" tabindex="0" aria-label="12: Ground effect"><title>Ground effect — Implemented bounded per-rotor gain using read-only collision-surface rays excluding the owning drone.</title><circle cx="578" cy="638" r="18" fill="#059669"/><text x="578" y="638" class="number">12</text></a>
+<text x="608" y="635" class="label">Ground effect</text>
+<text x="608" y="659" class="small">Bounded per-rotor surface lift gain</text>
+<text x="555" y="718" class="small">ForceChain composes speed-only baseline + context</text>
+<rect x="1080" y="411" width="200" height="118" rx="14" fill="#ffffff" stroke="#91cdb6" stroke-width="1.8"/>
+<a id="effect-tip-5" data-effect-index="5" href="force-implementation-map.md#effect-5" tabindex="0" aria-label="5: Quadratic body drag"><title>Quadratic body drag — Implemented independent body-frame quadratic resistance, applied at COM after final output validation.</title><circle cx="1107" cy="441" r="18" fill="#059669"/><text x="1107" y="441" class="number">5</text></a>
+<text x="1092" y="478" class="label">Body drag</text>
+<text x="1092" y="505" class="small">Quadratic airspeed law</text>
+<text x="1092" y="522" class="small">Implemented</text>
+<rect x="1320" y="411" width="200" height="118" rx="14" fill="#ffffff" stroke="#91cdb6" stroke-width="1.8"/>
+<a id="effect-tip-6" data-effect-index="6" href="force-implementation-map.md#effect-6" tabindex="0" aria-label="6: Rotor-dependent linear drag"><title>Rotor drag — Implemented resistance using summed actual rad/s and relative airflow; independent of reaction yaw torque.</title><circle cx="1347" cy="441" r="18" fill="#059669"/><text x="1347" y="441" class="number">6</text></a>
+<text x="1332" y="478" class="label">Rotor drag</text>
+<text x="1332" y="505" class="small">Actual speeds + airflow</text>
+<text x="1332" y="522" class="small">Implemented</text>
+<rect x="1080" y="560" width="200" height="118" rx="14" fill="#ffffff" stroke="#91cdb6" stroke-width="1.8"/>
+<a id="effect-tip-7" data-effect-index="7" href="force-implementation-map.md#effect-7" tabindex="0" aria-label="7: Angular damping"><title>Angular damping — Implemented body-rate resistance; default PyBullet damping remains zero.</title><circle cx="1107" cy="590" r="18" fill="#059669"/><text x="1107" y="590" class="number">7</text></a>
+<text x="1092" y="627" class="label">Angular damping</text>
+<text x="1092" y="654" class="small">Torque opposing body rate</text>
+<text x="1092" y="671" class="small">Implemented</text>
+<rect x="1320" y="560" width="200" height="118" rx="14" fill="#ffffff" stroke="#91cdb6" stroke-width="1.8"/>
+<a id="effect-tip-10" data-effect-index="10" href="force-implementation-map.md#effect-10" tabindex="0" aria-label="10: Propeller gyroscopic torque"><title>Gyroscopic torque — Implemented body reaction -Omega cross H; physical spin signs are opposite reaction-torque signs.</title><circle cx="1347" cy="590" r="18" fill="#059669"/><text x="1347" y="590" class="number">10</text></a>
+<text x="1332" y="627" class="label">Gyroscopic torque</text>
+<text x="1332" y="654" class="small">Rotor momentum + body rate</text>
+<text x="1332" y="671" class="small">Implemented</text>
+<path d="M455 450H472V628H455" class="flow"/>
+<path d="M455 546H472" class="flow"/>
+<path d="M1210 300V325H1480V350" class="flow"/>
+<path d="M455 678H520V631H550" class="flow"/>
+<path d="M455 650H500V335H1300V350" class="flow"/>
+<text x="70" y="765" class="small">Wind/propwash supply airflow to aerodynamic models, not the mixer.</text>
+<text x="535" y="765" class="small">Body-frame rotor outputs</text>
+<path d="M770 740V793H770V820" class="flow"/>
+<path d="M1300 740V793H1200V820" class="flow"/>
+<rect x="530" y="820" width="1010" height="183" rx="14" fill="#ffffff" stroke="#b3c2d6" stroke-width="1.8"/>
+<text x="555" y="853" class="section">PyBullet adapter: apply computed outputs once, then step</text>
+<rect x="550" y="875" width="440" height="105" rx="14" fill="#f0fbf6" stroke="#91cdb6" stroke-width="1.8"/>
+<a id="effect-tip-4" data-effect-index="4" href="force-implementation-map.md#effect-4" tabindex="0" aria-label="4: Lever-arm torque"><title>4. Lever-arm torque — Implemented implicitly: PyBullet generates r cross F from offset rotor forces. Mixer allocation is not a second physical torque.</title><circle cx="578" cy="908" r="18" fill="#059669"/><text x="578" y="908" class="number">4</text></a>
+<text x="608" y="905" class="label">Rotor forces at rotor offsets</text>
+<text x="570" y="935" class="body">Lever torque r × F arises from force placement</text>
+<text x="570" y="960" class="small">Do not also apply requested mixer roll/pitch torque</text>
+<rect x="1020" y="875" width="500" height="105" rx="14" fill="#f7f9fc" stroke="#b3c2d6" stroke-width="1.8"/>
+<text x="1040" y="906" class="label">Separate force and torque application</text>
+<text x="1040" y="935" class="body">COM force once; aggregate body torque once</text>
+<text x="1040" y="960" class="small">Keep calculation modules independent of backend handles</text>
+<path d="M1035 1003V1040" class="flow"/>
+<rect x="530" y="1040" width="1010" height="147" rx="14" fill="#f0fbf6" stroke="#91cdb6" stroke-width="1.8"/>
+<text x="555" y="1073" class="section">PyBullet rigid-body integration</text>
+<a id="effect-tip-1" data-effect-index="1" href="force-implementation-map.md#effect-1" tabindex="0" aria-label="1: Gravity"><title>1. Gravity — PyBullet world gravity is implemented; do not add a second external weight force.</title><circle cx="578" cy="1111" r="18" fill="#059669"/><text x="578" y="1111" class="number">1</text></a>
+<text x="608" y="1108" class="label">Gravity</text>
+<text x="608" y="1134" class="small">Configured world gravity</text>
+<a id="effect-tip-14" data-effect-index="14" href="force-implementation-map.md#effect-14" tabindex="0" aria-label="14: Contact normal / friction"><title>14. Contact normal / friction — PyBullet collision solver is implemented; friction uses defaults and has no calibrated custom law. Added local index from the course inventory.</title><circle cx="885" cy="1111" r="18" fill="#059669"/><text x="885" y="1111" class="number">14</text></a>
+<text x="915" y="1108" class="label">Contact / friction</text>
+<text x="915" y="1134" class="small">Collision solver; friction defaults</text>
+<text x="1210" y="1110" class="label">stepSimulation()</text>
+<text x="555" y="1167" class="small">Mass, inertia and collision geometry are properties · default linear/angular damping is disabled</text>
+<rect x="60" y="1055" width="400" height="132" rx="14" fill="#e8fbf3" stroke="#77cfab" stroke-width="1.8"/>
+<text x="85" y="1090" class="section">Next ground-truth observation</text>
+<text x="85" y="1122" class="body">Position, velocity, orientation, world angular rate</text>
+<text x="85" y="1154" class="small">Convert world angular rate for body-frame models</text>
+<path d="M530 1120H460" class="flow"/>
+<path d="M60 1120H30V230H60" class="feedback"/>
+<path d="M460 1080H490V725H435V708" class="feedback"/>
+<text x="85" y="840" class="section">Implementation rules</text>
+<text x="85" y="871" class="body">Each effect gets its own named calculation.</text>
+<text x="85" y="899" class="body">Use actual speeds for rotor-dependent effects.</text>
+<text x="85" y="927" class="body">Declare N / N·m, frames, coefficients and signs.</text>
+<text x="85" y="955" class="body">Do not count gravity, contact or lever torque twice.</text>
+<text x="85" y="984" class="small">All new aero effects have YAML switches.</text>
+<text x="60" y="1232" class="body">Current motor targets are rad/s, not PWM or RPM. Battery/KV needs an explicit calibrated actuator mapping.</text>
+<text x="60" y="1263" class="small">Aero effects are implemented teaching models. Motor lag and battery remain future. See the table and aerodynamic design.</text>
+</svg>

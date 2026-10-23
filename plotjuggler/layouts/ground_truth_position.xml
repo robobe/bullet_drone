@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root format="PlotJuggler" pj4_version="4" binding="source">
+  <tabbed_widget id="ground-truth-tabs" name="Main Window" parent="main_window">
+    <Tab id="ground-truth-position" tab_name="Ground truth position" containers="1">
+      <Container>
+        <DockSplitter orientation="|" count="2" sizes="0.5;0.5">
+          <DockArea id="ground-truth-xy-area" name="XY trajectory">
+            <plot id="ground-truth-xy" mode="XYPlot" title="XY trajectory: X (m) vs Y (m)" style="Lines" line_width="2.0" tracker_enabled="true">
+              <curve name="Ground truth XY" x_topic="zmq/data" x_field="position_m[0]" y_topic="zmq/data" y_field="position_m[1]" color="#268bd2" visible="true" markers_visible="false" pending_intent="true"/>
+            </plot>
+          </DockArea>
+          <DockArea id="ground-truth-altitude-area" name="Altitude">
+            <plot id="ground-truth-altitude" mode="TimeSeries" title="Altitude Z (m) over simulation time (s)" style="Lines" line_width="2.0" tracker_enabled="true">
+              <curve topic="zmq/data" field="position_m[2]" color="#dc322f" visible="true" markers_visible="false" pending_intent="true"/>
+            </plot>
+          </DockArea>
+        </DockSplitter>
+      </Container>
+    </Tab>
+    <currentTabIndex index="0"/>
+  </tabbed_widget>
+  <!-- PlotJuggler 4.0 refuses a layout with no loaded dataset. This unplotted
+       bootstrap column initializes its catalog; the pending curves bind only to ZMQ. -->
+  <previouslyLoaded_Datafiles>
+    <fileInfo filename="../layout_bootstrap.csv" prefix="">
+      <plugin ID="CSV" manifest_id="csv-loader" filepath_mode="source"><![CDATA[{"delimiter":",","time_mode":"row_number","time_column_index":-1}]]></plugin>
+    </fileInfo>
+  </previouslyLoaded_Datafiles>
+  <left_panel_state sources_tab="stream" streaming_source="ZMQ Subscriber" streaming_buffer="120"/>
+</root>

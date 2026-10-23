@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<root binding="source" format="PlotJuggler" pj4_version="4">
+  <tabbed_widget id="" name="main" parent="main_window">
+    <Tab containers="1" id="72b2d28f-9866-45c6-a8be-78df8b5827d4" tab_name="tab5">
+      <Container>
+        <DockSplitter count="2" orientation="-" sizes="0.50000000;0.50000000">
+          <DockArea id="a28c36d2-263e-4f6b-bee6-540e56a147fd" name="...">
+            <plot id="7033f53c-3a12-4309-b8e5-52ecbcf387b7" line_width="1.0" mode="TimeSeries" style="Lines" title="" tracker_enabled="true">
+              <range bottom="0" left="1792312140.190852608" left_ns="1792312140190852608" right="1792312500.190852608" right_ns="1792312500190852608" top="5" x_basis="absolute"/>
+              <curve color="#ff7f0e" dataset_source="[stream] ZMQ Subscriber" field="position_m[2]" markers_visible="true" topic="render/drone_1/pose" visible="true"/>
+            </plot>
+          </DockArea>
+          <DockArea id="9fe278a0-7155-4374-a9a5-3a0d67eac700" name="...">
+            <plot id="f401ef8e-db41-4fc4-b602-075888289b44" line_width="1.0" mode="XYPlot" style="Lines" title="" tracker_enabled="true">
+              <range bottom="5" left="5" right="5" top="5" x_basis="value"/>
+              <curve color="#1f77b4" markers_visible="true" name="render/drone_1/pose/position_m[[0];1]]" visible="true" x_dataset_source="[stream] ZMQ Subscriber" x_field="position_m[0]" x_topic="render/drone_1/pose" y_dataset_source="[stream] ZMQ Subscriber" y_field="position_m[1]" y_topic="render/drone_1/pose"/>
+            </plot>
+          </DockArea>
+        </DockSplitter>
+      </Container>
+    </Tab>
+    <currentTabIndex index="0"/>
+  </tabbed_widget>
+  <data_processors/>
+  <previouslyLoaded_Datafiles>
+    <fileInfo display_offset_ns="0" filename="/home/user/projects/bullet_render/recordings/bullet_landscape_20261018T074102.683990Z.mcap" prefix="" timeline_order="0">
+      <dataset display_offset_ns="0" source_index="0" source_name="bullet_landscape_20261018T074102.683990Z.mcap" timeline_order="0"/>
+      <plugin ID="MCAP Loader" manifest_id="mcap-loader"><![CDATA[{"clamp_large_arrays":true,"filepath":"/home/user/projects/bullet_render/recordings/bullet_landscape_20261018T074102.683990Z.mcap","max_array_size":500,"selected_topics":["camera/front/image","render/drone_1/pose"],"use_header_timestamp":false,"use_log_time":false}]]></plugin>
+    </fileInfo>
+  </previouslyLoaded_Datafiles>
+  <right_panel_state splitter_sizes="1567,0" style="0" width="1"/>
+  <left_panel_state sources_tab="stream" streaming_buffer="360" streaming_source="ZMQ Subscriber"/>
+  <curve_list_state custom_filter="" datasets_filter="" show_topics="true" show_values="false"/>
+  <chrome_state main_splitter_sizes="400,1133"/>
+  <source_timeline name_column_width="49" scroll_left_ns="1792309262709510799" scroll_top_px="0" snap="true" zoom="9.9999999999999995e-08"/>
+  <pinned_toolboxes/>
+</root>

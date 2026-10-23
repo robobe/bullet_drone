@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1490" viewBox="0 0 1400 1490" role="img" aria-labelledby="title description">
+  <title id="title">Quadcopter control: implemented RC and internal Python chain</title>
+  <desc id="description">The position square composes XY position PID, XY velocity PID, acceleration-to-angle conversion and Z altitude control. The altitude-hold demo uses only Z control with neutral roll/pitch. Both encode 18 RC channels. RcSimulation decodes them. Angle roll and pitch use attitude P; Acro body rates and RC yaw rate bypass it. Rate PID and feedforward produce torque. Collective thrust goes directly to the mixer. Ideal motors drive baseline propellers and a configurable aerodynamic ForceChain before PyBullet integration; ground truth feeds the controllers.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
+    <marker id="thrust-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#0891b2"/></marker>
+    <marker id="feedback-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#059669"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #17283f; }
+      .heading { font-size: 32px; font-weight: 700; }
+      .section { font-size: 21px; font-weight: 700; }
+      .label { font-size: 20px; font-weight: 700; text-anchor: middle; }
+      .detail { font-size: 16px; fill: #475569; text-anchor: middle; }
+      .note { font-size: 16px; fill: #475569; }
+      .control { fill: white; stroke: #a6bddc; stroke-width: 1.8; }
+      .physics { fill: #fff7eb; stroke: #e6ad55; stroke-width: 1.8; }
+      .flow { fill: none; stroke: #475569; stroke-width: 2.5; marker-end: url(#arrow); }
+      .thrust { fill: none; stroke: #0891b2; stroke-width: 3; marker-end: url(#thrust-arrow); }
+      .feedback { fill: none; stroke: #059669; stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#feedback-arrow); }
+      .feedback-label { font-size: 15px; fill: #047857; }
+    </style>
+  </defs>
+  <rect width="1400" height="1490" fill="#f6f8fc"/>
+  <text x="70" y="48" class="heading">Quadcopter control — RC input and internal Python controller</text>
+  <text x="70" y="78" class="note">Current implementation · fixed-step physics · ideal ground-truth feedback</text>
+
+  <rect x="190" y="100" width="1110" height="220" rx="18" fill="#eaf2ff" stroke="#77a3fb" stroke-width="2"/>
+  <text x="215" y="131" class="section">Software controllers · position square (XY + Z) / altitude hold (Z only)</text>
+  <rect x="215" y="150" width="505" height="80" rx="12" class="control"/>
+  <text x="467" y="180" class="label">XY position PID → XY velocity PID</text>
+  <text x="467" y="204" class="detail">Velocity → acceleration → roll/pitch + tilt compensation</text>
+  <text x="467" y="222" class="detail">Position-square example · hold initial heading via yaw rate</text>
+  <rect x="760" y="150" width="510" height="80" rx="12" class="control"/>
+  <text x="1015" y="180" class="label">Altitude PID → vertical-speed PID</text>
+  <text x="1015" y="205" class="detail">Acceleration + gravity → vertical thrust (N)</text>
+  <path d="M760 211 H720" class="thrust"/>
+  <path d="M467 230 V240 H650 V250" class="flow"/>
+  <path d="M1015 230 V240 H750 V250" class="flow"/>
+  <text x="1040" y="259" class="note">Z → RC directly:</text>
+  <text x="1040" y="282" class="note">altitude-hold example only</text>
+  <rect x="400" y="250" width="600" height="52" rx="12" class="control"/>
+  <text x="700" y="272" class="label">RC mapping · Acro square converts tilt to rates first</text>
+  <text x="700" y="293" class="detail">Angle: roll/pitch + yaw rate · Acro: body rates · thrust + arming</text>
+  <path d="M700 320 V350" class="flow"/>
+  <rect x="360" y="350" width="680" height="72" rx="13" fill="#eaf2ff" stroke="#77a3fb" stroke-width="2"/>
+  <text x="700" y="379" class="label">RcInput — 18 integer RC channels (1000–2000)</text>
+  <text x="700" y="404" class="detail">RcSimulation.step(rc_input) · one command per physics step</text>
+  <path d="M700 422 V450" class="flow"/>
+  <rect x="360" y="450" width="680" height="66" rx="12" class="control"/>
+  <text x="700" y="477" class="label">RC decoding · SoftwareRc / RcCodec</text>
+  <text x="700" y="501" class="detail">Mode + roll/pitch + yaw rate + collective thrust + armed</text>
+
+  <rect x="145" y="540" width="1170" height="565" rx="20" fill="#edf4ff" stroke="#91b5f6" stroke-width="2"/>
+  <text x="170" y="570" class="section">Internal control</text>
+  <path d="M700 516 V530 H420 V600" class="flow"/>
+  <path d="M700 516 V600" class="flow"/>
+  <path d="M1040 483 H1170 V600" class="thrust"/>
+
+  <rect x="250" y="600" width="340" height="70" rx="12" class="control"/>
+  <text x="420" y="628" class="label">Angle roll / pitch</text>
+  <text x="420" y="653" class="detail">Desired angles (rad)</text>
+  <path d="M420 670 V710" class="flow"/>
+  <rect x="250" y="710" width="340" height="76" rx="12" class="control"/>
+  <text x="420" y="740" class="label">Attitude P</text>
+  <text x="420" y="765" class="detail">Angle error → desired body rates</text>
+
+  <rect x="635" y="600" width="360" height="96" rx="12" class="control"/>
+  <text x="815" y="628" class="label">Acro body rates / RC yaw rate</text>
+  <text x="815" y="653" class="detail">Rate targets (rad/s)</text>
+  <text x="815" y="678" class="detail">RC yaw is rate-controlled in both modes</text>
+  <path d="M815 696 V850" class="flow"/>
+  <text x="834" y="753" class="note">Bypasses attitude P</text>
+
+  <rect x="1060" y="600" width="230" height="96" rx="12" class="control"/>
+  <text x="1175" y="631" class="label">Collective thrust</text>
+  <text x="1175" y="657" class="detail">Body +Z force (N)</text>
+  <text x="1175" y="681" class="detail">Separate from torque</text>
+  <path d="M1175 696 V1010 H1080" class="thrust"/>
+  <text x="1147" y="820" class="note" text-anchor="end">Bypasses attitude</text>
+  <text x="1147" y="843" class="note" text-anchor="end">and rate PID</text>
+
+  <path d="M420 786 V817 H690 V850" class="flow"/>
+  <rect x="450" y="850" width="500" height="78" rx="12" class="control"/>
+  <text x="700" y="880" class="label">Rate PID + feedforward</text>
+  <text x="700" y="906" class="detail">Body-rate error → requested body torque (N·m)</text>
+  <path d="M700 928 V970" class="flow"/>
+  <rect x="360" y="970" width="720" height="80" rx="13" class="physics"/>
+  <text x="720" y="1000" class="label">MotorMixer</text>
+  <text x="720" y="1027" class="detail">Collective thrust + body torque → prop0–prop3 speeds (rad/s)</text>
+  <text x="720" y="1080" class="detail">Bounded allocation · preserves collective · scales torque when saturated</text>
+
+  <rect x="100" y="1140" width="1240" height="190" rx="20" fill="white" stroke="#d6b176" stroke-width="2"/>
+  <text x="125" y="1168" class="section">Shared physical drone · PyBullet</text>
+  <rect x="145" y="1190" width="320" height="104" rx="13" class="physics"/>
+  <path d="M360 1010 H180 V1123 H120 V1242 H145" class="flow"/>
+  <text x="305" y="1222" class="label">Ideal ESC / motors</text>
+  <text x="305" y="1248" class="detail">Speed limits · instantaneous response</text>
+  <text x="305" y="1273" class="detail">Target rad/s = actual rad/s</text>
+  <path d="M465 1242 H535" class="flow"/>
+  <rect x="535" y="1190" width="320" height="104" rx="13" class="physics"/>
+  <text x="695" y="1222" class="label">Propellers + ForceChain</text>
+  <text x="695" y="1248" class="detail">k_f × speed² + wind / aero modifiers</text>
+  <text x="695" y="1273" class="detail">Rotor forces + COM force / torque</text>
+  <path d="M855 1242 H925" class="flow"/>
+  <rect x="925" y="1190" width="370" height="104" rx="13" class="physics"/>
+  <text x="1110" y="1222" class="label">PyBullet rigid-body step</text>
+  <text x="1110" y="1248" class="detail">Offset rotor forces + body wrench</text>
+  <text x="1110" y="1273" class="detail">Gravity + contact + stepSimulation()</text>
+  <a href="force-implementation-chain.svg"><text x="720" y="1318" class="detail">Configured drag, damping, inflow, flapping, gyro, ground effect and wakes → see force-chain tips</text></a>
+  <path d="M1110 1294 V1360" class="flow"/>
+  <rect x="470" y="1360" width="710" height="83" rx="14" fill="#e8fbf3" stroke="#77cfab" stroke-width="1.8"/>
+  <text x="825" y="1389" class="label">DroneObservation.ground_truth</text>
+  <text x="825" y="1415" class="detail">World position / velocity · orientation · world angular velocity</text>
+  <text x="825" y="1435" class="detail">Feedback uses the latest completed step; disarmed commands stop all motors</text>
+
+  <path d="M470 1401 H55 V187 H215" class="feedback"/>
+  <text x="75" y="169" class="feedback-label">World XY state</text>
+  <path d="M1180 1401 H1360 V187 H1270" class="feedback"/>
+  <text x="1380" y="920" class="feedback-label" transform="rotate(-90 1380 920)">Altitude (m) + vertical speed (m/s)</text>
+  <path d="M75 1401 V748 H250" class="feedback"/>
+  <text x="95" y="729" class="feedback-label">Orientation</text>
+  <path d="M95 1401 V889 H450" class="feedback"/>
+  <text x="115" y="868" class="feedback-label">World → body angular rates (rad/s)</text>
+  <text x="70" y="1473" class="note">Acro square: navigation converts tilt → body rates upstream; internal Acro stabilization bypasses attitude P.</text>
+</svg>

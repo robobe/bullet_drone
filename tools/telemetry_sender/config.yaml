@@ -1,0 +1,14 @@
+# Destination IPv4 address; defaults to 127.0.0.1 for local PlotJuggler (no DNS lookup).
+host: 127.0.0.1
+# Destination UDP port, integer 1..65535; default 9870. Match the layout's UDP source.
+port: 9870
+# Positive finite wall-clock send cap in Hz; default 5.0 (one sample per 200 ms).
+# The newest pending state is sent; physics stays at 240 Hz and plots use simulation time.
+send_rate_hz: 5.0
+# Positive integer number of queued states, default 256. A full queue drops new submissions.
+queue_capacity: 256
+# Positive finite seconds to wait for child startup before disabling streaming; default 3.0.
+startup_timeout_s: 3.0
+# Positive finite seconds allowed for final send and child shutdown; default 3.0.
+# Very low send rates may exceed this deadline; unsent samples are reported, not forced out.
+shutdown_timeout_s: 3.0
