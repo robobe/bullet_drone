@@ -46,4 +46,4 @@ variance/correlation at 240/480/960 Hz, digital half-power cutoff, nominal/actua
 intervals, elapsed-time drift variance, repeatable resets, invalid settings and
 Nyquist, and unchanged commanded physics with the demo's density profile.
 Diff whitespace validation passed. No hardware or full renderer flight test.
-Implementation commit: Pending.
+Implementation commit: `5842d499d976f2d0945c185e5d9a485b63e2accd`.
