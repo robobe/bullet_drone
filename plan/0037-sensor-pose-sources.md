@@ -58,4 +58,4 @@ image-based collision reports. No calibrated hardware behavior is claimed.
 ## Status
 
 Implemented; verification results and existing failures recorded above.
-Implementation commit: Pending (no commit requested).
+Implementation commit: `7c6e86617a25fc300adfaa1a3116c225750f78fc`.

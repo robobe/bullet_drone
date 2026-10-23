@@ -36,4 +36,4 @@
 | [0034: yaw target search](0034-yaw-target-search.md) | One measured yaw circle, candidate braking/settling and continuous LOS handoff at the new heading. | Complete; committed | `0861c8cfd6d0442773998500200092bd2660d87b` |
 | [0035: center target before LOS](0035-center-target-before-los.md) | Proportional yaw centers the bbox horizontally before settling and ending search. | Complete; committed | `fca7f74d8d8fbf6d74c537420d5e4ea8a44c49e5` |
 | [0036: single workspace task](0036-single-workspace-task.md) | Replace workspace and folder tasks with one four-service launch task. | Implemented; stub launch/cleanup verified | Pending |
-| [0037: sensor pose sources](0037-sensor-pose-sources.md) | YAML-selected barometer altitude and complementary-filter IMU attitude for camera/app. | Implemented; 2 unrelated legacy task-test failures | Pending |
+| [0037: sensor pose sources](0037-sensor-pose-sources.md) | YAML-selected barometer altitude and complementary-filter IMU attitude for camera/app. | Implemented; 2 unrelated legacy task-test failures | `7c6e86617a25fc300adfaa1a3116c225750f78fc` |
