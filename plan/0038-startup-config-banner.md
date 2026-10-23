@@ -17,4 +17,4 @@ regressions. No flight or hardware validation is needed for this output change.
 Status: Implemented. All 17 external-RC, spawn and publisher checks passed;
 `git diff --check` passed. Captured stdout covers YAML and built-in defaults,
 resolved overrides and a single banner across resets/spawn replacement.
-Implementation commit: Pending.
+Implementation commit: `55562afcc05b73de4b76ab2cbe165de15b276806`.

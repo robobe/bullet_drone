@@ -37,4 +37,4 @@
 | [0035: center target before LOS](0035-center-target-before-los.md) | Proportional yaw centers the bbox horizontally before settling and ending search. | Complete; committed | `fca7f74d8d8fbf6d74c537420d5e4ea8a44c49e5` |
 | [0036: single workspace task](0036-single-workspace-task.md) | Replace workspace and folder tasks with one four-service launch task. | Implemented; stub launch/cleanup verified | Pending |
 | [0037: sensor pose sources](0037-sensor-pose-sources.md) | YAML-selected barometer altitude and complementary-filter IMU attitude for camera/app. | Implemented; 2 unrelated legacy task-test failures | `7c6e86617a25fc300adfaa1a3116c225750f78fc` |
-| [0038: startup configuration banner](0038-startup-config-banner.md) | Print all resolved external-RC startup settings and source paths to stdout. | Implemented; 17 focused checks passed | Pending |
+| [0038: startup configuration banner](0038-startup-config-banner.md) | Print all resolved external-RC startup settings and source paths to stdout. | Implemented; 17 focused checks passed | `55562afcc05b73de4b76ab2cbe165de15b276806` |
