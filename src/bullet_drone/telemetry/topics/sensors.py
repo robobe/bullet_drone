@@ -17,7 +17,7 @@ BAROMETER_SCHEMA = {
     **object_schema({
         "episode_id": {"type": "string", "minLength": 1},
         **SOURCE_PROPERTIES,
-        "pressure_pa": {**NUMBER, "exclusiveMinimum": 0, "description": "Measured pressure in Pa"},
+        "pressure_pa": {**NUMBER, "exclusiveMinimum": 0, "description": "Sensor output pressure in Pa, optionally filtered"},
         "altitude_m": {**NUMBER, "description": "Pressure-derived world Z in metres"},
     }),
     "type": ["object", "null"],

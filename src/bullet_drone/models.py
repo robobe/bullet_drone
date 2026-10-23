@@ -40,7 +40,7 @@ class ImuReading:
 
 @dataclass(frozen=True, slots=True)
 class BarometerReading:
-    """Measured pressure and pressure-derived world-Z altitude."""
+    """Sensor output pressure (optionally filtered) and its world-Z altitude."""
 
     episode_id: str
     step_index: int

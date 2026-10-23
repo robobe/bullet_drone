@@ -193,3 +193,8 @@ settings (including defaults and the headless override), flight control, vehicle
 render, transport and advertised platform configuration, plus configuration paths.
 `physics_config_path: null` means the built-in defaults were used. Diagnostics
 continue on stderr; the banner precedes physics initialization.
+
+The barometer in `configs/basic.yaml` uses `filter_enabled: true` and
+`filter_time_constant_s: 0.1` under `sensors.barometer`. It smooths pressure before
+altitude conversion for rendering and app feedback. Set `filter_enabled: false`
+for direct noisy readings. Omitted flags default to false in the library.

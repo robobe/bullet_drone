@@ -89,15 +89,16 @@ is a separate optional component described below.
 
 ## Barometer measurement model
 
-`BarometerReading.pressure_pa` is measured atmospheric pressure;
-`.altitude_m` is world Z inferred from that measured pressure. For reference
+`BarometerReading.pressure_pa` is the sensor output pressure, optionally filtered;
+`.altitude_m` is world Z inferred from that same output pressure. For reference
 pressure `p_ref`, temperature `T_ref` and world height `z_ref`:
 
 ```text
 H = R_air * T_ref / g_atmosphere
 p_ideal = p_ref * exp(-(z_world - z_ref) / H)
 p_measured = p_ideal + pressure_bias + Gaussian(0, pressure_stddev)
-z_measured = z_ref - H * (log(p_measured) - log(p_ref))
+p_output = low_pass(p_measured) if filter_enabled else p_measured
+z_measured = z_ref - H * (log(p_output) - log(p_ref))
 ```
 
 Defaults are `p_ref = 101325 Pa`, `T_ref = 288.15 K`, `z_ref = 0 m`,
@@ -110,10 +111,45 @@ It does not feed density back into rotor physics. Weather, rotor wash and
 thermal drift are outside this milestone.
 
 Pressure noise is applied once; altitude has no independent noise. Nonpositive
-or nonfinite measured pressure and unrepresentable model outputs raise errors;
+or nonfinite measured/output pressure and unrepresentable model outputs raise errors;
 they are not silently clipped or resampled.
 
+### Optional pressure filter
+
+`sensors.barometer.filter_enabled` is a strict boolean, default `false`.
+`filter_time_constant_s` is positive finite seconds, default `0.1`, validated even
+when filtering is disabled. The supplied `configs/basic.yaml` enables filtering.
+
+The filter runs inside the sensor after noise and bias, before altitude inversion:
+
+```text
+dt = measurement_time - previous_measurement_time
+alpha = 1 - exp(-dt / filter_time_constant_s)
+p_output = (1 - alpha) * previous_output + alpha * p_measured
+```
+
+The first measurement seeds the filter directly. Reset clears its history and
+restarts the seeded noise, including on spawn replacement. Invalid chronology is
+rejected before updating the filter. There is no extra sample delay or altered
+timestamp; a `0.1 s` time constant introduces roughly `0.1 s` response lag during
+steady climb. Larger constants smooth more and respond more slowly. Disabling
+the filter restores direct measured-pressure output.
+
+`pressure_pa` and `altitude_m` stay consistent; no separate raw-pressure field is
+added. Both rendering and app feedback receive the resulting altitude through
+the existing path. The app's vertical estimator remains unchanged. This filter
+reduces random noise, not fixed bias, drift or outliers.
+
 ## Configuration and noise
+
+The supplied `configs/basic.yaml` profile uses 2.3 Pa pressure standard deviation,
+the BMP388's typical high-resolution noise with IIR off ([Bosch datasheet, table 8](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp388-ds001.pdf)).
+In this atmosphere model that corresponds to approximately 0.19 m unfiltered
+altitude standard deviation near sea level. With the enabled 0.1 s filter at
+240 Hz, settled altitude noise is approximately 0.03 m. This matches a representative
+noise amplitude with a generic first-order filter; it does not emulate the
+device's sampling schedule, complete internal processing or drift.
+Omitting the YAML noise setting still gives zero noise in the library.
 
 All fields are optional. Python settings are `SensorsSettings`, `ImuSettings`
 and `BarometerSettings` from `bullet_drone.config`. For example:
@@ -143,6 +179,10 @@ sensors:
     enabled: true
     pressure_stddev_pa: 1.0
     pressure_bias_pa: 0.0
+    # Optional boolean, default false; smooth pressure before altitude conversion.
+    filter_enabled: false
+    # Positive finite seconds, default 0.1; higher values smooth more and add lag.
+    filter_time_constant_s: 0.1
     reference_pressure_pa: 101325.0
     reference_temperature_k: 288.15
     reference_altitude_m: 0.0
@@ -156,7 +196,7 @@ temperature are positive, `enabled` is strictly boolean, and seeds are integers
 (excluding booleans). Unknown YAML keys are rejected.
 
 Each measurement component receives additive fixed bias plus an independent
-Gaussian draw. Standard deviations are **per sample**, not noise densities;
+Gaussian draw before optional pressure filtering. Standard deviations are **per sample**, not noise densities;
 changing timestep does not scale them. Each sensor owns a private standard-library
 random generator. Default seeds differ between sensors; use distinct seeds across
 drones when independent noise is wanted. Identical seeds and sampling patterns
@@ -165,8 +205,9 @@ produce identical random streams. Reset restarts both history and seeded noise.
 ## Lifecycle and telemetry
 
 Reset returns fresh readings for both sensors. Each successful step produces
-fresh readings after physics advances. No independent sampling rates, delayed
-samples or wall-clock timing are involved. Direct sensor sampling requires reset,
+fresh readings after physics advances. No independent sampling rates, delivery
+latency or wall-clock timing are involved; pressure smoothing adds response lag.
+Direct sensor sampling requires reset,
 matching drone/episode identities, and strictly increasing step and finite time.
 Reset accepts a new identity and starts a new measurement history.
 

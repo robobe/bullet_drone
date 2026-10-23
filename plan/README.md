@@ -38,3 +38,6 @@
 | [0036: single workspace task](0036-single-workspace-task.md) | Replace workspace and folder tasks with one four-service launch task. | Implemented; stub launch/cleanup verified | Pending |
 | [0037: sensor pose sources](0037-sensor-pose-sources.md) | YAML-selected barometer altitude and complementary-filter IMU attitude for camera/app. | Implemented; 2 unrelated legacy task-test failures | `7c6e86617a25fc300adfaa1a3116c225750f78fc` |
 | [0038: startup configuration banner](0038-startup-config-banner.md) | Print all resolved external-RC startup settings and source paths to stdout. | Implemented; 17 focused checks passed | `55562afcc05b73de4b76ab2cbe165de15b276806` |
+| [0039: barometer noise profile](0039-barometer-noise-profile.md) | Enable representative BMP388 pressure noise in the basic YAML profile. | Implemented; 95 focused checks passed | Pending |
+| [0040: barometer pressure filter](0040-barometer-pressure-filter.md) | Optional sensor pressure smoothing before altitude conversion. | Implemented; 290 focused checks passed | Pending |
+| [0041: noise-tolerant hover transition](0041-noise-tolerant-hover-transition.md) | Use sensor altitude trend to confirm hover and yaw settling without control changes. | Implemented; 83 app checks passed | Pending |

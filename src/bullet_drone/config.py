@@ -167,13 +167,17 @@ class BarometerSettings:
     reference_temperature_k: float = DEFAULT_REFERENCE_TEMPERATURE_K
     reference_altitude_m: float = DEFAULT_REFERENCE_ALTITUDE_M
     seed: int = DEFAULT_BAROMETER_SEED
+    filter_enabled: bool = False
+    filter_time_constant_s: float = 0.1
 
     def __post_init__(self) -> None:
         _sensor_options(self.enabled, self.seed)
+        if type(self.filter_enabled) is not bool:
+            raise ConfigurationError('sensors.barometer.filter_enabled must be a boolean')
         for name in ("pressure_stddev_pa", "pressure_bias_pa", "reference_pressure_pa",
-                     "reference_temperature_k", "reference_altitude_m"):
+                     "reference_temperature_k", "reference_altitude_m", "filter_time_constant_s"):
             value = _number(getattr(self, name), f"sensors.barometer.{name}",
-                            positive=name in ("reference_pressure_pa", "reference_temperature_k"))
+                            positive=name in ("reference_pressure_pa", "reference_temperature_k", "filter_time_constant_s"))
             if name == "pressure_stddev_pa" and value < 0:
                 raise ConfigurationError("sensors.barometer.pressure_stddev_pa must be nonnegative")
             object.__setattr__(self, name, value)

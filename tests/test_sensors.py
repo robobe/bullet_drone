@@ -125,7 +125,8 @@ def test_seeded_noise_statistics_independence_and_reset(make_sensor, field):
         assert first.reset(state()).angular_velocity_rad_s == ZERO_VECTOR
 
 
-@pytest.mark.parametrize('make_sensor', [lambda: ImuSensor(GRAVITY_M_S2), BarometerSensor])
+@pytest.mark.parametrize('make_sensor', [lambda: ImuSensor(GRAVITY_M_S2), BarometerSensor,
+    lambda: BarometerSensor(BarometerSettings(filter_enabled=True))])
 def test_sensor_chronology_and_reset(make_sensor):
     sensor = make_sensor()
     with pytest.raises(LifecycleError):
@@ -162,6 +163,14 @@ def test_nonpositive_measured_pressure_is_rejected(settings):
     (BarometerSettings, {'reference_altitude_m': float('inf')}),
     (BarometerSettings, {'pressure_bias_pa': True}),
     (BarometerSettings, {'seed': None}),
+    (BarometerSettings, {'filter_enabled': 1}),
+    (BarometerSettings, {'filter_enabled': 'true'}),
+    (BarometerSettings, {'filter_enabled': None}),
+    (BarometerSettings, {'filter_time_constant_s': 0}),
+    (BarometerSettings, {'filter_time_constant_s': -0.1}),
+    (BarometerSettings, {'filter_time_constant_s': float('nan')}),
+    (BarometerSettings, {'filter_time_constant_s': float('inf')}),
+    (BarometerSettings, {'filter_time_constant_s': True}),
 ])
 def test_invalid_python_sensor_settings(settings_type, kwargs):
     with pytest.raises(ConfigurationError):
@@ -170,18 +179,24 @@ def test_invalid_python_sensor_settings(settings_type, kwargs):
 
 def test_sensor_yaml_settings_and_defaults(tmp_path):
     data = yaml.safe_load(open('configs/basic.yaml'))
+    data.pop('pose_sources', None)  # Test sensor defaults independently of the demo's selected outputs.
     data.pop('sensors', None)
     path = tmp_path / 'config.yaml'
     path.write_text(yaml.safe_dump(data))
     assert YamlConfigLoader().load(path).sensors == SensorsSettings()
     data['sensors'] = {'imu': {'enabled': False, 'gyro_bias_rad_s': list(GYRO_BIAS_RAD_S)},
-                       'barometer': {'pressure_stddev_pa': NOISE_STDDEV}}
+                       'barometer': {'pressure_stddev_pa': NOISE_STDDEV,
+                                     'filter_enabled': True, 'filter_time_constant_s': 0.2}}
     path.write_text(yaml.safe_dump(data))
     loaded = YamlConfigLoader().load(path).sensors
     assert loaded.imu.enabled is False and loaded.imu.gyro_bias_rad_s == GYRO_BIAS_RAD_S
     assert loaded.barometer.pressure_stddev_pa == NOISE_STDDEV
+    assert loaded.barometer.filter_enabled is True
+    assert loaded.barometer.filter_time_constant_s == 0.2
     for invalid in (None, {'unknown': {}}, {'imu': None}, {'barometer': {'unknown': 0}},
-                    {'imu': {'enabled': 'true'}}, {'imu': {'gyro_stddev_rad_s': [-1, 0, 0]}}):
+                    {'imu': {'enabled': 'true'}}, {'imu': {'gyro_stddev_rad_s': [-1, 0, 0]}},
+                    {'barometer': {'filter_enabled': 'true'}},
+                    {'barometer': {'filter_time_constant_s': 0}}):
         data['sensors'] = invalid
         path.write_text(yaml.safe_dump(data))
         with pytest.raises(ConfigurationError):
@@ -252,7 +267,10 @@ def test_sensor_failure_requires_environment_reset_and_cleanup(config, stage, fa
     assert env._physics._client is None
 
 
-def test_sensor_payloads_match_typed_schema(config):
+@pytest.mark.parametrize('filter_enabled', [False, True])
+def test_sensor_payloads_match_typed_schema(config, filter_enabled):
+    config = replace(config, sensors=replace(config.sensors,
+                     barometer=BarometerSettings(filter_enabled=filter_enabled, pressure_stddev_pa=NOISE_STDDEV)))
     sim = make_sim(config)
     try:
         initial = sim.reset()
@@ -297,3 +315,67 @@ def test_different_seeds_change_measurements():
     first = ImuSensor(ZERO_VECTOR, ImuSettings(gyro_stddev_rad_s=(NOISE_STDDEV,) * 3, seed=0))
     second = ImuSensor(ZERO_VECTOR, ImuSettings(gyro_stddev_rad_s=(NOISE_STDDEV,) * 3, seed=1))
     assert first.reset(state()).angular_velocity_rad_s != second.reset(state()).angular_velocity_rad_s
+
+
+@pytest.mark.parametrize('times', [
+    [step * DT_S for step in range(1, 51)],
+    [1e-12, 0.001, 0.05, 0.17, 0.4, 1.0],
+])
+def test_pressure_filter_step_response_uses_measurement_intervals(times):
+    settings = BarometerSettings(filter_enabled=True)
+    sensor = BarometerSensor(settings)
+    initial = sensor.reset(state())
+    target_height_m = 20.0
+    scale = DRY_AIR_GAS_CONSTANT_J_KG_K * settings.reference_temperature_k / ATMOSPHERIC_GRAVITY_M_S2
+    target_pressure = settings.reference_pressure_pa * exp(-(target_height_m - settings.reference_altitude_m) / scale)
+    for step, time_s in enumerate(times, 1):
+        reading = sensor.sample(state(step, simulation_time_s=time_s, position_m=(0., 0., target_height_m)))
+        expected_pressure = target_pressure + (initial.pressure_pa - target_pressure) * exp(-time_s / settings.filter_time_constant_s)
+        assert reading.pressure_pa == pytest.approx(expected_pressure, rel=1e-12)
+        recovered = settings.reference_pressure_pa * exp(-(reading.altitude_m - settings.reference_altitude_m) / scale)
+        assert recovered == pytest.approx(reading.pressure_pa, rel=1e-12)
+        assert INITIAL_ALTITUDE_M <= reading.altitude_m <= target_height_m
+
+
+def test_disabled_filter_preserves_instantaneous_pressure_and_noise():
+    settings = BarometerSettings(pressure_stddev_pa=NOISE_STDDEV)
+    default = BarometerSensor(settings)
+    disabled = BarometerSensor(replace(settings, filter_enabled=False, filter_time_constant_s=10.))
+    assert default.reset(state()) == disabled.reset(state())
+    for step in range(1, 20):
+        sample = state(step, position_m=(0., 0., float(step)))
+        assert default.sample(sample) == disabled.sample(sample)
+
+
+def test_demo_filter_reduces_noise_and_reset_restarts_history():
+    settings = YamlConfigLoader().load('configs/basic.yaml').sensors.barometer
+    assert settings.filter_enabled and settings.filter_time_constant_s == 0.1
+    filtered, raw = BarometerSensor(settings), BarometerSensor(replace(settings, filter_enabled=False))
+    initial = filtered.reset(state())
+    assert initial == raw.reset(state())
+    sample_period_s = 1 / 240
+    readings, raw_readings = [], []
+    for step in range(1, NOISE_SAMPLES + 1):
+        sample = state(step, simulation_time_s=step * sample_period_s)
+        readings.append(filtered.sample(sample))
+        raw_readings.append(raw.sample(sample))
+    settled = readings[240:]
+    noise_m = stdev(reading.altitude_m for reading in settled)
+    assert 0.015 < noise_m < 0.05
+    assert noise_m < stdev(reading.altitude_m for reading in raw_readings[240:]) / 4
+    assert abs(mean(reading.altitude_m for reading in settled) - INITIAL_ALTITUDE_M) < 0.02
+    assert filtered.reset(state()) == initial
+    for step, expected in enumerate(readings[:10], 1):
+        assert filtered.sample(state(step, simulation_time_s=step * sample_period_s)) == expected
+    # A new episode and height seed directly, without retaining the previous low-pass state.
+    replacement = state(episode_id='replacement', position_m=(0., 0., 20.))
+    assert filtered.reset(replacement) == raw.reset(replacement)
+
+
+@pytest.mark.parametrize('invalid_pressure', [0., -1., float('nan'), float('inf')])
+def test_filter_does_not_hide_invalid_measured_pressure(monkeypatch, invalid_pressure):
+    sensor = BarometerSensor(BarometerSettings(filter_enabled=True))
+    sensor.reset(state())
+    monkeypatch.setattr('bullet_drone.sensors.barometer.noisy', lambda *args: invalid_pressure)
+    with pytest.raises(ValueError, match='pressure must be positive and finite'):
+        sensor.sample(state(1))

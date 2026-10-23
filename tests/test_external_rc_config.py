@@ -12,13 +12,14 @@ from bullet_drone.pose import resolve_pose
 from tools.zmq_render.publisher import RenderPublisher
 
 
-def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize('filter_enabled', [False, True])
+def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, monkeypatch, capsys, filter_enabled):
     from examples.external_rc import main as runner
     data = asdict(config)
     data['simulation']['gui'] = True  # The external runner remains headless.
     data['pose_sources'] = asdict(PoseSources('barometer', 'imu'))
     data['sensors'] = asdict(SensorsSettings(ImuSettings(gyro_bias_rad_s=(.1, .1, .1)),
-                                           BarometerSettings(pressure_bias_pa=5.)))
+                                           BarometerSettings(pressure_bias_pa=5., filter_enabled=filter_enabled)))
     physics = tmp_path/'physics.yaml'
     physics.write_text(yaml.safe_dump(data))
     transport = tmp_path/'transport.json'

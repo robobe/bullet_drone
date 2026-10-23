@@ -1,6 +1,6 @@
 """Constant-temperature atmospheric pressure and pressure-derived altitude."""
 
-from math import exp, isfinite, log
+from math import exp, expm1, isfinite, log
 from random import Random
 
 from bullet_drone.config import BarometerSettings
@@ -15,7 +15,7 @@ WORLD_Z_AXIS = 2
 
 
 class BarometerSensor:
-    """Earth atmosphere in world Z; pressure noise precedes altitude inversion.
+    """Earth atmosphere in world Z; optional pressure smoothing before inversion.
 
     The local isothermal atmosphere is a low-altitude approximation, independent
     of configured physics gravity. No weather, rotor wash or temperature noise.
@@ -29,9 +29,11 @@ class BarometerSensor:
             raise ValueError("Barometer scale height must be positive and finite")
         self._rng = Random(settings.seed)
         self._previous: DroneState | None = None
+        self._filtered_pressure_pa: float | None = None
 
     def reset(self, state: DroneState) -> BarometerReading:
         self._previous = None
+        self._filtered_pressure_pa = None
         self._rng.seed(self._settings.seed)
         validate_state(state)
         reading = self._measure(state)
@@ -56,11 +58,19 @@ class BarometerSensor:
         except OverflowError as exc:
             raise ValueError("Barometer source height exceeds the pressure model range") from exc
         pressure = noisy(pressure, settings.pressure_bias_pa, settings.pressure_stddev_pa, self._rng)
-        if pressure <= 0:
-            raise ValueError("Measured barometric pressure must be positive")
+        if not isfinite(pressure) or pressure <= 0:
+            raise ValueError("Measured barometric pressure must be positive and finite")
+        if settings.filter_enabled and self._filtered_pressure_pa is not None:
+            dt = state.simulation_time_s - self._previous.simulation_time_s
+            alpha = -expm1(-dt / settings.filter_time_constant_s)
+            pressure = (1 - alpha) * self._filtered_pressure_pa + alpha * pressure
+            if not isfinite(pressure) or pressure <= 0:
+                raise ValueError("Filtered barometric pressure must be positive and finite")
         altitude = (settings.reference_altitude_m
                     - self._scale_height_m * (log(pressure) - log(settings.reference_pressure_pa)))
         if not isfinite(altitude):
             raise ValueError("Barometer altitude must be finite")
+        if settings.filter_enabled:
+            self._filtered_pressure_pa = pressure
         return BarometerReading(state.episode_id, state.step_index, state.simulation_time_s,
                                 pressure, altitude)

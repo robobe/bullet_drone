@@ -48,9 +48,15 @@ sensors:
     enabled: true
     # Per-sample Gaussian pressure standard deviation in Pa, applied before altitude conversion.
     # Must be finite and nonnegative; defaults to 0 (no noise).
-    pressure_stddev_pa: 0.0
+    # This profile uses BMP388 high-resolution, IIR-off typical RMS noise: 2.3 Pa,
+    # approximately 0.19 m unfiltered altitude noise near sea level (datasheet table 8).
+    pressure_stddev_pa: 2.3
     # Fixed pressure bias in Pa, finite; default 0. Applied before altitude conversion.
     pressure_bias_pa: 0.0
+    # Optional boolean, default false; smooth pressure before converting it to altitude.
+    filter_enabled: true
+    # Positive finite time constant in seconds, default 0.1; larger values smooth more and add lag.
+    filter_time_constant_s: 0.1
     # Integer random seed, default 1; reset repeats the sequence. Keep distinct from the IMU seed.
     seed: 1
 
