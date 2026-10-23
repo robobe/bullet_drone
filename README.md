@@ -198,3 +198,9 @@ The barometer in `configs/basic.yaml` uses `filter_enabled: true` and
 `filter_time_constant_s: 0.1` under `sensors.barometer`. It smooths pressure before
 altitude conversion for rendering and app feedback. Set `filter_enabled: false`
 for direct noisy readings. Omitted flags default to false in the library.
+
+The IMU demo now uses an ICM-42688-P density profile with sensor filtering:
+`sensors.imu.noise_model: density`, `filter_enabled: true`, acceleration cutoff
+30 Hz and gyro cutoff 60 Hz. Fixed bias and residual bias drift remain zero as a
+calibrated baseline. See [IMU fields, units and model limits](docs/design/sensors.md#icm-42688-p-density-based-imu-profile).
+Omitted options preserve the legacy per-sample noise model and disable filtering.

@@ -147,15 +147,43 @@ class ImuSettings:
     gyro_stddev_rad_s: Vector3 = ZERO_VECTOR
     gyro_bias_rad_s: Vector3 = ZERO_VECTOR
     seed: int = DEFAULT_IMU_SEED
+    noise_model: str = 'per_sample'
+    accelerometer_noise_density_m_s2_sqrt_hz: Vector3 = ZERO_VECTOR
+    gyro_noise_density_rad_s_sqrt_hz: Vector3 = ZERO_VECTOR
+    filter_enabled: bool = False
+    accelerometer_cutoff_hz: float = 30.0
+    gyro_cutoff_hz: float = 60.0
+    accelerometer_bias_random_walk_m_s2_sqrt_s: Vector3 = ZERO_VECTOR
+    gyro_bias_random_walk_rad_s_sqrt_s: Vector3 = ZERO_VECTOR
 
     def __post_init__(self) -> None:
         _sensor_options(self.enabled, self.seed)
+        if self.noise_model not in ('per_sample', 'density'):
+            raise ConfigurationError('sensors.imu.noise_model must be per_sample or density')
+        if type(self.filter_enabled) is not bool:
+            raise ConfigurationError('sensors.imu.filter_enabled must be a boolean')
         for name in ("accelerometer_stddev_m_s2", "accelerometer_bias_m_s2",
-                     "gyro_stddev_rad_s", "gyro_bias_rad_s"):
+                     "gyro_stddev_rad_s", "gyro_bias_rad_s",
+                     "accelerometer_noise_density_m_s2_sqrt_hz", "gyro_noise_density_rad_s_sqrt_hz",
+                     "accelerometer_bias_random_walk_m_s2_sqrt_s", "gyro_bias_random_walk_rad_s_sqrt_s"):
             values = _vector(getattr(self, name), f"sensors.imu.{name}")
-            if "stddev" in name and any(value < 0 for value in values):
+            if any(word in name for word in ('stddev', 'density', 'random_walk')) and any(value < 0 for value in values):
                 raise ConfigurationError(f"sensors.imu.{name} must be nonnegative")
             object.__setattr__(self, name, values)
+        if self.noise_model == 'density' and any((*self.accelerometer_stddev_m_s2, *self.gyro_stddev_rad_s)):
+            raise ConfigurationError('density mode cannot use per-sample IMU standard deviations')
+        if self.noise_model == 'per_sample' and any((*self.accelerometer_noise_density_m_s2_sqrt_hz,
+                                                   *self.gyro_noise_density_rad_s_sqrt_hz)):
+            raise ConfigurationError('IMU noise densities require density mode')
+        for name in ('accelerometer_cutoff_hz', 'gyro_cutoff_hz'):
+            object.__setattr__(self, name, _number(getattr(self, name), f'sensors.imu.{name}', positive=True))
+
+    def validate_sample_period(self, period_s: float) -> float:
+        period = _number(period_s, 'imu.sample_period_s', positive=True)
+        if self.filter_enabled and any(2 * cutoff * period >= 1 for cutoff in
+                                       (self.accelerometer_cutoff_hz, self.gyro_cutoff_hz)):
+            raise ConfigurationError('IMU filter cutoffs must be below the sampling Nyquist frequency')
+        return period
 
 
 @dataclass(frozen=True, slots=True)
@@ -413,6 +441,8 @@ class SimulationConfig:
             raise ConfigurationError('rc must be RcSettings')
         if not isinstance(self.sensors, SensorsSettings):
             raise ConfigurationError('sensors must be SensorsSettings')
+        if self.sensors.imu.enabled:
+            self.sensors.imu.validate_sample_period(self.simulation.timestep_s)
         if not isinstance(self.forces, ForcesSettings) or not isinstance(self.wind, WindSettings):
             raise ConfigurationError('forces/wind must be ForcesSettings/WindSettings')
         if self.pose_sources.altitude == 'barometer' and not self.sensors.barometer.enabled:

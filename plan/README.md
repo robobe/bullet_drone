@@ -41,3 +41,4 @@
 | [0039: barometer noise profile](0039-barometer-noise-profile.md) | Enable representative BMP388 pressure noise in the basic YAML profile. | Implemented; 95 focused checks passed | `ce54722cebbcea1ccac78eb70008de4b5e23c14f` |
 | [0040: barometer pressure filter](0040-barometer-pressure-filter.md) | Optional sensor pressure smoothing before altitude conversion. | Implemented; 290 focused checks passed | `ce54722cebbcea1ccac78eb70008de4b5e23c14f` |
 | [0041: noise-tolerant hover transition](0041-noise-tolerant-hover-transition.md) | Use sensor altitude trend to confirm hover and yaw settling without control changes. | Implemented; 83 app checks passed | `9b85374f70a0e87ad7f8d873922847e540258d66` |
+| [0042: ICM-42688-P IMU noise](0042-icm42688p-imu-noise.md) | Density-based IMU noise, sensor filters and configurable residual bias drift. | Implemented; 420 relevant checks passed | Pending |

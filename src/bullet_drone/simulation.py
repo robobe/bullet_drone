@@ -42,7 +42,7 @@ class RcSimulation:
         )
         self._environment = DroneEnvironment(PyBulletPhysics(
             config, vehicle, motor_dynamics=motor_dynamics, propeller_model=propeller_model,
-        ), imu=(ImuSensor(config.simulation.gravity_m_s2, config.sensors.imu)
+        ), imu=(ImuSensor(config.simulation.gravity_m_s2, config.sensors.imu, sample_period_s=self._timestep_s)
                 if config.sensors.imu.enabled else None),
             barometer=(BarometerSensor(config.sensors.barometer)
                        if config.sensors.barometer.enabled else None),

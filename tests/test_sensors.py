@@ -215,7 +215,8 @@ def test_sensor_observations_and_noisy_physics_independence(config):
     results = []
     for settings in (SensorsSettings(), noisy_settings, disabled_settings,
                      SensorsSettings(imu=ImuSettings(enabled=False)),
-                     SensorsSettings(barometer=BarometerSettings(enabled=False))):
+                     SensorsSettings(barometer=BarometerSettings(enabled=False)),
+                     YamlConfigLoader().load('configs/basic.yaml').sensors):
         sim = make_sim(replace(config, sensors=settings))
         try:
             observations = [sim.reset(), sim.step(RcInput()),

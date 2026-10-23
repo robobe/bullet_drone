@@ -29,16 +29,37 @@ sensors:
   imu:
     # Optional boolean, default true; false makes observation.sensors.imu None.
     enabled: true
+    # Noise mode: per_sample (default) or density. This profile uses ICM-42688-P datasheet densities.
+    noise_model: density
     # Per-sample Gaussian standard deviations on body [X, Y, Z] specific force in m/s^2.
     # Each component must be finite and nonnegative; defaults to [0, 0, 0] (no noise).
+    # Used in per_sample mode; must remain zero in density mode.
     accelerometer_stddev_m_s2: [0.0, 0.0, 0.0]
     # Per-sample Gaussian standard deviations on body [X, Y, Z] angular velocity in rad/s.
     # Each component must be finite and nonnegative; defaults to [0, 0, 0] (no noise).
+    # Used in per_sample mode; must remain zero in density mode.
     gyro_stddev_rad_s: [0.0, 0.0, 0.0]
     # Fixed body-axis accelerometer bias in m/s^2; three finite values, default [0, 0, 0].
     accelerometer_bias_m_s2: [0.0, 0.0, 0.0]
     # Fixed body-axis gyro bias in rad/s; three finite values, default [0, 0, 0].
     gyro_bias_rad_s: [0.0, 0.0, 0.0]
+    # One-sided XYZ acceleration noise density in (m/s^2)/sqrt(Hz), finite/nonnegative; default [0, 0, 0].
+    # TDK table 2: 65/65/70 micro-g/sqrt(Hz), converted using 9.80665 m/s^2 per g.
+    accelerometer_noise_density_m_s2_sqrt_hz: [0.00063743225, 0.00063743225, 0.0006864655]
+    # One-sided XYZ gyro noise density in (rad/s)/sqrt(Hz), finite/nonnegative; default [0, 0, 0].
+    # TDK table 1: 0.0028 deg/s/sqrt(Hz), converted to radians.
+    gyro_noise_density_rad_s_sqrt_hz: [0.00004886921906, 0.00004886921906, 0.00004886921906]
+    # Optional boolean, default false; filter noisy acceleration and gyro before attitude estimation.
+    filter_enabled: true
+    # Digital acceleration -3 dB cutoff in Hz, positive/finite; default 30, below half the sample rate.
+    accelerometer_cutoff_hz: 30.0
+    # Digital gyro -3 dB cutoff in Hz, positive/finite; default 60, below half the sample rate.
+    gyro_cutoff_hz: 60.0
+    # XYZ residual acceleration bias random walk in (m/s^2)/sqrt(s), finite/nonnegative; default [0, 0, 0].
+    # Calibrated baseline: drift stays zero until measured calibration data is available.
+    accelerometer_bias_random_walk_m_s2_sqrt_s: [0.0, 0.0, 0.0]
+    # XYZ residual gyro bias random walk in (rad/s)/sqrt(s), finite/nonnegative; default [0, 0, 0].
+    gyro_bias_random_walk_rad_s_sqrt_s: [0.0, 0.0, 0.0]
     # Integer random seed, default 0; reset repeats the sequence. Use distinct seeds across drones.
     seed: 0
   # Optional pressure sensor settings; altitude is derived from measured pressure using world Z.

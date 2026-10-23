@@ -25,7 +25,8 @@ from bullet_drone.sensors import BarometerSensor, ImuSensor
 # physics is an existing PhysicsBackend; config is its SimulationConfig.
 environment = DroneEnvironment(
     physics,
-    imu=ImuSensor(config.simulation.gravity_m_s2, config.sensors.imu),
+    imu=ImuSensor(config.simulation.gravity_m_s2, config.sensors.imu,
+                  sample_period_s=config.simulation.timestep_s),
     barometer=BarometerSensor(config.sensors.barometer),
 )
 try:
@@ -83,9 +84,9 @@ vectors/quaternions raise `GeometryError` (a `ValueError`), rather than
 `InvalidCommandError`; source-state geometry failures require environment reset.
 
 Acceleration is an interval average expressed in the current frame. Contact
-impulses can therefore produce large readings. No clipping, lever-arm effects,
-magnetometer or filtering inside the raw sensor is modeled. Attitude estimation
-is a separate optional component described below.
+impulses can therefore produce large readings. Optional accel/gyro filtering is
+described below. No clipping, lever-arm effects or magnetometer is modeled.
+Attitude estimation is a separate optional component.
 
 ## Barometer measurement model
 
@@ -196,8 +197,9 @@ temperature are positive, `enabled` is strictly boolean, and seeds are integers
 (excluding booleans). Unknown YAML keys are rejected.
 
 Each measurement component receives additive fixed bias plus an independent
-Gaussian draw before optional pressure filtering. Standard deviations are **per sample**, not noise densities;
-changing timestep does not scale them. Each sensor owns a private standard-library
+Gaussian draw before optional filtering. The existing standard-deviation fields
+are **per sample**; changing timestep does not scale them. The IMU can instead
+select the density-based model below. Each sensor owns a private standard-library
 random generator. Default seeds differ between sensors; use distinct seeds across
 drones when independent noise is wanted. Identical seeds and sampling patterns
 produce identical random streams. Reset restarts both history and seeded noise.
@@ -330,3 +332,84 @@ and app. The old standalone UDP/render-profile API is unchanged.
 No position estimator or magnetometer is modeled. Selected noisy render poses
 change visual geometry and image-based collision reports, while Bullet physics
 and contacts remain driven by ground truth.
+
+## ICM-42688-P density-based IMU profile
+
+`configs/basic.yaml` now selects `sensors.imu.noise_model: density` and enables
+sensor filtering. The reference chip is used by the
+[SpeedyBee F405 V4](https://www.speedybee.com/speedybee-f405-v4-bls-60a-30x30-fc-esc-stack/?setCurrencyId=2)
+and [Holybro Pixhawk 6C](https://holybro.com/products/pixhawk-6c?variant=42420293599421).
+TDK's [ICM-42688-P datasheet, tables 1-2](https://product.tdk.com/system/files/dam/doc/product/sensor/mortion-inertial/imu/data_sheet/ds-000347-icm-42688-p-v1.6.pdf)
+gives gyro density 0.0028 deg/s/sqrt(Hz), and acceleration density 65/65/70
+micro-g/sqrt(Hz) for X/Y/Z. Use standard gravity 9.80665 m/s^2 to convert micro-g,
+independently of the configured simulated gravity.
+
+| Setting under sensors.imu | Units | Demo value | Omitted default |
+| --- | --- | --- | --- |
+| `noise_model` | `per_sample` or `density` | `density` | `per_sample` |
+| `accelerometer_noise_density_m_s2_sqrt_hz` | (m/s^2)/sqrt(Hz), XYZ | [0.00063743225, 0.00063743225, 0.0006864655] | [0, 0, 0] |
+| `gyro_noise_density_rad_s_sqrt_hz` | (rad/s)/sqrt(Hz), XYZ | [0.00004886921906, 0.00004886921906, 0.00004886921906] | [0, 0, 0] |
+| `filter_enabled` | strict boolean | true | false |
+| `accelerometer_cutoff_hz` | Hz, digital -3 dB cutoff | 30 | 30 |
+| `gyro_cutoff_hz` | Hz, digital -3 dB cutoff | 60 | 60 |
+| `accelerometer_bias_random_walk_m_s2_sqrt_s` | (m/s^2)/sqrt(s), XYZ | [0, 0, 0] | [0, 0, 0] |
+| `gyro_bias_random_walk_rad_s_sqrt_s` | (rad/s)/sqrt(s), XYZ | [0, 0, 0] | [0, 0, 0] |
+
+Vectors require three finite nonnegative values. Cutoffs must be positive and
+finite, even when filtering is disabled. Enabled filters require cutoffs strictly
+below half the sampling rate. Density mode rejects nonzero per-sample standard
+deviations; per_sample mode rejects nonzero densities, so a setting cannot be
+silently ignored or counted twice. Fixed bias fields and seeds retain their
+existing behavior.
+
+The model uses the datasheet's **one-sided amplitude spectral density** convention.
+For each axis and measurement interval `dt`:
+
+```text
+white_stddev = noise_density / sqrt(2 * dt)
+residual_bias += random_walk_coefficient * sqrt(dt) * Gaussian(0, 1)
+measurement = true_body_signal + fixed_bias + residual_bias + Gaussian(0, white_stddev)
+```
+
+The white variance integrates density squared over 0..Nyquist, `1/(2*dt)` Hz.
+This factor must not be mixed with a two-sided continuous-time density convention.
+Random-walk coefficients describe how bias standard deviation grows with the
+square root of elapsed seconds; they are not the manufacturer's initial offset
+limits. The demo uses zero fixed bias and drift as a calibrated baseline until
+measured residual-bias data is available. No random-walk increment occurs on reset.
+
+Filtering applies to each complete measured signal in its body frame. With
+cutoff `fc`, the first-order digital filter is:
+
+```text
+s = sin(pi * fc * dt)
+alpha = 2*s / (sqrt(1+s*s) + s)
+output = (1-alpha)*previous_output + alpha*measurement
+```
+
+This coefficient places the discrete -3 dB point at `fc`. At constant sampling
+rate `fs`, independent white input has settled output variance
+`density^2 * (fs/2) * alpha/(2-alpha)` and lag-one correlation `1-alpha`.
+At 240 Hz the demo's predicted settled standard deviations are approximately
+0.00417/0.00417/0.00450 m/s^2 for acceleration and 0.000407 rad/s for each gyro axis.
+These are theoretical model values; the 30/60 Hz cutoffs are simulation settings,
+not claims about any particular Betaflight or Pixhawk firmware configuration.
+
+Direct sensor users must provide `sample_period_s` when density noise or filtering
+is selected. `RcSimulation` supplies its physics timestep automatically. The first
+sample uses that nominal period and seeds filter history from the measured value;
+subsequent samples use actual measurement intervals. A later interval violating
+Nyquist is rejected before sensor state advances. Episode reset clears filter and
+bias histories and reseeds noise, including on spawn replacement. Invalid source
+chronology, numeric failures and lifecycle handling retain existing semantics.
+
+`ImuReading` and sensor telemetry still contain only measured specific force and
+body rates. The complementary attitude estimator consumes these outputs without
+another noise draw. Internal stabilization and physics remain unchanged. Legacy
+settings retain their exact seeded measurement sequences when new options are
+omitted. Startup stdout includes all resolved IMU settings automatically.
+
+This is an effective sensor feed at the physics sampling rate (240 Hz in the
+demo), not a complete kHz firmware pipeline. Motor vibration, aliasing from
+unmodeled high-frequency motion, temperature effects, quantization, saturation
+and real hardware calibration/replay are outside this model.
