@@ -1,7 +1,7 @@
 # 0045: Flight analysis recording
 
 Status: Implemented, verification complete.
-Implementation commit: Pending.
+Implementation commit: `8cde477426dc12f2c6be12542487a9edd50f8890`.
 
 Goal: Capture every standard flight in MCAP plus per-process diagnostic logs,
 without changing tracking behavior or clipping rejection.
@@ -62,3 +62,11 @@ Limits: the user's latest failed flight was not available as a recording. No
 long-duration wind/mission tuning or aerodynamic calibration was performed.
 Detailed force breakdown and raw readings not exposed by sensors remain deferred.
 Controller behavior remains unchanged.
+
+Sibling implementation commits:
+- bullet_msgs: `c517f00288452b66f8482e78b58c713dd03b7ee8`.
+- bullet_render: `4725e8b0a46637e2fc256b2107e150bd73fa7c92`.
+- bullet_app: `08cbf83561c127a459039373ec1d2bee05809f06`.
+- los_tracking: `e677833404f3de558c2fe4b92fe8757c61f60da7`.
+- mcap_bagger: `507c96e40a93d7dced5fc89534ff6d7b3100c517`.
+- Shared workspace: `963445ff2a001ffdecdf9ea6fc97cb045c67ca25`.
