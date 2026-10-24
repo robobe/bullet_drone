@@ -22,6 +22,9 @@ SCHEDULE_TOLERANCE_S = 1e-12
 FLIGHT_FEEDBACK_HZ = 120
 WORKER_POLL_S = 0.002
 TERMINAL_INTERVAL_S = 0.1
+ANALYSIS_QUEUE_CAPACITY = 256
+GROUND_TRUTH_HZ = 100
+MAX_ANALYSIS_BATCH = 16
 
 
 class RenderPublisher:
@@ -60,6 +63,9 @@ class RenderPublisher:
         self.control_state = None
         self.spawn_state = None
         self.wind_state = None
+        self.analysis_config = None
+        self.analysis_queue = Queue(ANALYSIS_QUEUE_CAPACITY)
+        self.analysis_drops = 0
         self.flight_config = self.feedback = self.latest_source = None
         self.sequence = 0
         self.dropped = 0
@@ -100,6 +106,17 @@ class RenderPublisher:
         validate_feedback(feedback)
         with self.snapshot_lock:
             self.flight_config, self.feedback = config, feedback
+
+    def set_analysis_config(self, settings, revisions):
+        with self.snapshot_lock:
+            self.analysis_config = dict(settings=settings, revisions=revisions)
+
+    def consume_analysis(self, observation, source):
+        # Immutable observations cross to the serializer; never block the physics loop.
+        try:
+            self.analysis_queue.put_nowait((observation, source))
+        except Full:
+            self.analysis_drops += 1
 
     def consume(self, observation, *, source=None):
         if self.thread is None or self.stop.is_set():
@@ -143,6 +160,9 @@ class RenderPublisher:
                 socket.bind(transport['telemetry_endpoint'])
                 config = {'schema_version': 1, 'stream_id': self.stream,
                           'camera': self.config['camera'], 'fps': self.config['fps']}
+                next_analysis_config = 0.0
+                analysis_episode = None
+                next_truth = 0.0
                 next_config = 0.0
                 next_state = 0.0
                 next_spawn = 0.0
@@ -171,7 +191,30 @@ class RenderPublisher:
                         feedback = self.feedback
                         spawn_state = self.spawn_state
                         wind_state = self.wind_state
+                        analysis_config = self.analysis_config
                     now = time.monotonic()
+                    if analysis_config is not None and feedback is not None and now >= next_analysis_config:
+                        packet = dict(schema_version=1, source=feedback['source'], role='physics', **analysis_config)
+                        socket.send_multipart([b'analysis/physics/config', json.dumps(packet, allow_nan=False).encode()], flags=zmq.DONTWAIT)
+                        next_analysis_config = now + CONFIG_INTERVAL_S
+                    for _ in range(MAX_ANALYSIS_BATCH):
+                        try:
+                            observation, sample_source = self.analysis_queue.get_nowait()
+                        except Empty:
+                            break
+                        if feedback is not None and sample_source['episode_id'] != feedback['source']['episode_id']:
+                            continue
+                        truth = observation.ground_truth
+                        if truth.episode_id != analysis_episode:
+                            analysis_episode, next_truth = truth.episode_id, 0.0
+                        packet = dict(schema_version=1, source=sample_source, publisher_drops=self.analysis_drops)
+                        sensors = dict(packet, sensors=asdict(observation.sensors),
+                                       attitude_estimate=None if observation.attitude_estimate is None else asdict(observation.attitude_estimate))
+                        socket.send_multipart([b'analysis/physics/sensors', json.dumps(sensors, allow_nan=False).encode()], flags=zmq.DONTWAIT)
+                        if truth.simulation_time_s + SCHEDULE_TOLERANCE_S >= next_truth:
+                            packet['ground_truth'] = asdict(truth)
+                            socket.send_multipart([b'analysis/physics/ground_truth', json.dumps(packet, allow_nan=False).encode()], flags=zmq.DONTWAIT)
+                            next_truth = (int((truth.simulation_time_s + SCHEDULE_TOLERANCE_S) * GROUND_TRUTH_HZ) + 1) / GROUND_TRUTH_HZ
                     if spawn_state is not None and (spawn_state != previous_spawn or now >= next_spawn):
                         from bullet_msgs.spawn import STATE_TOPIC as SPAWN_TOPIC, SPAWN_INTERVAL_S
                         socket.send_multipart([SPAWN_TOPIC, json.dumps(spawn_state).encode()], flags=zmq.DONTWAIT)

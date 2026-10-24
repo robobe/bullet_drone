@@ -215,3 +215,11 @@ stepping, or live during flight. Start, Reset and spawn changes retain settings
 and restart gust history; restarting physics reloads YAML defaults. The spectator
 windsock shows actual mean-plus-gust velocity and is excluded from drone images.
 See [runtime wind behavior](docs/design/aerodynamics.md#runtime-wind-updates).
+
+### Recorded flight diagnostics
+
+The standard workspace **Bullet: Run all** task now records each external-RC
+flight automatically in MCAP, with separate process logs per launch. Actual ground
+truth, available sensor outputs, effective configuration and wind are recorded
+independently of render-pose selection. See [telemetry design](docs/design/telemetry.md#external-rc-flight-recording-adapter)
+and the sibling recorder README for the offline clipping report command.

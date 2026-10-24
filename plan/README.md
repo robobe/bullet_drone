@@ -44,3 +44,4 @@
 | [0042: ICM-42688-P IMU noise](0042-icm42688p-imu-noise.md) | Density-based IMU noise, sensor filters and configurable residual bias drift. | Implemented; 420 relevant checks passed | `5842d499d976f2d0945c185e5d9a485b63e2accd` |
 | [0043: physical rotor vibration](0043-physical-rotor-vibration.md) | Resolved rotor forces and offline tracking impact experiment. | not-imp (not implemented) | Pending |
 | [0044: live wind controls](0044-live-wind-controls.md) | Physics-owned live wind settings, Godot panel and spectator windsock. | Implemented; runtime and visual checks passed | `f292b468846df7e0d3ac076ac98c0f7bc460b907` |
+| [0045: flight analysis recording](0045-flight-analysis-recording.md) | Automatic flight MCAP, exact frame matching and offline failure diagnostics. | Implemented; recording and analysis checks passed | Pending |

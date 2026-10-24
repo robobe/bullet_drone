@@ -158,3 +158,22 @@ counts even if an event cannot be queued. Mandatory means a topic cannot be
 disabled, not a lossless delivery guarantee. Verify worker failures, draining and
 bounded shutdown when implementing the recorder. The example-side sender already
 implements bounded process shutdown for ground-truth live preview, not general recording.
+
+## External-RC flight recording adapter
+
+The external-RC runner now publishes completed immutable observations to the
+render adapter's separate bounded analysis queue (256 entries). The caller
+performs no JSON serialization, socket work or disk writes. Overflow increments
+`publisher_drops`; the worker skips retired episodes and publishes actual ground
+truth at 100 Hz and available sensor outputs at the physics sample rate, with
+measurement/episode/step stamps. Render pose selection does not alter this truth.
+The existing library-only simulation schemas above remain independent contracts.
+
+Shared `bullet_msgs` analysis schemas are embedded in MCAP. Application-owned
+config snapshots repeat once per second with the effective physics, vehicle,
+stabilization, camera, transport and source revisions; runtime spawn/wind edits
+replace the snapshot. Sensor readings are existing public outputs, including
+configured filters, with no additional noise sampling or reconstructed raw values.
+MCAP runs automatically through the workspace launcher, outside the physics library.
+Detailed force decomposition is deferred. See the sibling recorder README for
+image identity matching, completeness and offline clipping reports.

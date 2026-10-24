@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 from loguru import logger
 from bullet_msgs import load_transport
+from bullet_msgs.provenance import revisions
 from bullet_drone.config import ConfigurationError, DroneSettings, SimulationConfig, SimulationSettings, WindSettings, YamlConfigLoader
 from bullet_drone.pose import resolve_pose
 from bullet_drone.simulation import RcSimulation
@@ -93,6 +94,12 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
             'transport': transport,
             'platform': platform,
         }, indent=2))
+        source_revisions = revisions(Path(__file__).resolve().parents[3])
+        def configure_analysis():
+            renderer.set_analysis_config(dict(simulation=asdict(config), vehicle=asdict(vehicle),
+                                             flight_control=asdict(FLIGHT_CONTROL_SETTINGS), render=renderer.config,
+                                             transport=transport), source_revisions)
+        configure_analysis()
         simulation = simulation_factory(config, FLIGHT_CONTROL_SETTINGS, vehicle)
         observation = simulation.reset()
         applied_sequence = 0
@@ -106,6 +113,7 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
                               step_index=state.step_index, simulation_time_s=state.simulation_time_s,
                               measurement_us=time.monotonic_ns() // NANOSECONDS_PER_MICROSECOND)
                 scenario.observe(source)
+                renderer.consume_analysis(observation, source)
             reading = observation.sensors.barometer
             feedback = dict(schema_version=2, source=source, takeoff_height_m=control.spawn.takeoff_height_m, barometer_altitude_m=None if reading is None else reading.altitude_m,
                             orientation_xyzw=list(state.orientation_xyzw), armed=armed, mode=mode,
@@ -131,6 +139,7 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
                 else:
                     config = replace(config, wind=settings)
                     wind.finish(True, 'wind_applied')
+                    configure_analysis()
                 publish()
             elif action == 'spawn':
                 candidate = None
@@ -147,6 +156,7 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
                 else:
                     previous = simulation
                     simulation, config, observation = candidate, candidate_config, candidate_observation
+                    configure_analysis()
                     _close_spawn_simulation(previous)
                     lease.end()
                     scenario.reset()
