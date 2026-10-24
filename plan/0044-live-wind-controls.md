@@ -48,4 +48,8 @@ Verification outcomes:
 
 Limits: external-RC/LOS workflow only, no long-duration flight/mission benchmark
 or vehicle-specific aerodynamic calibration.
-Implementation commit: Pending.
+Implementation commit: `f292b468846df7e0d3ac076ac98c0f7bc460b907`.
+
+Sibling implementation commits:
+- bullet_msgs: `fcf8911b3d004f50389900e9932bb4a34df5a25e`.
+- bullet_render: `1e64fb8d1b5ded584683085059e44615c777f9d9`.

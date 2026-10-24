@@ -43,4 +43,4 @@
 | [0041: noise-tolerant hover transition](0041-noise-tolerant-hover-transition.md) | Use sensor altitude trend to confirm hover and yaw settling without control changes. | Implemented; 83 app checks passed | `9b85374f70a0e87ad7f8d873922847e540258d66` |
 | [0042: ICM-42688-P IMU noise](0042-icm42688p-imu-noise.md) | Density-based IMU noise, sensor filters and configurable residual bias drift. | Implemented; 420 relevant checks passed | `5842d499d976f2d0945c185e5d9a485b63e2accd` |
 | [0043: physical rotor vibration](0043-physical-rotor-vibration.md) | Resolved rotor forces and offline tracking impact experiment. | not-imp (not implemented) | Pending |
-| [0044: live wind controls](0044-live-wind-controls.md) | Physics-owned live wind settings, Godot panel and spectator windsock. | Implemented; runtime and visual checks passed | Pending |
+| [0044: live wind controls](0044-live-wind-controls.md) | Physics-owned live wind settings, Godot panel and spectator windsock. | Implemented; runtime and visual checks passed | `f292b468846df7e0d3ac076ac98c0f7bc460b907` |
