@@ -14,10 +14,11 @@ MAX_POLL_MESSAGES = 16
 
 
 class SimulationControl:
-    def __init__(self, transport_path, publisher, *, clock=time.monotonic, scenario=None, spawn=None):
+    def __init__(self, transport_path, publisher, *, clock=time.monotonic, scenario=None, spawn=None, wind=None):
         self.clock = clock
         self.scenario = scenario
         self.spawn = spawn
+        self.wind = wind
         self.episode_id = None
         self.publisher = publisher
         self.physics_id = uuid4().hex
@@ -39,6 +40,9 @@ class SimulationControl:
                 self.socket.setsockopt(zmq.SUBSCRIBE, topic)
             if spawn is not None:
                 from bullet_msgs.spawn import REQUEST_TOPIC
+                self.socket.setsockopt(zmq.SUBSCRIBE, REQUEST_TOPIC)
+            if wind is not None:
+                from bullet_msgs.wind import REQUEST_TOPIC
                 self.socket.setsockopt(zmq.SUBSCRIBE, REQUEST_TOPIC)
             if scenario is not None:
                 self.socket.setsockopt(zmq.SUBSCRIBE, COLLISION_TOPIC)
@@ -76,6 +80,15 @@ class SimulationControl:
                 parts = self.socket.recv_multipart(flags=zmq.NOBLOCK)
             except zmq.Again:
                 break
+            if self.wind is not None:
+                from bullet_msgs.wind import REQUEST_TOPIC
+                if len(parts) == 2 and parts[0] == REQUEST_TOPIC:
+                    try:
+                        if self.wind.accept(decode_json(parts[1]), self):
+                            return 'wind'
+                    except (ValueError, TypeError, UnicodeError, RecursionError):
+                        pass
+                    continue
             if self.spawn is not None:
                 from bullet_msgs.spawn import REQUEST_TOPIC
                 if len(parts) == 2 and parts[0] == REQUEST_TOPIC:

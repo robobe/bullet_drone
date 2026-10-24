@@ -22,8 +22,16 @@ class ForceChain:
     def reset(self) -> None:
         self._wind.reset()
 
+    @property
+    def wind(self):
+        return self._wind.snapshot
+
+    def set_wind(self, settings: WindSettings, simulation_time_s: float) -> None:
+        self._wind.set_settings(settings, simulation_time_s)
+
     def calculate(self, state: DroneState, speeds_rad_s: RotorSpeeds, baseline: PropellerOutput,
                   surfaces: SurfaceQueries) -> ForceOutput:
+        ambient = self._wind.velocity(state.simulation_time_s)
         if not self._active:
             return ForceOutput(baseline.forces_n, ZERO_VECTOR, baseline.reaction_torque_nm)
         settings = self._settings
@@ -34,7 +42,6 @@ class ForceChain:
                           for offset in self._vehicle.rotor_positions_m)
         base_thrusts = tuple(max(0.0, force[2]) if speed > 0 else 0.0
                              for force, speed in zip(baseline.forces_n, speeds_rad_s))
-        ambient = self._wind.velocity(state.simulation_time_s)
         rates = world_to_body(state.angular_velocity_rad_s, orientation)
 
         def airflow(point, *, exclude_rotor=None):

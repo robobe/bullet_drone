@@ -8,7 +8,7 @@ from pathlib import Path
 import click
 from loguru import logger
 from bullet_msgs import load_transport
-from bullet_drone.config import ConfigurationError, DroneSettings, SimulationConfig, SimulationSettings, YamlConfigLoader
+from bullet_drone.config import ConfigurationError, DroneSettings, SimulationConfig, SimulationSettings, WindSettings, YamlConfigLoader
 from bullet_drone.pose import resolve_pose
 from bullet_drone.simulation import RcSimulation
 from bullet_drone.commands import RcInput
@@ -17,6 +17,7 @@ from examples.position_square.demo import FLIGHT_CONTROL_SETTINGS
 from tools.zmq_render import DEFAULT_RENDER_CONFIG
 from tools.zmq_render.control import SimulationControl
 from tools.zmq_render.spawn import SpawnSelection
+from tools.zmq_render.wind import WindControl
 from tools.zmq_render.scenario import ScenarioTermination
 from tools.zmq_render.flight import FlightLease, FlightReceiver
 from tools.zmq_render.publisher import RenderPublisher
@@ -67,7 +68,8 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
         renderer.start()
         transport = load_transport(renderer.transport_path)
         scenario = ScenarioTermination()
-        control = SimulationControl(renderer.transport_path, renderer, scenario=scenario, spawn=SpawnSelection(config.drone.initial_position_m))
+        wind = WindControl()
+        control = SimulationControl(renderer.transport_path, renderer, scenario=scenario, spawn=SpawnSelection(config.drone.initial_position_m), wind=wind)
         lease = FlightLease(control.physics_id)
         receiver = FlightReceiver(transport['flight_command_endpoint'], lease)
         vehicle = load_racer_parameters()
@@ -98,6 +100,7 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
         def publish(*, captured=False):
             nonlocal source
             state = resolve_pose(observation, config.pose_sources)
+            renderer.set_wind(wind.packet(control, observation, simulation.wind))
             if captured:
                 source = dict(physics_id=control.physics_id, episode_id=state.episode_id, stream_id=renderer.stream,
                               step_index=state.step_index, simulation_time_s=state.simulation_time_s,
@@ -118,7 +121,18 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
         while True:
             receiver.poll(observation.ground_truth.episode_id)
             action = control.poll()
-            if action == 'spawn':
+            if action == 'wind':
+                try:
+                    settings = WindSettings(**wind.pending['settings'])
+                    simulation.set_wind(settings)
+                except (ValueError, RuntimeError):
+                    logger.exception('Wind update failed; retaining previous settings')
+                    wind.finish(False, 'update_failed')
+                else:
+                    config = replace(config, wind=settings)
+                    wind.finish(True, 'wind_applied')
+                publish()
+            elif action == 'spawn':
                 candidate = None
                 try:
                     request = control.spawn.pending

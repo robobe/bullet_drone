@@ -120,6 +120,22 @@ propwash has an independent switch. Reset restarts wind time, gust state and
 seeded sequence. Identical timestep/sampling sequences reproduce the same gusts;
 different timesteps preserve the OU statistics, not identical sample paths.
 
+## Runtime wind updates
+
+`RcSimulation.set_wind(WindSettings(...))` updates the existing physics-owned
+wind model at the current simulation boundary. It never steps the simulation.
+`simulation.wind` returns an immutable `WindSnapshot` containing settings,
+world air velocity in m/s and the latest wind evaluation time in seconds.
+Snapshot reads do not advance time or consume random samples. The field evolves
+at force evaluation even when aerodynamic effects are disabled.
+
+Mean, gust deviation and correlation-time edits retain the current gust and RNG
+sequence. Seed changes, disabling/enabling wind, or switching constant/gust mode
+clear the gust and restart the selected seed. Start/Reset retain applied settings
+but reset time and gust history. Wind modifies relative airspeed through the
+existing drag and rotor models, never a second external force. Godot only sends
+settings and displays the physics snapshot.
+
 ## Configuration and compatibility
 
 See the fully commented `configs/basic.yaml`. Optional `forces` and `wind`

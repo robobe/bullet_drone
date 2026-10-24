@@ -114,3 +114,22 @@ runner logic or wire changes; the app owns search state. See
 
 See [plan 0035](../../plan/0035-center-target-before-los.md) for centering
 defaults, diagnostics and verification.
+
+## Live wind transaction
+
+Only the external-RC runner enables `WindControl`. Exact `simulation/wind_request`
+on the existing control endpoint (default 5557) requires the live controller,
+current physics/episode identity and a request no older than one second. Apply
+works while running or stopped. The runner invokes `RcSimulation.set_wind` at a
+step boundary and replaces its immutable runtime config so later spawn changes
+retain the applied wind. Failed updates retain the previous configuration.
+The last 128 request fingerprints/outcomes make retries idempotent.
+
+`RenderPublisher.set_wind` validates and copies a snapshot under its existing
+lock; the socket worker publishes cached `simulation/wind_state` at 10 Hz on
+telemetry (default 5555), including while stopped. Neither networking nor Godot
+reads advance physics or gust RNG. Godot retries Apply every 100 ms for two
+seconds and reconciles uncertain results against fresh authoritative readback.
+Native readback expires after one second and must match current control identity.
+Other examples do not subscribe to wind requests and show unavailable controls.
+No new ports, disk writes, persistence or app tracking interfaces are introduced.

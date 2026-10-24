@@ -45,8 +45,9 @@ def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, mo
     actions = iter(['start', None, 'stop', None])
     class Control:
         physics_id = 'physics'
+        controller_id = None
         state, reason = 'stopped', 'waiting_app'
-        def __init__(self, path, renderer, *, scenario, spawn):
+        def __init__(self, path, renderer, *, scenario, spawn, wind):
             self.spawn = spawn
         def transition(self, state, reason, observation):
             self.state, self.reason = state, reason

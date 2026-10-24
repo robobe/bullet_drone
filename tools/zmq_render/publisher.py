@@ -59,6 +59,7 @@ class RenderPublisher:
         self.latest_pose = None
         self.control_state = None
         self.spawn_state = None
+        self.wind_state = None
         self.flight_config = self.feedback = self.latest_source = None
         self.sequence = 0
         self.dropped = 0
@@ -86,6 +87,12 @@ class RenderPublisher:
         validate_state(state)
         with self.snapshot_lock:
             self.spawn_state = state
+
+    def set_wind(self, state):
+        from bullet_msgs.wind import validate_state
+        validate_state(state)
+        with self.snapshot_lock:
+            self.wind_state = state
 
     def set_flight(self, config, feedback):
         from bullet_msgs.flight import validate_config, validate_feedback
@@ -139,6 +146,7 @@ class RenderPublisher:
                 next_config = 0.0
                 next_state = 0.0
                 next_spawn = 0.0
+                next_wind = 0.0
                 previous_spawn = None
                 next_end = 0.0
                 next_feedback = time.monotonic()
@@ -162,12 +170,17 @@ class RenderPublisher:
                         source = self.latest_source
                         feedback = self.feedback
                         spawn_state = self.spawn_state
+                        wind_state = self.wind_state
                     now = time.monotonic()
                     if spawn_state is not None and (spawn_state != previous_spawn or now >= next_spawn):
                         from bullet_msgs.spawn import STATE_TOPIC as SPAWN_TOPIC, SPAWN_INTERVAL_S
                         socket.send_multipart([SPAWN_TOPIC, json.dumps(spawn_state).encode()], flags=zmq.DONTWAIT)
                         previous_spawn = spawn_state
                         next_spawn = now + SPAWN_INTERVAL_S
+                    if wind_state is not None and now >= next_wind:
+                        from bullet_msgs.wind import STATE_TOPIC as WIND_TOPIC, WIND_INTERVAL_S
+                        socket.send_multipart([WIND_TOPIC, json.dumps(wind_state, allow_nan=False).encode()], flags=zmq.DONTWAIT)
+                        next_wind = now + WIND_INTERVAL_S
                     if feedback is not None and now >= next_feedback:
                         from bullet_msgs.flight import FEEDBACK_TOPIC
                         socket.send_multipart([FEEDBACK_TOPIC, json.dumps(feedback).encode()], flags=zmq.DONTWAIT)

@@ -204,3 +204,14 @@ The IMU demo now uses an ICM-42688-P density profile with sensor filtering:
 30 Hz and gyro cutoff 60 Hz. Fixed bias and residual bias drift remain zero as a
 calibrated baseline. See [IMU fields, units and model limits](docs/design/sensors.md#icm-42688-p-density-based-imu-profile).
 Omitted options preserve the legacy per-sample noise model and disable filtering.
+
+### Live wind in Godot
+
+With the external-RC/LOS workflow, click **Wind** beside **Scenario**, edit world
+XYZ mean velocity (m/s), gust standard deviations (m/s), correlation time (s)
+and seed, then **Apply wind**. +Z points up; the vector points toward air travel.
+Opening/closing the panel does not change wind. Apply works while stopped without
+stepping, or live during flight. Start, Reset and spawn changes retain settings
+and restart gust history; restarting physics reloads YAML defaults. The spectator
+windsock shows actual mean-plus-gust velocity and is excluded from drone images.
+See [runtime wind behavior](docs/design/aerodynamics.md#runtime-wind-updates).

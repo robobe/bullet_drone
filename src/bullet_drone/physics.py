@@ -128,6 +128,15 @@ class PyBulletPhysics:
                 raise BackendError(f"Could not initialize PyBullet world: {exc}") from exc
             raise
 
+    @property
+    def wind(self):
+        return self._forces.wind
+
+    def set_wind(self, settings):
+        if self._closed or self._body is None or self._failed:
+            raise LifecycleError('Physics must be initialized before updating wind')
+        self._forces.set_wind(settings, self._step_index * self._config.simulation.timestep_s)
+
     def step(self, command: RotorCommand | None = None) -> DroneState:
         if self._closed or self._body is None or self._failed:
             raise LifecycleError("Physics must be reset before stepping and cannot be closed or failed")

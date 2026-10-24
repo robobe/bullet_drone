@@ -40,9 +40,8 @@ class RcSimulation:
             stabilization if stabilization is not None else InternalFlightController(control_settings),
             IdealStateFeedback(), MotorMixer(vehicle), self._timestep_s,
         )
-        self._environment = DroneEnvironment(PyBulletPhysics(
-            config, vehicle, motor_dynamics=motor_dynamics, propeller_model=propeller_model,
-        ), imu=(ImuSensor(config.simulation.gravity_m_s2, config.sensors.imu, sample_period_s=self._timestep_s)
+        self._physics = PyBulletPhysics(config, vehicle, motor_dynamics=motor_dynamics, propeller_model=propeller_model)
+        self._environment = DroneEnvironment(self._physics, imu=(ImuSensor(config.simulation.gravity_m_s2, config.sensors.imu, sample_period_s=self._timestep_s)
                 if config.sensors.imu.enabled else None),
             barometer=(BarometerSensor(config.sensors.barometer)
                        if config.sensors.barometer.enabled else None),
@@ -51,6 +50,15 @@ class RcSimulation:
         self._observation: DroneObservation | None = None
         self._last_command: HighLevelCommand | None = None
         self._closed = False
+
+    @property
+    def wind(self):
+        return self._physics.wind
+
+    def set_wind(self, settings):
+        if self._closed or self._observation is None:
+            raise LifecycleError('Simulation must be reset before updating wind')
+        self._physics.set_wind(settings)
 
     @property
     def timestep_s(self) -> float:
