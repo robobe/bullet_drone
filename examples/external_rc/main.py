@@ -106,7 +106,7 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
                         camera=renderer.config['camera'], attitude_model=('imu_complementary' if config.pose_sources.attitude == 'imu' else 'ideal'),
                         physics_hz=physics_hz, feedback_hz=FEEDBACK_HZ, command_hz=COMMAND_HZ)
         if betaflight:
-            platform.update(schema_version=2, backend='betaflight', attitude_model='betaflight_imu')
+            platform.update(schema_version=2, backend='betaflight')
         click.echo('=== bullet_drone loaded configuration ===\n' + json.dumps({
             'physics_config_path': str(Path(config_path).resolve()) if config_path is not None else None,
             'simulation': asdict(config),
