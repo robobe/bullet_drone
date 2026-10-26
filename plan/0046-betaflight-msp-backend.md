@@ -1,7 +1,7 @@
 # Betaflight MSP backend
 
-Status: implemented locally and verified; pending commit.
-Implementation commit: Pending
+Status: implemented and verified.
+Implementation commit: `19d3247`
 
 The agreed cross-project plan is [here](../../los_tracking/docs/betaflight-backend-plan.md).
 

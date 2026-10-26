@@ -46,4 +46,4 @@
 | [0044: live wind controls](0044-live-wind-controls.md) | Physics-owned live wind settings, Godot panel and spectator windsock. | Implemented; runtime and visual checks passed | `f292b468846df7e0d3ac076ac98c0f7bc460b907` |
 | [0045: flight analysis recording](0045-flight-analysis-recording.md) | Automatic flight MCAP, exact frame matching and offline failure diagnostics. | Implemented; recording and analysis checks passed | `8cde477426dc12f2c6be12542487a9edd50f8890` |
 
-- [0046: Betaflight MSP backend](0046-betaflight-msp-backend.md) — In progress, implementation commit Pending.
+- [0046: Betaflight MSP backend](0046-betaflight-msp-backend.md) — Complete, implementation commit `19d3247`.
