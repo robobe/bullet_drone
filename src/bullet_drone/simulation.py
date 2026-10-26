@@ -3,7 +3,7 @@
 from bullet_drone.attitude import AttitudeEstimator
 from bullet_drone.commands import HighLevelCommand, InvalidCommandError, RcInput, MotorAllocation
 from bullet_drone.composition import FlightCommandProvider, validate_control_backend
-from bullet_drone.config import SimulationConfig
+from bullet_drone.config import ConfigurationError, RcSettings, SimulationConfig
 from bullet_drone.contracts import LifecycleError, MotorDynamics, PropellerModel, StabilizationController
 from bullet_drone.controllers import IdealStateFeedback, InternalControlSettings, InternalFlightController
 from bullet_drone.environment import DroneEnvironment
@@ -30,16 +30,26 @@ class RcSimulation:
                  stabilization: StabilizationController | None = None,
                  motor_dynamics: MotorDynamics | None = None,
                  propeller_model: PropellerModel | None = None) -> None:
-        validate_control_backend(config.control)
+        self._betaflight = config.control.backend == "betaflight"
         vehicle = vehicle if vehicle is not None else load_racer_parameters()
         self._timestep_s = config.simulation.timestep_s
-        self._rc = SoftwareRc(RcCodec(4 * vehicle.max_thrust_per_rotor_n,
-                                       control_settings.max_rates_rad_s, config.rc))
-        self._provider = FlightCommandProvider(
-            self._rc,
-            stabilization if stabilization is not None else InternalFlightController(control_settings),
-            IdealStateFeedback(), MotorMixer(vehicle), self._timestep_s,
-        )
+        if self._betaflight:
+            from bullet_drone.betaflight.backend import BetaflightBackend
+            from bullet_drone.betaflight.bridge import UdpSitlBridge
+            if not config.sensors.imu.enabled or not config.sensors.barometer.enabled:
+                raise ConfigurationError('Betaflight requires enabled IMU and barometer')
+            if config.rc != RcSettings() or vehicle != load_racer_parameters() or stabilization is not None:
+                raise ConfigurationError('Betaflight requires the bundled racer, default RC mapping and firmware stabilization')
+            self._rc = None
+            self._provider = BetaflightBackend(vehicle, UdpSitlBridge())
+        else:
+            self._rc = SoftwareRc(RcCodec(4 * vehicle.max_thrust_per_rotor_n,
+                                           control_settings.max_rates_rad_s, config.rc))
+            self._provider = FlightCommandProvider(
+                self._rc,
+                stabilization if stabilization is not None else InternalFlightController(control_settings),
+                IdealStateFeedback(), MotorMixer(vehicle), self._timestep_s,
+            )
         self._physics = PyBulletPhysics(config, vehicle, motor_dynamics=motor_dynamics, propeller_model=propeller_model)
         self._environment = DroneEnvironment(self._physics, imu=(ImuSensor(config.simulation.gravity_m_s2, config.sensors.imu, sample_period_s=self._timestep_s)
                 if config.sensors.imu.enabled else None),
@@ -84,24 +94,25 @@ class RcSimulation:
         self._observation = observation
         return observation
 
-    def step(self, command: RcInput) -> DroneObservation:
+    def step(self, command: RcInput | None = None) -> DroneObservation:
         if self._closed or self._observation is None:
             raise LifecycleError("RC simulation must be reset before stepping")
-        if not isinstance(command, RcInput):
+        if not self._betaflight and not isinstance(command, RcInput):
             raise InvalidCommandError("Simulation requires an RcInput")
         # Revalidate even if a frozen input has been deliberately tampered with.
-        value = RcInput(command.channels)
+        value = None if self._betaflight else RcInput(command.channels)
         feedback = self._observation
         self._last_command = None
         try:
-            self._rc.set_input(value)
+            if not self._betaflight:
+                self._rc.set_input(value)
             rotor_command = self._provider.command(feedback)
             observation = self._environment.step(rotor_command)
         except BaseException:
             # Translation may have consumed the step; never retry it implicitly.
             self._observation = None
             raise
-        self._last_command = self._rc.last_command
+        self._last_command = None if self._betaflight else self._rc.last_command
         self._observation = observation
         return observation
 

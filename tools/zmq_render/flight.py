@@ -15,7 +15,8 @@ MICROSECONDS_PER_SECOND = 1_000_000
 
 
 class FlightLease:
-    def __init__(self, physics_id, *, clock=time.monotonic):
+    def __init__(self, physics_id, *, clock=time.monotonic, hold_last=False):
+        self.hold_last = hold_last
         self.physics_id = physics_id
         self.clock = clock
         self.episode_id = None
@@ -65,7 +66,7 @@ class FlightLease:
         if not self.latest:
             return None
         now = int(self.clock() * MICROSECONDS_PER_SECOND)
-        if now >= self.latest['valid_until_us']:
+        if not self.hold_last and now >= self.latest['valid_until_us']:
             self.reason = 'rc_expired'
             return None
         if self.withdrawn:

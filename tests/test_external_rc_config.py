@@ -37,9 +37,13 @@ def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, mo
     output.consume = Mock(wraps=output.consume)
     factory = Mock(return_value=output)
     monkeypatch.setattr(runner, 'RenderPublisher', factory)
-    monkeypatch.setattr(runner, 'FlightReceiver', Mock())
+    polls = [0]
+    receiver = Mock()
+    receiver.poll.side_effect = lambda episode: polls.__setitem__(0, polls[0] + 1)
+    monkeypatch.setattr(runner, 'FlightReceiver', Mock(return_value=receiver))
     lease = Mock(owner='app', candidate={}, sequence=1)
-    lease.ready.return_value = True
+    # The Start control event can arrive just after the loop's first receiver poll.
+    lease.ready.side_effect = lambda: polls[0] >= 2
     lease.command.return_value = [1500, 1500, 1000, 1500, 1000, 2000] + [1000] * 12
     monkeypatch.setattr(runner, 'FlightLease', Mock(return_value=lease))
     actions = iter(['start', None, 'stop', None])

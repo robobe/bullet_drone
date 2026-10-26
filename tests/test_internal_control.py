@@ -52,8 +52,11 @@ def provider(source, config):
 
 
 def test_selector_defaults_validation_and_unsupported_before_resources(tmp_path):
-    assert YamlConfigLoader().load('configs/basic.yaml').control.backend == 'internal'
     data = yaml.safe_load(open('configs/basic.yaml'))
+    data.pop('control', None)
+    path = tmp_path / 'default.yaml'
+    path.write_text(yaml.safe_dump(data))
+    assert YamlConfigLoader().load(path).control.backend == 'internal'
     data['control'] = {'backend': 'betaflight'}
     path = tmp_path / 'bf.yaml'
     path.write_text(yaml.safe_dump(data))

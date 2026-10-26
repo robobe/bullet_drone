@@ -17,3 +17,5 @@ htmlcov/
 
 # Godot generated editor/import cache
 .godot/
+
+.sitl/

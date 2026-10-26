@@ -22,6 +22,12 @@ drone:
   # Required finite world-frame [X, Y, Z] spawn position in metres; Z is height above zero.
   initial_position_m: [0.0, 0.0, 1.0]
 
+# Optional flight-controller backend. "internal" preserves the native simulation controller;
+# use "betaflight" only through bullet_render/tools/run_flight.py with the pinned SITL build.
+control:
+  # Supported values: internal (default) or betaflight.
+  backend: betaflight
+
 # Optional measurement settings assembled by RcSimulation; controllers still use ground truth.
 # Omitting this section enables both sensors with zero noise and their default seeds.
 sensors:

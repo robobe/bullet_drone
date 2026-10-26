@@ -109,7 +109,12 @@ See [sensor configuration and measurement semantics](docs/design/sensors.md).
 source to internal stabilization. Angle roll/pitch commands use radians; Acro
 commands use body rates in rad/s. The RC yaw channel is a rate in both modes.
 Motor targets and actual speeds use rad/s. Configuration selects the `internal`
-backend by default; `betaflight` is recognized but not implemented.
+backend by default. `control.backend: betaflight` selects the managed SITL path:
+physics sends noisy IMU and barometer FDM on UDP 9003 and consumes normalized
+motor outputs on UDP 9002. MSP RC and estimator feedback remain application-owned.
+Build the pinned firmware with `tools/setup_betaflight_sitl.sh`, then launch it
+through `bullet_render/tools/run_flight.py --physics-config configs/basic.yaml`
+after changing that YAML backend to `betaflight`.
 
 Rendering adapters support GUI/headless selection and UDP pose publication through
 library composition. The flight examples expose PyBullet GUI and `--headless`;

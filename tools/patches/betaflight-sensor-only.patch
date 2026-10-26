@@ -1,0 +1,139 @@
+diff --git a/src/platform/SIMULATOR/sitl.c b/src/platform/SIMULATOR/sitl.c
+index ee216ef..07b35b7 100644
+--- a/src/platform/SIMULATOR/sitl.c
++++ b/src/platform/SIMULATOR/sitl.c
+@@ -92,18 +92,28 @@ STATIC_ASSERT((ENABLE_GAZEBO_BRIDGE) == 0 || (ENABLE_GAZEBO_BRIDGE) == 1,
+ uint32_t SystemCoreClock;
+
+ static fdm_packet fdmPkt;
++#if ENABLE_RX_UDP
+ static rc_packet rcPkt;
++#endif
+ static servo_packet pwmPkt;
+ static servo_packet_raw pwmRawPkt;
+
++#if ENABLE_RX_UDP
+ static bool rc_received = false;
++#endif
+ static bool fdm_received = false;
+
+ static struct timespec start_time;
+ static double simRate = 1.0;
+-static pthread_t tcpWorker, udpWorker, udpWorkerRC;
++static pthread_t tcpWorker, udpWorker;
++#if ENABLE_RX_UDP
++static pthread_t udpWorkerRC;
++#endif
+ static bool workerRunning = true;
+-static udpLink_t stateLink, pwmLink, pwmRawLink, rcLink;
++static udpLink_t stateLink, pwmLink, pwmRawLink;
++#if ENABLE_RX_UDP
++static udpLink_t rcLink;
++#endif
+ static pthread_mutex_t updateLock;
+ static pthread_mutex_t mainLoopLock;
+ static char simulator_ip[32] = "127.0.0.1";
+@@ -115,6 +125,7 @@ static FILE *gpxTrackFile = NULL;
+ static bool gpxHeaderWritten = false;
+ static bool gpxEnabled = false;
+
++#if !defined(SITL_SENSOR_ONLY)
+ #if ENABLE_FLIGHT_PLAN
+ static const char *gpxWaypointTypeName(uint8_t type)
+ {
+@@ -184,6 +195,8 @@ static void gpxTrackWrite(double lat, double lon, double altM)
+     fflush(gpxTrackFile);
+ }
+
++#endif
++
+ static void gpxTrackClose(void)
+ {
+     if (gpxTrackFile && gpxHeaderWritten) {
+@@ -311,7 +324,9 @@ static void updateState(const fdm_packet* pkt)
+     y = constrain(gyroPitch * GYRO_SCALE * RAD2DEG, -32767, 32767);
+     z = constrain(gyroYaw   * GYRO_SCALE * RAD2DEG, -32767, 32767);
+     virtualGyroSet(virtualGyroDev, x, y, z);
+-#if ENABLE_GAZEBO_BRIDGE
++#if defined(SITL_SENSOR_ONLY)
++    virtualBaroSet((int32_t)pkt->pressure, 2500);
++#elif ENABLE_GAZEBO_BRIDGE
+     // Gazebo plugin doesn't fill pkt->pressure; derive from altitude using the
+     // standard atmosphere model: P = 101325 * (1 - 2.25577e-5 * h)^5.25588
+     const double altMeters = pkt->position_xyz[2];
+@@ -321,6 +336,7 @@ static void updateState(const fdm_packet* pkt)
+     // Legacy bridges (X-Plane, RealFlight) supply pressure directly in fdm_packet
+     virtualBaroSet((int32_t)pkt->pressure, 2500);
+ #endif
++#if defined(USE_VIRTUAL_MAG) || !defined(USE_IMU_CALC)
+     // Reconstruct the body-to-world (NWU) attitude quaternion from the packet.
+     // Consumed by the direct-attitude path and by the virtual mag feed, which
+     // must use the same rotation or mag fusion fights the fed attitude.
+@@ -349,6 +365,7 @@ static void updateState(const fdm_packet* pkt)
+     const float attQz = pkt->imu_orientation_quat[3];
+ #endif
+
++#endif
+ #if defined(USE_VIRTUAL_MAG)
+     {
+         // Synthetic earth field, NWU, 4096 counts: 60° inclination and 2° east
+@@ -538,6 +555,7 @@ static void* udpThread(void* data)
+     return NULL;
+ }
+
++#if ENABLE_RX_UDP
+ static void *udpRCThread(void *data)
+ {
+     UNUSED(data);
+@@ -560,6 +578,7 @@ static void *udpRCThread(void *data)
+     printf("udpRCThread end!!\n");
+     return NULL;
+ }
++#endif
+
+ static void* tcpThread(void* data)
+ {
+@@ -616,8 +635,10 @@ void systemInit(void)
+     ret = udpInit(&stateLink, NULL, PORT_STATE, true);
+     printf("[SITL] start UDP server @%d...%d\n", PORT_STATE, ret);
+
++#if ENABLE_RX_UDP
+     ret = udpInit(&rcLink, NULL, PORT_RC, true);
+     printf("[SITL] start UDP server for RC input @%d...%d\n", PORT_RC, ret);
++#endif
+
+     ret = pthread_create(&udpWorker, NULL, udpThread, NULL);
+     if (ret != 0) {
+@@ -625,11 +646,13 @@ void systemInit(void)
+         exit(1);
+     }
+
++#if ENABLE_RX_UDP
+     ret = pthread_create(&udpWorkerRC, NULL, udpRCThread, NULL);
+     if (ret != 0) {
+         printf("Create udpRCThread error!\n");
+         exit(1);
+     }
++#endif
+ }
+
+ void systemReset(void)
+diff --git a/src/platform/SIMULATOR/target/SITL/target.h b/src/platform/SIMULATOR/target/SITL/target.h
+index 69d3250..c032a12 100644
+--- a/src/platform/SIMULATOR/target/SITL/target.h
++++ b/src/platform/SIMULATOR/target/SITL/target.h
+@@ -267,3 +267,14 @@ int targetParseArgs(int argc, char * argv[]);
+ #ifdef CONFIG_IN_FILE
+ const char *targetGetConfigFile(void);
+ #endif
++
++#if defined(SITL_SENSOR_ONLY)
++#if !defined(USE_IMU_CALC) || defined(SITL_ATTITUDE_DIRECT)
++#error "Sensor-only SITL requires the real IMU estimator"
++#endif
++#undef ENABLE_RX_UDP
++#define ENABLE_RX_UDP 0
++#undef USE_MAG
++#undef USE_VIRTUAL_MAG
++#undef USE_VIRTUAL_GPS
++#endif
