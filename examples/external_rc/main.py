@@ -254,7 +254,12 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
                 lease.end()
                 publish()
                 continue
-            observation = simulation.step() if betaflight else simulation.step(RcInput(tuple(channels)))
+            if betaflight:
+                arm_channel = channels[config.rc.arm_channel - 1]
+                observation = (simulation.hold() if arm_channel < config.rc.arm_threshold
+                               else simulation.step())
+            else:
+                observation = simulation.step(RcInput(tuple(channels)))
             applied_sequence = lease.sequence
             armed, mode = (False, 'angle') if betaflight else (simulation.last_command.armed, simulation.last_command.mode)
             publish(captured=True)

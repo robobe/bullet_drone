@@ -4,8 +4,10 @@ import pybullet as p
 import pytest
 
 from bullet_drone.contracts import BackendError, LifecycleError
+from bullet_drone.config import ControlSettings
 from bullet_drone.environment import DroneEnvironment
 from bullet_drone.physics import PyBulletPhysics
+from bullet_drone.sensors import ImuSensor
 
 
 def test_free_fall_reset_immutable_observation_and_lifecycle(config):
@@ -64,6 +66,46 @@ def test_ground_contact(config):
     assert abs(state.linear_velocity_m_s[2]) < 0.001
     with pytest.raises(LifecycleError):
         physics.step()
+
+
+def test_hold_advances_stationary_imu_observations(config):
+    physics = PyBulletPhysics(config)
+    env = DroneEnvironment(physics, imu=ImuSensor(config.simulation.gravity_m_s2,
+                                                   sample_period_s=config.simulation.timestep_s))
+    try:
+        initial = env.reset()
+        held = env.hold()
+    finally:
+        env.close()
+    assert held.ground_truth.step_index == 1
+    assert held.ground_truth.simulation_time_s == config.simulation.timestep_s
+    assert held.ground_truth.position_m == initial.ground_truth.position_m
+    assert held.ground_truth.orientation_xyzw == initial.ground_truth.orientation_xyzw
+    assert held.ground_truth.linear_velocity_m_s == held.ground_truth.angular_velocity_rad_s == (0, 0, 0)
+    assert held.sensors.imu.specific_force_m_s2 == pytest.approx((0, 0, 9.81))
+
+
+def test_betaflight_hold_feeds_stationary_observations(config, monkeypatch):
+    from examples.position_square.demo import FLIGHT_CONTROL_SETTINGS
+    from bullet_drone.simulation import RcSimulation
+
+    class Bridge:
+        def open(self): pass
+        def send_fdm(self, packet): pass
+        def receive_motor_packets(self): return []
+        def close(self): pass
+
+    monkeypatch.setattr('bullet_drone.betaflight.bridge.UdpSitlBridge', Bridge)
+    simulation = RcSimulation(replace(config, control=ControlSettings('betaflight')),
+                              FLIGHT_CONTROL_SETTINGS)
+    try:
+        initial = simulation.reset()
+        held = simulation.hold()
+    finally:
+        simulation.close()
+    assert held.ground_truth.step_index == initial.ground_truth.step_index + 1
+    assert held.ground_truth.position_m == initial.ground_truth.position_m
+    assert held.ground_truth.linear_velocity_m_s == (0, 0, 0)
 
 
 @pytest.mark.parametrize("failure", [p.error("injected shape failure"), KeyboardInterrupt()])

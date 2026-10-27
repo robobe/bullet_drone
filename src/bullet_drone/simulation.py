@@ -116,6 +116,21 @@ class RcSimulation:
         self._observation = observation
         return observation
 
+    def hold(self) -> DroneObservation:
+        """Feed Betaflight fresh stationary sensors while it completes pre-arm checks."""
+        if self._closed or self._observation is None:
+            raise LifecycleError("RC simulation must be reset before holding")
+        if not self._betaflight:
+            raise LifecycleError("Only the Betaflight backend supports held steps")
+        try:
+            self._provider.command(self._observation)
+            observation = self._environment.hold()
+        except BaseException:
+            self._observation = None
+            raise
+        self._observation = observation
+        return observation
+
     def close(self) -> None:
         if self._closed:
             return

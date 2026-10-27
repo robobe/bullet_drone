@@ -167,6 +167,33 @@ class PyBulletPhysics:
                 raise
             raise BackendError(f"PyBullet step failed: {exc}") from exc
 
+    def hold(self) -> DroneState:
+        """Advance sensor time while keeping the vehicle at its current pose."""
+        if self._closed or self._body is None or self._failed:
+            raise LifecycleError("Physics must be reset before holding and cannot be closed or failed")
+        try:
+            self._require_connection()
+            position, orientation = self._p.getBasePositionAndOrientation(
+                self._body, physicsClientId=self._client)
+            self._rotor_speeds = self._validated_speeds(
+                self._motors.update((0.0,) * ROTOR_COUNT, self._config.simulation.timestep_s),
+                self._step_index + 1)
+            self._p.stepSimulation(physicsClientId=self._client)
+            self._p.resetBasePositionAndOrientation(
+                self._body, position, orientation, physicsClientId=self._client)
+            self._p.resetBaseVelocity(
+                self._body, linearVelocity=ZERO_POSITION_M, angularVelocity=ZERO_POSITION_M,
+                physicsClientId=self._client)
+            self._step_index += 1
+            return self._state()
+        except BaseException as exc:
+            self._failed = True
+            if not isinstance(exc, Exception):
+                raise
+            if isinstance(exc, BackendError):
+                raise
+            raise BackendError(f"PyBullet hold failed: {exc}") from exc
+
     def _validated_speeds(self, speeds: RotorSpeeds, next_step: int) -> RotorSpeeds:
         command = RotorCommand(speeds, self._episode_id, next_step)
         command.validate_for(self._episode_id, next_step, self._vehicle.max_speed_rad_s)

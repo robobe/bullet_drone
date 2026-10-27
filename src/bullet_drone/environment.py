@@ -43,8 +43,20 @@ class DroneEnvironment:
         except BaseException:
             self._ready = False
             raise
-
         try:
+            observation = self._observe(state)
+            self._state = state
+            return observation
+        except BaseException:
+            self._ready = False
+            raise
+
+    def hold(self) -> DroneObservation:
+        """Advance observations while a backend keeps its vehicle stationary."""
+        if self._closed or not self._ready:
+            raise LifecycleError("Environment must be reset before holding and cannot be closed or failed")
+        try:
+            state = self._physics.hold()
             observation = self._observe(state)
             self._state = state
             return observation
