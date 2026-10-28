@@ -47,3 +47,4 @@
 | [0045: flight analysis recording](0045-flight-analysis-recording.md) | Automatic flight MCAP, exact frame matching and offline failure diagnostics. | Implemented; recording and analysis checks passed | `8cde477426dc12f2c6be12542487a9edd50f8890` |
 
 - [0046: Betaflight MSP backend](0046-betaflight-msp-backend.md) — Complete, implementation commit `19d3247`.
+- [0047: Betaflight motor mapping check](0047-betaflight-motor-mapping-check.md) — Pending, implementation commit Pending.

@@ -4,7 +4,7 @@ import socket
 
 import pytest
 
-from bullet_drone.betaflight.backend import BetaflightBackend, unpack_motor
+from bullet_drone.betaflight.backend import BetaflightBackend, RACER_TO_BETAFLIGHT, unpack_motor
 from bullet_drone.betaflight.fdm import FDM_FORMAT, pack_fdm
 from bullet_drone.betaflight.bridge import UdpSitlBridge
 from bullet_drone.models import BarometerReading, DroneObservation, DroneState, ImuReading, SensorReadings
@@ -42,6 +42,12 @@ class Bridge:
 
 class Vehicle:
     max_speed_rad_s = 2000
+
+
+def test_betaflight_quad_x_motor_order_matches_racer_positions():
+    expected_racer_indices = (2, 3, 1, 0)
+
+    assert tuple(RACER_TO_BETAFLIGHT.index(index) for index in range(4)) == expected_racer_indices
 
 
 def test_backend_maps_fresh_normalized_motors_and_stops_when_stale():
