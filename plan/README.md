@@ -48,3 +48,4 @@
 
 - [0046: Betaflight MSP backend](0046-betaflight-msp-backend.md) — Complete, implementation commit `19d3247`.
 - [0047: Betaflight motor mapping check](0047-betaflight-motor-mapping-check.md) — Pending, implementation commit Pending.
+- [0048: Heavy quad propulsion upgrade](0048-heavy-quad-propulsion-upgrade.md) — Implemented; focused tests passed, implementation commit `4de86bd`.
