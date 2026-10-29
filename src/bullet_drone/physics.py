@@ -1,7 +1,7 @@
 """PyBullet adapter owning one world and no application configuration IO."""
 
 import importlib
-from importlib.resources import as_file, files
+from importlib.resources import as_file
 import os
 import sys
 from uuid import uuid4
@@ -13,7 +13,7 @@ from bullet_drone.actuators import IdealMotorDynamics
 from bullet_drone.propellers import IdealPropellerModel
 from bullet_drone.models import DroneState, ForceOutput, PropellerOutput, RotorSpeeds, SurfaceHit, Vector3
 from bullet_drone.forces.chain import ForceChain
-from bullet_drone.vehicle import VehicleParameters, load_racer_parameters
+from bullet_drone.vehicle import VehicleParameters, load_vehicle_parameters, vehicle_urdf_path
 
 
 DRONE_COLLISION_GROUP = 1 << 14
@@ -30,7 +30,7 @@ class PyBulletPhysics:
     def __init__(self, config: SimulationConfig, vehicle: VehicleParameters | None = None, *,
                  motor_dynamics: MotorDynamics | None = None, propeller_model: PropellerModel | None = None) -> None:
         self._config = config
-        self._vehicle = vehicle if vehicle is not None else load_racer_parameters()
+        self._vehicle = vehicle if vehicle is not None else load_vehicle_parameters(config.drone.urdf)
         self._motors = motor_dynamics if motor_dynamics is not None else IdealMotorDynamics(self._vehicle.max_speed_rad_s)
         self._propellers = propeller_model if propeller_model is not None else IdealPropellerModel(self._vehicle)
         self._forces = ForceChain(config.forces, config.wind, self._vehicle)
@@ -79,10 +79,10 @@ class PyBulletPhysics:
                 basePosition=[0, 0, 0],
                 baseInertialFramePosition=[0, 0, 0], physicsClientId=client,
             )
-            # Load bundled meshes relative to the URDF, including in an installed wheel.
-            with as_file(files("bullet_drone").joinpath("assets/racer")) as assets:
+            # Load the selected packaged URDF, including in an installed wheel.
+            with as_file(vehicle_urdf_path(self._config.drone.urdf)) as urdf:
                 self._body = p.loadURDF(
-                    str(assets / "racer.urdf"),
+                    str(urdf),
                     basePosition=self._config.drone.initial_position_m,
                     baseOrientation=[0, 0, 0, 1],
                     flags=p.URDF_USE_INERTIA_FROM_FILE, physicsClientId=client,

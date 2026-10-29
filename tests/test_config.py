@@ -1,9 +1,11 @@
 import copy
+from pathlib import Path
 
 import pytest
 import yaml
 
 from bullet_drone.config import ConfigurationError, DroneSettings, YamlConfigLoader
+from bullet_drone.vehicle import load_vehicle_parameters
 
 
 def valid_data():
@@ -32,6 +34,29 @@ def test_configured_drone_id(tmp_path):
     data['drone']['drone_id'] = 'survey-drone-2'
     assert YamlConfigLoader().load(write_config(tmp_path, data)).drone.drone_id == 'survey-drone-2'
     assert DroneSettings(1, (0,0,1)).drone_id == 'drone_1'
+
+
+def test_heavy_quad_urdf_selection(tmp_path):
+    data = valid_data()
+    data['drone'].update(urdf='heavy_quad', mass_kg=5.)
+    config = YamlConfigLoader().load(write_config(tmp_path, data))
+    vehicle = load_vehicle_parameters(config.drone.urdf)
+    assert config.drone.urdf == 'heavy_quad'
+    assert vehicle.rotor_positions_m[0] == pytest.approx((.240416, .240416, 0.))
+    assert vehicle.max_thrust_per_rotor_n == pytest.approx(30.65625)
+    assert vehicle.max_thrust_per_rotor_n > 5. * 9.81 / 4
+
+
+def test_unknown_urdf_rejected():
+    with pytest.raises(ConfigurationError, match='drone.urdf'):
+        DroneSettings(1, (0, 0, 1), urdf='unknown')
+
+
+@pytest.mark.parametrize('profile', ['internal_heavy_quad.yaml', 'betaflight_heavy_quad.yaml'])
+def test_workspace_heavy_quad_profiles_keep_render_identity(profile):
+    config = YamlConfigLoader().load(Path(__file__).resolve().parents[2] / 'config' / profile)
+    assert config.drone.drone_id == 'drone_1'
+    assert config.drone.urdf == 'heavy_quad'
 
 
 @pytest.mark.parametrize('drone_id', ['', ' \t\n', None, True, 2, [], 'a' * 129])

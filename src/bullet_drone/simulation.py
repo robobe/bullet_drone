@@ -12,7 +12,7 @@ from bullet_drone.sensors import BarometerSensor, ImuSensor
 from bullet_drone.mixer import MotorMixer
 from bullet_drone.models import DroneObservation
 from bullet_drone.physics import PyBulletPhysics
-from bullet_drone.vehicle import VehicleParameters, load_racer_parameters
+from bullet_drone.vehicle import VehicleParameters, load_vehicle_parameters
 
 
 class RcSimulation:
@@ -31,15 +31,15 @@ class RcSimulation:
                  motor_dynamics: MotorDynamics | None = None,
                  propeller_model: PropellerModel | None = None) -> None:
         self._betaflight = config.control.backend == "betaflight"
-        vehicle = vehicle if vehicle is not None else load_racer_parameters()
+        vehicle = vehicle if vehicle is not None else load_vehicle_parameters(config.drone.urdf)
         self._timestep_s = config.simulation.timestep_s
         if self._betaflight:
             from bullet_drone.betaflight.backend import BetaflightBackend
             from bullet_drone.betaflight.bridge import UdpSitlBridge
             if not config.sensors.imu.enabled or not config.sensors.barometer.enabled:
                 raise ConfigurationError('Betaflight requires enabled IMU and barometer')
-            if config.rc != RcSettings() or vehicle != load_racer_parameters() or stabilization is not None:
-                raise ConfigurationError('Betaflight requires the bundled racer, default RC mapping and firmware stabilization')
+            if config.rc != RcSettings() or stabilization is not None:
+                raise ConfigurationError('Betaflight requires the default RC mapping and firmware stabilization')
             self._rc = None
             self._provider = BetaflightBackend(vehicle, UdpSitlBridge())
         else:

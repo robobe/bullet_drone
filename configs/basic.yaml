@@ -17,6 +17,8 @@ drone:
   # Stable identity retained across resets and used in telemetry headers.
   # Optional nonblank string of at most 128 characters; defaults to drone_1.
   drone_id: drone_1
+  # Packaged vehicle definition; racer is the default, heavy_quad selects the 5 kg 15-inch baseline.
+  urdf: racer
   # Required positive, finite total drone mass in kg; scales the model's mass and inertia.
   mass_kg: 1.0
   # Required finite world-frame [X, Y, Z] spawn position in metres; Z is height above zero.

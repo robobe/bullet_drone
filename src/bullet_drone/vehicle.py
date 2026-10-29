@@ -41,10 +41,21 @@ class VehicleParameters:
         return sqrt(self.max_thrust_per_rotor_n / self.thrust_coefficient)
 
 
-def load_racer_parameters() -> VehicleParameters:
-    """Read the packaged URDF once; hardware limits do not scale with YAML mass."""
+VEHICLE_URDFS = {'racer': ('racer', 'racer.urdf'), 'heavy_quad': ('heavy_quad', 'heavy_quad.urdf')}
+
+
+def vehicle_urdf_path(name: str = 'racer'):
     try:
-        root = ET.fromstring(files("bullet_drone").joinpath("assets/racer/racer.urdf").read_bytes())
+        directory, filename = VEHICLE_URDFS[name]
+    except (KeyError, TypeError) as exc:
+        raise ConfigurationError(f"unknown vehicle URDF: {name}") from exc
+    return files("bullet_drone").joinpath("assets", directory, filename)
+
+
+def load_vehicle_parameters(name: str = 'racer') -> VehicleParameters:
+    """Read actuator and geometry parameters from a packaged vehicle URDF."""
+    try:
+        root = ET.fromstring(vehicle_urdf_path(name).read_bytes())
         properties = root.find("properties")
         nominal_mass = float(root.find("link[@name='base_link']/inertial/mass").get("value"))
         positions = tuple(
@@ -60,4 +71,8 @@ def load_racer_parameters() -> VehicleParameters:
             max_thrust_per_rotor_n=nominal_mass * 9.81 * float(properties.get("thrust2weight")) / 4,
         )
     except (OSError, ET.ParseError, AttributeError, TypeError, ValueError, OverflowError) as exc:
-        raise ConfigurationError(f"Invalid bundled racer actuator parameters: {exc}") from exc
+        raise ConfigurationError(f"Invalid bundled {name} actuator parameters: {exc}") from exc
+
+
+def load_racer_parameters() -> VehicleParameters:
+    return load_vehicle_parameters('racer')

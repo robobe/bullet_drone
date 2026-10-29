@@ -15,7 +15,7 @@ from bullet_drone.config import ConfigurationError, DroneSettings, SimulationCon
 from bullet_drone.pose import resolve_pose
 from bullet_drone.simulation import RcSimulation
 from bullet_drone.commands import RcInput
-from bullet_drone.vehicle import load_racer_parameters
+from bullet_drone.vehicle import load_vehicle_parameters
 from examples.position_square.demo import FLIGHT_CONTROL_SETTINGS
 from tools.zmq_render import DEFAULT_RENDER_CONFIG
 from tools.zmq_render.control import SimulationControl
@@ -95,7 +95,7 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
         control = SimulationControl(renderer.transport_path, renderer, scenario=scenario, spawn=SpawnSelection(config.drone.initial_position_m), wind=wind)
         lease = FlightLease(control.physics_id, hold_last=betaflight)
         receiver = FlightReceiver(transport['flight_command_endpoint'], lease)
-        vehicle = load_racer_parameters()
+        vehicle = load_vehicle_parameters(config.drone.urdf)
         platform = dict(schema_version=1, physics_id=control.physics_id, stream_id=renderer.stream,
                         mass_kg=config.drone.mass_kg, gravity_m_s2=-gravity[2],
                         max_thrust_n=len(vehicle.rotor_positions_m) * vehicle.max_thrust_per_rotor_n,

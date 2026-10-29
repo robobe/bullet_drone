@@ -1,0 +1,24 @@
+# Minimal simulation profile for the packaged 5 kg heavy_quad URDF.
+simulation:
+  # Physics timestep in seconds; 240 Hz matches the existing simulator baseline.
+  timestep_s: 0.004166666666666667
+  # Maximum caller-controlled physics steps; 1200 steps represent 5 seconds.
+  max_steps: 1200
+  # Run headless by default; set true when a desktop display is available.
+  gui: false
+  # World gravity in m/s^2, with positive world Z upward.
+  gravity_m_s2: [0.0, 0.0, -9.81]
+
+drone:
+  # Stable telemetry identity for this vehicle.
+  drone_id: drone_1
+  # Selects the packaged URDF and actuator parameter set.
+  urdf: heavy_quad
+  # Total vehicle mass in kilograms; must match the intended payload configuration.
+  mass_kg: 5.0
+  # Initial world position in metres.
+  initial_position_m: [0.0, 0.0, 1.0]
+
+control:
+  # Use the generic internal controller; the bundled Betaflight profile remains racer-only.
+  backend: internal

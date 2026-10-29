@@ -13,9 +13,12 @@ from tools.zmq_render.publisher import RenderPublisher
 
 
 @pytest.mark.parametrize('filter_enabled', [False, True])
-def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, monkeypatch, capsys, filter_enabled):
+@pytest.mark.parametrize(('urdf', 'mass_kg'), [('racer', 1.0), ('heavy_quad', 5.0)])
+def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, monkeypatch, capsys,
+                                                            filter_enabled, urdf, mass_kg):
     from examples.external_rc import main as runner
     data = asdict(config)
+    data['drone'].update(urdf=urdf, mass_kg=mass_kg)
     data['simulation']['gui'] = True  # The external runner remains headless.
     data['pose_sources'] = asdict(PoseSources('barometer', 'imu'))
     data['sensors'] = asdict(SensorsSettings(ImuSettings(gyro_bias_rad_s=(.1, .1, .1)),
@@ -82,6 +85,7 @@ def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, mo
     assert banner['transport_config_path'] == str(transport.resolve())
     assert banner['transport'] == json.loads(transport.read_text())
     assert banner['platform']['attitude_model'] == 'imu_complementary'
+    assert banner['platform']['max_thrust_n'] > banner['platform']['mass_kg'] * banner['platform']['gravity_m_s2']
     factory.assert_called_once_with(render, pose_sources=PoseSources('barometer', 'imu'))
     observations = output.consume.call_args_list
     feedbacks = output.set_flight.call_args_list

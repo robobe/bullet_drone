@@ -80,6 +80,7 @@ class DroneSettings:
     mass_kg: float
     initial_position_m: Vector3
     drone_id: str = DEFAULT_DRONE_ID
+    urdf: str = "racer"
 
     def __post_init__(self) -> None:
         if (not isinstance(self.drone_id, str) or not self.drone_id.strip()
@@ -87,6 +88,8 @@ class DroneSettings:
             raise ConfigurationError(
                 f"drone.drone_id must be a nonblank string of at most {MAX_DRONE_ID_LENGTH} characters"
             )
+        if self.urdf not in ('racer', 'heavy_quad'):
+            raise ConfigurationError("drone.urdf must be 'racer' or 'heavy_quad'")
         object.__setattr__(self, "mass_kg", _number(self.mass_kg, "drone.mass_kg", positive=True))
         object.__setattr__(self, "initial_position_m", _vector(self.initial_position_m, "drone.initial_position_m"))
 
@@ -485,7 +488,7 @@ class YamlConfigLoader:
             root["simulation"], "simulation",
             {"timestep_s", "max_steps", "gravity_m_s2"}, {"gui"},
         )
-        drone = _mapping(root["drone"], "drone", {"mass_kg", "initial_position_m"}, {"drone_id"})
+        drone = _mapping(root["drone"], "drone", {"mass_kg", "initial_position_m"}, {"drone_id", "urdf"})
         control = ControlSettings(**_mapping(root["control"], "control", set(), {"backend"})) if "control" in root else ControlSettings()
         rc = RcSettings(**_mapping(root['rc'], 'rc', set(), set(RcSettings.__dataclass_fields__))) if 'rc' in root else RcSettings()
         sensors = _mapping(root.get("sensors", {}), "sensors", set(), {"imu", "barometer"})
