@@ -28,8 +28,8 @@ Godot fallback behavior.
 
 ## Status
 
-Pending
+Implemented; focused publisher and adapter checks passed.
 
 ## Implementation commit
 
-Pending
+`53b96b1`
