@@ -86,7 +86,9 @@ def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, mo
     assert banner['transport'] == json.loads(transport.read_text())
     assert banner['platform']['attitude_model'] == 'imu_complementary'
     assert banner['platform']['max_thrust_n'] > banner['platform']['mass_kg'] * banner['platform']['gravity_m_s2']
-    factory.assert_called_once_with(render, pose_sources=PoseSources('barometer', 'imu'))
+    factory.assert_called_once_with(render, pose_sources=PoseSources('barometer', 'imu'),
+                                    profile_name=physics.stem, drone_model=urdf,
+                                    backend='internal')
     observations = output.consume.call_args_list
     feedbacks = output.set_flight.call_args_list
     assert len(observations) == 4  # Initial, new episode, two physics steps.

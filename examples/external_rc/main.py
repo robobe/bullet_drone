@@ -85,7 +85,9 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
     if gravity[:2] != (0., 0.) or gravity[2] >= 0:
         raise ConfigurationError('External RC requires downward world-Z gravity')
     physics_hz = 1 / config.simulation.timestep_s
-    renderer = RenderPublisher(path, pose_sources=config.pose_sources)
+    renderer = RenderPublisher(path, pose_sources=config.pose_sources,
+                               profile_name='default' if config_path is None else Path(config_path).stem,
+                               drone_model=config.drone.urdf, backend=config.control.backend)
     control = receiver = simulation = None
     try:
         renderer.start()

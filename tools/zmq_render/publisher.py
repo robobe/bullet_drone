@@ -28,7 +28,8 @@ MAX_ANALYSIS_BATCH = 16
 
 
 class RenderPublisher:
-    def __init__(self, path, *, pose_sources: PoseSources = PoseSources()):
+    def __init__(self, path, *, pose_sources: PoseSources = PoseSources(),
+                 profile_name='unknown', drone_model='racer', backend='internal'):
         if not isinstance(pose_sources, PoseSources):
             raise ConfigurationError('pose_sources must be PoseSources')
         path = Path(path).resolve()
@@ -49,8 +50,12 @@ class RenderPublisher:
         except (OSError, ValueError, TypeError, KeyError) as exc:
             raise ConfigurationError(f'Invalid render configuration: {exc}') from exc
         self.pose_sources = pose_sources
+        if not all(isinstance(value, str) and value for value in (profile_name, drone_model, backend)):
+            raise ConfigurationError('render profile metadata must be nonblank strings')
         self.config = config
         self.stream = str(uuid4())
+        self.profile = dict(schema_version=1, stream_id=self.stream,
+                            profile_name=profile_name, backend=backend, drone_model=drone_model)
         self.queue = Queue(QUEUE_CAPACITY)
         self.stop = Event()
         self.ready = Event()
@@ -177,6 +182,7 @@ class RenderPublisher:
                 while not self.stop.is_set():
                     if time.monotonic() >= next_config:
                         socket.send_multipart([b'render/drone_1/config', json.dumps(config).encode()], flags=zmq.DONTWAIT)
+                        socket.send_multipart([b'render/drone_1/profile', json.dumps(self.profile).encode()], flags=zmq.DONTWAIT)
                         with self.snapshot_lock:
                             platform = self.flight_config
                         if platform is not None:

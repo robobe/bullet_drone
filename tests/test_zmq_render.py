@@ -1,5 +1,6 @@
 from dataclasses import replace
 import json
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -87,12 +88,34 @@ def test_real_tcp_periodic_config_pose_and_binding_cleanup(tmp_path):
         subscriber.connect(profile['telemetry_endpoint'])
         output.start()
         try:
-            assert subscriber.poll(4000)
-            topic, payload = subscriber.recv_multipart()
+            profile_seen = False
+            deadline = time.monotonic() + 4
+            while True:
+                assert time.monotonic() < deadline
+                if not subscriber.poll(100):
+                    continue
+                topic, payload = subscriber.recv_multipart()
+                if topic == b'render/drone_1/profile':
+                    profile_seen = True
+                    assert json.loads(payload) == {'schema_version': 1, 'stream_id': output.stream,
+                                                   'profile_name': 'unknown', 'backend': 'internal', 'drone_model': 'racer'}
+                    continue
+                break
             assert topic == b'render/drone_1/config'
             from bullet_msgs import schema_bytes
             validate(json.loads(payload), json.loads(schema_bytes('config.json')))
             assert json.loads(payload)['camera']['width_px'] == 640
+            while subscriber.poll(0):
+                profile_topic, profile_payload = subscriber.recv_multipart()
+                assert profile_topic == b'render/drone_1/profile'
+                assert json.loads(profile_payload)['stream_id'] == output.stream
+            assert subscriber.poll(1500)
+            repeated_topic, repeated_payload = subscriber.recv_multipart()
+            assert repeated_topic == b'render/drone_1/config'
+            assert subscriber.poll(1500)
+            repeated_topic, repeated_payload = subscriber.recv_multipart()
+            assert repeated_topic == b'render/drone_1/profile'
+            assert json.loads(repeated_payload)['stream_id'] == output.stream
             state = DroneState('drone_1', 0, 0, (0, 0, 3), (0, 0, 0, 1), (1.25, -2.5, 0.75), (0, 0, 0))
             output.consume(SimpleNamespace(ground_truth=state))
             assert subscriber.poll(2000)
@@ -105,7 +128,6 @@ def test_real_tcp_periodic_config_pose_and_binding_cleanup(tmp_path):
             assert packet['linear_velocity_m_s'] == [1.25, -2.5, 0.75]
             output.set_state(dict(schema_version=1, physics_id='physics', controller_id=None,
                 episode_id=state.episode_id, state='stopped', reason='stopped', simulation_time_s=0))
-            import time
             deadline = time.monotonic() + 3
             while True:
                 assert time.monotonic() < deadline, 'held pose did not arrive'
