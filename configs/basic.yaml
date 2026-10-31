@@ -24,6 +24,18 @@ drone:
   # Required finite world-frame [X, Y, Z] spawn position in metres; Z is height above zero.
   initial_position_m: [0.0, 0.0, 1.0]
 
+# Optional shared Godot/PyBullet terrain; omit heightmap_path to use the flat default ground.
+terrain:
+  # Relative float32 little-endian heightmap path, resolved from this YAML file's directory.
+  heightmap_path: ../../terrain/terrain_heightmap.f32
+  # Width and depth represented by the heightmap in metres.
+  world_size_m: 500.0
+  # Number of samples along each heightmap axis, including both edges.
+  samples_x: 121
+  samples_z: 121
+  # World-frame X/Y origin of the heightmap's lower-left sample in metres.
+  origin_m: [-250.0, -250.0]
+
 # Optional flight-controller backend. "internal" preserves the native simulation controller;
 # use "betaflight" only through bullet_render/tools/run_flight.py with the pinned SITL build.
 control:
@@ -88,6 +100,14 @@ sensors:
     filter_time_constant_s: 0.1
     # Integer random seed, default 1; reset repeats the sequence. Keep distinct from the IMU seed.
     seed: 1
+  # Optional downward-facing terrain rangefinder; disabled by default for legacy profiles.
+  rangefinder:
+    # Enable body-down AGL measurements when true.
+    enabled: true
+    # Maximum body-down ray length in metres; no return becomes valid=false.
+    max_range_m: 10.0
+    # Sensor mount offset in the vehicle body frame [X,Y,Z] metres.
+    mount_position_body_m: [0.0, 0.0, 0.0]
 
 # Optional published-pose sources. Omitted fields preserve ground-truth rendering.
 # Used by external_rc --config; app altitude feedback always uses the barometer.

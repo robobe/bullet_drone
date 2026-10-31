@@ -265,6 +265,11 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
             applied_sequence = lease.sequence
             armed, mode = (False, 'angle') if betaflight else (simulation.last_command.armed, simulation.last_command.mode)
             publish(captured=True)
+            if simulation.terrain_contact():
+                lease.end()
+                control.transition('stopped', 'terrain_collision', observation)
+                publish()
+                continue
             remaining = start_time + observation.ground_truth.simulation_time_s - time.monotonic()
             if remaining > 0:
                 time.sleep(remaining)

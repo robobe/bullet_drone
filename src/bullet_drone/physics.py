@@ -4,6 +4,8 @@ import importlib
 from importlib.resources import as_file
 import os
 import sys
+from math import sqrt
+from pathlib import Path
 from uuid import uuid4
 
 from bullet_drone.commands import InvalidCommandError, RotorCommand, _values
@@ -14,6 +16,7 @@ from bullet_drone.propellers import IdealPropellerModel
 from bullet_drone.models import DroneState, ForceOutput, PropellerOutput, RotorSpeeds, SurfaceHit, Vector3
 from bullet_drone.forces.chain import ForceChain
 from bullet_drone.vehicle import VehicleParameters, load_vehicle_parameters, vehicle_urdf_path
+from bullet_drone.terrain import load_heightmap
 
 
 DRONE_COLLISION_GROUP = 1 << 14
@@ -38,6 +41,7 @@ class PyBulletPhysics:
         self._p = None
         self._client: int | None = None
         self._body: int | None = None
+        self._terrain_body: int | None = None
         self._closed = False
         self._failed = False
         self._episode_id = ""
@@ -67,18 +71,21 @@ class PyBulletPhysics:
             p.setGravity(*settings.gravity_m_s2, physicsClientId=client)
             p.setPhysicsEngineParameter(numSolverIterations=50, physicsClientId=client)
             # Explicitly disable default damping for analytical free-fall checks.
-            ground_collision = p.createCollisionShape(p.GEOM_PLANE, physicsClientId=client)
-            ground_visual = p.createVisualShape(
-                p.GEOM_BOX, halfExtents=[5, 5, 0.01],
-                visualFramePosition=[0, 0, -0.01],
-                rgbaColor=[0.65, 0.68, 0.7, 1], physicsClientId=client,
-            )
-            p.createMultiBody(
-                baseMass=0, baseCollisionShapeIndex=ground_collision,
-                baseVisualShapeIndex=ground_visual,
-                basePosition=[0, 0, 0],
-                baseInertialFramePosition=[0, 0, 0], physicsClientId=client,
-            )
+            heights = load_heightmap(self._config.terrain)
+            if heights is None:
+                ground_collision = p.createCollisionShape(p.GEOM_PLANE, physicsClientId=client)
+                self._terrain_body = p.createMultiBody(baseMass=0, baseCollisionShapeIndex=ground_collision,
+                                                       basePosition=[0, 0, 0], physicsClientId=client)
+            else:
+                samples_x, samples_z = self._config.terrain.samples_x, self._config.terrain.samples_z
+                spacing = self._config.terrain.world_size_m / (samples_x - 1)
+                mesh_path = Path(self._config.terrain.heightmap_path).with_name('terrain.obj')
+                if not mesh_path.is_file():
+                    raise BackendError(f"Terrain mesh companion is missing: {mesh_path}")
+                shape = p.createCollisionShape(p.GEOM_MESH, fileName=str(mesh_path),
+                                               flags=p.GEOM_FORCE_CONCAVE_TRIMESH, physicsClientId=client)
+                self._terrain_body = p.createMultiBody(baseMass=0, baseCollisionShapeIndex=shape,
+                                                       basePosition=[0, 0, 0], physicsClientId=client)
             # Load the selected packaged URDF, including in an installed wheel.
             with as_file(vehicle_urdf_path(self._config.drone.urdf)) as urdf:
                 self._body = p.loadURDF(
@@ -136,6 +143,14 @@ class PyBulletPhysics:
         if self._closed or self._body is None or self._failed:
             raise LifecycleError('Physics must be initialized before updating wind')
         self._forces.set_wind(settings, self._step_index * self._config.simulation.timestep_s)
+
+    def terrain_contact(self) -> bool:
+        """Return whether the vehicle is currently touching the configured terrain."""
+        self._require_connection()
+        if self._terrain_body is None or self._body is None:
+            return False
+        return bool(self._p.getContactPoints(bodyA=self._body, bodyB=self._terrain_body,
+                                             physicsClientId=self._client))
 
     def step(self, command: RotorCommand | None = None) -> DroneState:
         if self._closed or self._body is None or self._failed:
@@ -236,8 +251,16 @@ class PyBulletPhysics:
 
     def surface_below(self, origin_world_m: Vector3, range_m: float) -> SurfaceHit | None:
         """Read-only world -Z ray; the reserved drone collision group is excluded."""
+        return self.ray_surface(origin_world_m, (0.0, 0.0, -1.0), range_m)
+
+    def ray_surface(self, origin_world_m: Vector3, direction_world: Vector3, range_m: float) -> SurfaceHit | None:
+        """Read-only ray query against terrain and other supporting surfaces."""
         self._require_connection()
-        end = (*origin_world_m[:WORLD_Z_AXIS], origin_world_m[WORLD_Z_AXIS] - range_m)
+        length = sqrt(sum(value * value for value in direction_world))
+        if length <= 0 or range_m <= 0:
+            raise ValueError("Surface ray direction and range must be positive")
+        direction = tuple(value / length for value in direction_world)
+        end = tuple(origin + component * range_m for origin, component in zip(origin_world_m, direction))
         hit = self._p.rayTest(origin_world_m, end, collisionFilterMask=SURFACE_RAY_MASK,
                               physicsClientId=self._client)[0]
         if hit[0] < 0:

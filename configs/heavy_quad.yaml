@@ -19,6 +19,27 @@ drone:
   # Initial world position in metres.
   initial_position_m: [0.0, 0.0, 1.0]
 
+terrain:
+  # Shared float32 terrain asset, resolved relative to this configuration file.
+  heightmap_path: ../../terrain/terrain_heightmap.f32
+  # Terrain width/depth represented by the shared asset in metres.
+  world_size_m: 500.0
+  # Heightmap samples along each horizontal axis, including both edges.
+  samples_x: 121
+  samples_z: 121
+  # World-frame X/Y origin of the terrain asset in metres.
+  origin_m: [-250.0, -250.0]
+
+sensors:
+  # Downward AGL sensor used by the physics telemetry stream.
+  rangefinder:
+    # Enable the body-down terrain measurement.
+    enabled: true
+    # Maximum range in metres; no terrain return is invalid.
+    max_range_m: 10.0
+    # Body-frame sensor mount offset in metres.
+    mount_position_body_m: [0.0, 0.0, 0.0]
+
 control:
   # Use the generic internal controller; the bundled Betaflight profile remains racer-only.
   backend: internal

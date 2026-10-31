@@ -2,5 +2,6 @@
 
 from bullet_drone.sensors.barometer import BarometerSensor
 from bullet_drone.sensors.imu import ImuSensor
+from bullet_drone.sensors.rangefinder import RangefinderSensor
 
-__all__ = ["ImuSensor", "BarometerSensor"]
+__all__ = ["ImuSensor", "BarometerSensor", "RangefinderSensor"]

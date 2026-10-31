@@ -34,6 +34,8 @@ DEFAULT_WAKE_MAXIMUM_SPEED_M_S = 20.0
 DEFAULT_WAKE_BODY_SAMPLE_OFFSET_M = (0.0, 0.0, -0.03)
 DEFAULT_WIND_CORRELATION_TIME_S = 1.0
 DEFAULT_WIND_SEED = 2
+DEFAULT_RANGEFINDER_MAX_RANGE_M = 10.0
+DEFAULT_RANGEFINDER_MOUNT_POSITION_M = (0.0, 0.0, 0.0)
 
 
 class ConfigurationError(ValueError):
@@ -215,13 +217,28 @@ class BarometerSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class RangefinderSettings:
+    enabled: bool = False
+    max_range_m: float = DEFAULT_RANGEFINDER_MAX_RANGE_M
+    mount_position_body_m: Vector3 = DEFAULT_RANGEFINDER_MOUNT_POSITION_M
+
+    def __post_init__(self) -> None:
+        if type(self.enabled) is not bool:
+            raise ConfigurationError("sensors.rangefinder.enabled must be a boolean")
+        object.__setattr__(self, "max_range_m", _number(self.max_range_m, "sensors.rangefinder.max_range_m", positive=True))
+        object.__setattr__(self, "mount_position_body_m", _vector(self.mount_position_body_m,
+                                                                    "sensors.rangefinder.mount_position_body_m"))
+
+
+@dataclass(frozen=True, slots=True)
 class SensorsSettings:
     imu: ImuSettings = field(default_factory=ImuSettings)
     barometer: BarometerSettings = field(default_factory=BarometerSettings)
+    rangefinder: RangefinderSettings = field(default_factory=RangefinderSettings)
 
     def __post_init__(self) -> None:
-        if not isinstance(self.imu, ImuSettings) or not isinstance(self.barometer, BarometerSettings):
-            raise ConfigurationError("sensors requires ImuSettings and BarometerSettings")
+        if not isinstance(self.imu, ImuSettings) or not isinstance(self.barometer, BarometerSettings) or not isinstance(self.rangefinder, RangefinderSettings):
+            raise ConfigurationError("sensors requires ImuSettings, BarometerSettings and RangefinderSettings")
 
 
 def _nonnegative(value: object, name: str) -> float:
@@ -423,6 +440,28 @@ class AttitudeEstimatorSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class TerrainSettings:
+    heightmap_path: str | None = None
+    world_size_m: float = 500.0
+    samples_x: int = 121
+    samples_z: int = 121
+    origin_m: tuple[float, float] = (-250.0, -250.0)
+
+    def __post_init__(self) -> None:
+        if self.heightmap_path is not None and (not isinstance(self.heightmap_path, str) or not self.heightmap_path.strip()):
+            raise ConfigurationError("terrain.heightmap_path must be a nonblank string or null")
+        object.__setattr__(self, "world_size_m", _number(self.world_size_m, "terrain.world_size_m", positive=True))
+        for name in ("samples_x", "samples_z"):
+            value = getattr(self, name)
+            if type(value) is not int or value < 2:
+                raise ConfigurationError(f"terrain.{name} must be an integer >= 2")
+        if not isinstance(self.origin_m, (tuple, list)) or len(self.origin_m) != 2:
+            raise ConfigurationError("terrain.origin_m must contain two numbers")
+        object.__setattr__(self, "origin_m", tuple(_number(value, f"terrain.origin_m[{index}]")
+                                                     for index, value in enumerate(self.origin_m)))
+
+
+@dataclass(frozen=True, slots=True)
 class SimulationConfig:
     simulation: SimulationSettings
     drone: DroneSettings
@@ -434,6 +473,7 @@ class SimulationConfig:
     telemetry: TelemetrySettings = field(default_factory=TelemetrySettings)
     pose_sources: PoseSources = field(default_factory=PoseSources)
     attitude_estimator: AttitudeEstimatorSettings = field(default_factory=AttitudeEstimatorSettings)
+    terrain: TerrainSettings = field(default_factory=TerrainSettings)
 
     def __post_init__(self) -> None:
         if not isinstance(self.pose_sources, PoseSources) or not isinstance(self.attitude_estimator, AttitudeEstimatorSettings):
@@ -448,6 +488,8 @@ class SimulationConfig:
             self.sensors.imu.validate_sample_period(self.simulation.timestep_s)
         if not isinstance(self.forces, ForcesSettings) or not isinstance(self.wind, WindSettings):
             raise ConfigurationError('forces/wind must be ForcesSettings/WindSettings')
+        if not isinstance(self.terrain, TerrainSettings):
+            raise ConfigurationError('terrain must be TerrainSettings')
         if self.pose_sources.altitude == 'barometer' and not self.sensors.barometer.enabled:
             raise ConfigurationError('barometer pose source requires sensors.barometer.enabled')
         if self.pose_sources.attitude == 'imu':
@@ -483,7 +525,7 @@ class YamlConfigLoader:
             data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
         except (OSError, UnicodeError, yaml.YAMLError) as exc:
             raise ConfigurationError(f"Cannot read YAML configuration {path}: {exc}") from exc
-        root = _mapping(data, "configuration", {"simulation", "drone"}, {"control", "rc", "sensors", "forces", "wind", "telemetry", "pose_sources", "attitude_estimator"})
+        root = _mapping(data, "configuration", {"simulation", "drone"}, {"control", "rc", "sensors", "forces", "wind", "telemetry", "pose_sources", "attitude_estimator", "terrain"})
         simulation = _mapping(
             root["simulation"], "simulation",
             {"timestep_s", "max_steps", "gravity_m_s2"}, {"gui"},
@@ -491,11 +533,13 @@ class YamlConfigLoader:
         drone = _mapping(root["drone"], "drone", {"mass_kg", "initial_position_m"}, {"drone_id", "urdf"})
         control = ControlSettings(**_mapping(root["control"], "control", set(), {"backend"})) if "control" in root else ControlSettings()
         rc = RcSettings(**_mapping(root['rc'], 'rc', set(), set(RcSettings.__dataclass_fields__))) if 'rc' in root else RcSettings()
-        sensors = _mapping(root.get("sensors", {}), "sensors", set(), {"imu", "barometer"})
+        sensors = _mapping(root.get("sensors", {}), "sensors", set(), {"imu", "barometer", "rangefinder"})
         imu = ImuSettings(**_mapping(sensors.get("imu", {}), "sensors.imu", set(),
                                      set(ImuSettings.__dataclass_fields__)))
         barometer = BarometerSettings(**_mapping(sensors.get("barometer", {}), "sensors.barometer", set(),
                                                  set(BarometerSettings.__dataclass_fields__)))
+        rangefinder = RangefinderSettings(**_mapping(sensors.get("rangefinder", {}), "sensors.rangefinder", set(),
+                                                     set(RangefinderSettings.__dataclass_fields__)))
         force_values = _mapping(root.get("forces", {}), "forces", set(), set(ForcesSettings.__dataclass_fields__))
         force_options = dict(force_values)
         for name, settings_type in _force_setting_types().items():
@@ -509,5 +553,13 @@ class YamlConfigLoader:
                                                set(PoseSources.__dataclass_fields__)))
         estimator = AttitudeEstimatorSettings(**_mapping(root.get('attitude_estimator', {}), 'attitude_estimator', set(),
                                                          set(AttitudeEstimatorSettings.__dataclass_fields__)))
+        terrain_values = dict(_mapping(root.get("terrain", {}), "terrain", set(),
+                                       set(TerrainSettings.__dataclass_fields__)))
+        if terrain_values.get("heightmap_path") is not None:
+            terrain_path = Path(terrain_values["heightmap_path"])
+            if not terrain_path.is_absolute():
+                terrain_values["heightmap_path"] = str(Path(path).resolve().parent / terrain_path)
+        terrain = TerrainSettings(**terrain_values)
         return SimulationConfig(SimulationSettings(**simulation), DroneSettings(**drone), control, rc,
-                                SensorsSettings(imu, barometer), forces, wind, telemetry, pose_sources, estimator)
+                                SensorsSettings(imu, barometer, rangefinder), forces, wind, telemetry, pose_sources, estimator,
+                                terrain=terrain)

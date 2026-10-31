@@ -22,8 +22,17 @@ BAROMETER_SCHEMA = {
     }),
     "type": ["object", "null"],
 }
+RANGEFINDER_SCHEMA = {
+    **object_schema({
+        "episode_id": {"type": "string", "minLength": 1},
+        **SOURCE_PROPERTIES,
+        "distance_cm": {"type": ["number", "null"], "minimum": 0},
+        "valid": {"type": "boolean"},
+    }),
+    "type": ["object", "null"],
+}
 SCHEMA = topic_schema(TOPIC, {
     "imu": IMU_SCHEMA,
     "barometer": BAROMETER_SCHEMA,
-    "rangefinder": {"type": "null", "description": "Not implemented"},
+    "rangefinder": RANGEFINDER_SCHEMA,
 })

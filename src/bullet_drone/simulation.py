@@ -8,7 +8,7 @@ from bullet_drone.contracts import LifecycleError, MotorDynamics, PropellerModel
 from bullet_drone.controllers import IdealStateFeedback, InternalControlSettings, InternalFlightController
 from bullet_drone.environment import DroneEnvironment
 from bullet_drone.rc import RcCodec, SoftwareRc
-from bullet_drone.sensors import BarometerSensor, ImuSensor
+from bullet_drone.sensors import BarometerSensor, ImuSensor, RangefinderSensor
 from bullet_drone.mixer import MotorMixer
 from bullet_drone.models import DroneObservation
 from bullet_drone.physics import PyBulletPhysics
@@ -55,6 +55,8 @@ class RcSimulation:
                 if config.sensors.imu.enabled else None),
             barometer=(BarometerSensor(config.sensors.barometer)
                        if config.sensors.barometer.enabled else None),
+            rangefinder=(RangefinderSensor(self._physics, config.sensors.rangefinder)
+                         if config.sensors.rangefinder.enabled else None),
             attitude_estimator=(AttitudeEstimator(config.simulation.gravity_m_s2, config.attitude_estimator)
                                 if config.pose_sources.attitude == 'imu' else None))
         self._observation: DroneObservation | None = None
@@ -69,6 +71,9 @@ class RcSimulation:
         if self._closed or self._observation is None:
             raise LifecycleError('Simulation must be reset before updating wind')
         self._physics.set_wind(settings)
+
+    def terrain_contact(self) -> bool:
+        return self._physics.terrain_contact()
 
     @property
     def timestep_s(self) -> float:

@@ -50,12 +50,23 @@ class BarometerReading:
 
 
 @dataclass(frozen=True, slots=True)
+class RangefinderReading:
+    """Body-down terrain distance in centimetres; null distance means no return."""
+
+    episode_id: str
+    step_index: int
+    simulation_time_s: float
+    distance_cm: float | None
+    valid: bool
+
+
+@dataclass(frozen=True, slots=True)
 class SensorReadings:
     """Completed measurements; None means the sensor is not configured."""
 
     imu: ImuReading | None = None
     barometer: BarometerReading | None = None
-    rangefinder: None = None
+    rangefinder: RangefinderReading | None = None
 
 
 @dataclass(frozen=True, slots=True)
