@@ -35,3 +35,5 @@ Implemented and verified
 ## Implementation commit
 
 `6fb1bd5`
+
+Additional implementation commit: `a796b0d`
