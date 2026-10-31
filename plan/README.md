@@ -51,3 +51,4 @@
 - [0048: Heavy quad propulsion upgrade](0048-heavy-quad-propulsion-upgrade.md) — Implemented; focused tests passed, implementation commit `4de86bd`.
 - [0049: Periodic render profile](0049-periodic-render-profile.md) — Implemented; focused publisher and adapter checks passed, implementation commit `53b96b1`.
 - [0050: Shared terrain heightmap and rangefinder](0050-terrain-heightmap-rangefinder.md) — Implemented and verified, implementation commits `6fb1bd5`, `a796b0d`.
+- [0051: Preflight terrain clearance](0051-spawn-terrain-clearance.md) — Implemented; focused tests passed, implementation commit `0f60657`.
