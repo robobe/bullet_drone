@@ -105,7 +105,7 @@ sensors:
     # Enable body-down AGL measurements when true.
     enabled: true
     # Maximum body-down ray length in metres; no return becomes valid=false.
-    max_range_m: 10.0
+    max_range_m: 50.0
     # Sensor mount offset in the vehicle body frame [X,Y,Z] metres.
     mount_position_body_m: [0.0, 0.0, 0.0]
 

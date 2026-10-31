@@ -36,6 +36,11 @@ APP_READY_TIMEOUT_S = 0.5
 GRAVITY_M_S2 = 9.81
 MASS_KG = 1.0
 INITIAL_POSITION_M = (0.0, 0.0, 0.015)
+MIN_TERRAIN_CLEARANCE_M = 0.20
+
+
+class TerrainClearanceError(RuntimeError):
+    pass
 
 
 class CliParser:
@@ -54,6 +59,13 @@ def _close_spawn_simulation(simulation):
         simulation.close()
     except Exception:
         logger.exception('Could not close retired spawn simulation')
+
+
+def _validate_spawn_clearance(simulation):
+    clearance_m = simulation.terrain_clearance_m()
+    if clearance_m < MIN_TERRAIN_CLEARANCE_M:
+        raise TerrainClearanceError(
+            f'terrain clearance {clearance_m:.3f} m is below {MIN_TERRAIN_CLEARANCE_M:.3f} m')
 
 
 def prepare_sitl():
@@ -143,7 +155,9 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
                 scenario.observe(source)
                 renderer.consume_analysis(observation, source)
             reading = observation.sensors.barometer
+            rangefinder = observation.sensors.rangefinder
             feedback = dict(schema_version=2, source=source, takeoff_height_m=control.spawn.takeoff_height_m, barometer_altitude_m=None if reading is None else reading.altitude_m,
+                            rangefinder=None if rangefinder is None else dict(distance_cm=rangefinder.distance_cm, valid=rangefinder.valid),
                             orientation_xyzw=list(state.orientation_xyzw), armed=armed, mode=mode,
                             last_applied_sequence=applied_sequence, owner_id=lease.owner,
                             state=control.state, reason=control.reason)
@@ -180,15 +194,20 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
                         simulation.close()
                         prepare_sitl()
                     candidate_observation = candidate.reset()
-                except Exception:
-                    logger.exception('Spawn initialization failed')
+                    _validate_spawn_clearance(candidate)
+                except Exception as error:
+                    if isinstance(error, TerrainClearanceError):
+                        logger.warning('Spawn rejected: {}', error)
+                    else:
+                        logger.exception('Spawn initialization failed')
                     if candidate is not None:
                         _close_spawn_simulation(candidate)
                     if betaflight:
                         prepare_sitl()
                         simulation = simulation_factory(previous_config, FLIGHT_CONTROL_SETTINGS, vehicle)
                         observation = simulation.reset()
-                    control.spawn.finish(False, 'initialization_failed')
+                    control.spawn.finish(False, 'terrain_clearance' if isinstance(error, TerrainClearanceError)
+                                         else 'initialization_failed')
                 else:
                     previous = simulation
                     simulation, config, observation = candidate, candidate_config, candidate_observation
@@ -265,7 +284,7 @@ def run(path, *, config_path=None, simulation_factory=RcSimulation):
             applied_sequence = lease.sequence
             armed, mode = (False, 'angle') if betaflight else (simulation.last_command.armed, simulation.last_command.mode)
             publish(captured=True)
-            if simulation.terrain_contact():
+            if armed and simulation.terrain_contact():
                 lease.end()
                 control.transition('stopped', 'terrain_collision', observation)
                 publish()

@@ -103,6 +103,8 @@ def test_runner_replaces_only_after_success_and_reset_keeps_spawn(tmp_path, monk
             return self.inner.wind
         def set_wind(self, settings):
             self.inner.set_wind(settings)
+        def terrain_clearance_m(self):
+            return self.inner.terrain_clearance_m()
         def reset(self):
             if len(instances) >= 2 and self is instances[1]:  # First candidate fails during initialization.
                 raise RuntimeError('injected candidate reset failure')

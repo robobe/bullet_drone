@@ -36,7 +36,7 @@ sensors:
     # Enable the body-down terrain measurement.
     enabled: true
     # Maximum range in metres; no terrain return is invalid.
-    max_range_m: 10.0
+    max_range_m: 50.0
     # Body-frame sensor mount offset in metres.
     mount_position_body_m: [0.0, 0.0, 0.0]
 

@@ -105,5 +105,6 @@ def test_external_yaml_sensor_pose_reaches_renderer_and_app(config, tmp_path, mo
     assert feedbacks[-1].args[1]['orientation_xyzw'] == feedbacks[-2].args[1]['orientation_xyzw']
     assert feedbacks[-1].args[1]['source'] == feedbacks[-2].args[1]['source']
     assert feedbacks[-1].args[1]['state'] == 'stopped'
+    assert feedbacks[-1].args[1]['rangefinder'] is None or set(feedbacks[-1].args[1]['rangefinder']) == {'distance_cm', 'valid'}
     assert output.latest_pose.orientation_xyzw != (0., 0., 0., 1.)
     output.close.assert_called_once()

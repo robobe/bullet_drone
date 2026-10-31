@@ -36,3 +36,15 @@ def test_godot_bullet_frame_mapping_preserves_terrain_height():
         assert 50.0 - hit.distance_m == pytest.approx(expected, abs=1e-5)
     finally:
         physics.close()
+
+
+def test_spawn_clearance_detects_vehicle_too_close_to_terrain():
+    config = YamlConfigLoader().load("configs/heavy_quad.yaml")
+    config = replace(config, simulation=replace(config.simulation, gui=False),
+                     drone=replace(config.drone, initial_position_m=(-70.443, -62.442, 9.454)))
+    physics = PyBulletPhysics(config)
+    try:
+        physics.reset()
+        assert physics.terrain_clearance_m() < .20
+    finally:
+        physics.close()

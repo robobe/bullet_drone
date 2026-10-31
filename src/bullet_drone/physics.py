@@ -22,6 +22,7 @@ from bullet_drone.terrain import load_heightmap
 DRONE_COLLISION_GROUP = 1 << 14
 ALL_COLLISION_GROUPS = -1
 SURFACE_RAY_MASK = ALL_COLLISION_GROUPS ^ DRONE_COLLISION_GROUP
+TERRAIN_CLEARANCE_RAY_RANGE_M = 1000.0
 BASE_LINK_INDEX = -1
 WORLD_Z_AXIS = 2
 ZERO_POSITION_M = (0.0, 0.0, 0.0)
@@ -151,6 +152,28 @@ class PyBulletPhysics:
             return False
         return bool(self._p.getContactPoints(bodyA=self._body, bodyB=self._terrain_body,
                                              physicsClientId=self._client))
+
+    def terrain_clearance_m(self) -> float:
+        """Return the smallest AABB-to-terrain clearance under the vehicle footprint."""
+        self._require_connection()
+        if self._terrain_body is None or self._body is None:
+            return float('inf')
+        links = [BASE_LINK_INDEX, *range(self._p.getNumJoints(self._body, physicsClientId=self._client))]
+        bounds = [self._p.getAABB(self._body, link, physicsClientId=self._client) for link in links]
+        minimum = min(bound[0][2] for bound in bounds)
+        maximum = max(bound[1][2] for bound in bounds)
+        x_min = min(bound[0][0] for bound in bounds)
+        x_max = max(bound[1][0] for bound in bounds)
+        y_min = min(bound[0][1] for bound in bounds)
+        y_max = max(bound[1][1] for bound in bounds)
+        clearance = float('inf')
+        for x, y in ((x_min, y_min), (x_min, y_max), (x_max, y_min), (x_max, y_max),
+                     ((x_min + x_max) / 2, (y_min + y_max) / 2)):
+            origin_z = maximum + TERRAIN_CLEARANCE_RAY_RANGE_M / 2
+            hit = self.ray_surface((x, y, origin_z), (0.0, 0.0, -1.0), TERRAIN_CLEARANCE_RAY_RANGE_M)
+            if hit is not None:
+                clearance = min(clearance, minimum - (origin_z - hit.distance_m))
+        return clearance
 
     def step(self, command: RotorCommand | None = None) -> DroneState:
         if self._closed or self._body is None or self._failed:

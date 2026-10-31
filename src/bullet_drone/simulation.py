@@ -75,6 +75,9 @@ class RcSimulation:
     def terrain_contact(self) -> bool:
         return self._physics.terrain_contact()
 
+    def terrain_clearance_m(self) -> float:
+        return self._physics.terrain_clearance_m()
+
     @property
     def timestep_s(self) -> float:
         return self._timestep_s
