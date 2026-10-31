@@ -30,8 +30,8 @@ Export the Godot terrain as a shared heightmap plus deterministic triangle mesh,
 
 ## Status
 
-Pending
+Implemented and verified
 
 ## Implementation commit
 
-Pending
+`6fb1bd5`
