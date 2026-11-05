@@ -1,6 +1,6 @@
 # Repair altitude-hold sequence diagram
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `e8c33198686d7a33c4f224b69602d6d4a8be3240`.
 
 Goal: Fix the sequence diagram in the altitude-hold README and prevent the same
 Mermaid syntax mistake through repository guidance.

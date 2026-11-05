@@ -1,6 +1,6 @@
 # Explain altitude-hold mission states and transitions
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `e8c33198686d7a33c4f224b69602d6d4a8be3240`.
 
 Goal: Make the altitude-hold README's mission diagram show the actual phase
 names, transition guards and dwell-timer behavior.

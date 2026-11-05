@@ -1,6 +1,6 @@
 # VS Code example picker
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `e8c33198686d7a33c4f224b69602d6d4a8be3240`.
 
 Goal: Add a VS Code task that opens a dropdown to select and run an example.
 

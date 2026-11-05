@@ -1,6 +1,6 @@
 # Document the altitude control cascade
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `e8c33198686d7a33c4f224b69602d6d4a8be3240`.
 
 Goal: Add the explained altitude-to-vertical-velocity control loop to the
 altitude-hold README, including feedback paths, equations and hover behavior.
