@@ -33,8 +33,8 @@ needs no display or wall-time pacing. Ctrl+C releases simulation resources.
 ## Altitude hold example
 
 ```bash
-uv run --locked --all-packages --all-extras --all-groups python -m examples.altitude_hold.main
-uv run --locked --all-packages --all-extras --all-groups python -m examples.altitude_hold.main --headless
+uv run --locked python -m examples.altitude_hold.main
+uv run --locked python -m examples.altitude_hold.main --headless
 ```
 
 The example owns its feedback loop through `RcSimulation.step()`. Each observation
@@ -72,16 +72,18 @@ uses rate PID directly. See [the Acro example and diagrams](examples/position_sq
 
 ## VS Code tasks
 
-Open **Tasks: Run Task** and choose:
+Open **Tasks: Run Task → Bullet: Run example**, then select **Altitude hold**,
+**Position square (Angle)**, **Position square (Acro)** or **External RC
+(app-controlled)** from the dropdown. In the multi-folder workspace, the task
+appears under `bullet_drone`.
 
-| Task | Behavior |
-| --- | --- |
-| Run altitude hold | Takeoff, 10-second hold, landing and disarm in PyBullet GUI. |
-| Run altitude hold (headless) | Same mission without a display. |
-| Run position square | Settled 3 m square, home hold, landing and disarm in PyBullet GUI. |
-| Run position square (headless) | Same square mission without a display. |
-| Run Acro position square | Same settled square with upstream rate commands and Acro stabilization. |
-| Run Acro position square (headless) | Same Acro mission without a display. |
+The task runs the selected module through `uv` with its existing display defaults.
+**Altitude hold** starts flying directly in PyBullet and exits after landing; it
+does not use Godot or transport ports. The square examples start stopped and wait
+for Godot's **Start** action; external RC also requires the app. The shared task
+includes rendering dependencies for those other choices, but the altitude-hold
+CLI does not require the render extra. Use **Bullet: Run all** for the managed
+application/renderer workflow. Run only one transport-based example at a time.
 
 ## Library interfaces
 

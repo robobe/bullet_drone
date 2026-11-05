@@ -2,6 +2,15 @@
 
 These instructions apply throughout this repository.
 
+## Mermaid diagrams
+
+- Do not use Mermaid control keywords as sequence-diagram participant IDs, even
+  with different capitalization: `Loop` is parsed as `loop`. Use a descriptive ID
+  such as `DemoLoop` and an alias for the display label (`participant DemoLoop as Demo loop`).
+- Parse and render edited Mermaid blocks with an available Mermaid renderer
+  before reporting that they are valid; visual inspection of the source alone
+  does not detect reserved-keyword errors.
+
 ## SOLID design guide
 
 - **Single responsibility:** separate CLI parsing, configuration loading, simulation orchestration, environment lifecycle, physics, rendering, and telemetry.

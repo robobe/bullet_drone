@@ -48,7 +48,7 @@ class DemoResult:
 
 
 def run_demo(*, gui: bool = True, max_duration_s: float = DEFAULT_MAX_DURATION_S,
-             on_observation=None, pace: bool = False, control=None) -> DemoResult:
+             on_observation=None, pace: bool = False) -> DemoResult:
     duration = _number(max_duration_s, 'max_duration_s', positive=True)
     dt = TIMESTEP_S
     max_steps = ceil(duration / dt)
@@ -80,62 +80,28 @@ def run_demo(*, gui: bool = True, max_duration_s: float = DEFAULT_MAX_DURATION_S
         logger.info('Altitude hold: settle at {:.3f} s', observation.ground_truth.simulation_time_s)
         # Observe the final permitted step before deciding whether the mission timed out.
         step = 0
-        if control is not None:
-            control.transition('stopped', 'startup', observation)
         while True:
-            if control is not None:
-                action = control.poll()
-                if action == 'reset' or (action == 'start' and control.state != 'running'):
-                    try:
-                        observation = simulation.reset()
-                        mission.reset(observation)
-                        step = 0
-                        started = time.monotonic()
-                        timing = RealtimeFactorLogger(observation.ground_truth.simulation_time_s, started,
-                                                      clock=time.monotonic)
-                        if on_observation is not None:
-                            on_observation(observation)
-                        control.transition('running' if action == 'start' else 'stopped',
-                                           'started' if action == 'start' else 'reset', observation)
-                    except Exception:
-                        logger.exception('Simulation reset failed')
-                        control.transition('error', 'reset_failed', observation)
-                elif action in ('stop', 'controller_timeout', 'controller_changed'):
-                    if control.state == 'running':
-                        control.transition('stopped', action, observation)
-                control.publish(observation)
-                if control.state != 'running':
-                    continue
-            try:
-                previous_phase = mission.phase
-                rc_command = mission.command(observation, simulation.timestep_s)
-                if mission.phase != previous_phase:
-                    logger.info('Altitude hold: {} at {:.3f} s', mission.phase,
-                                observation.ground_truth.simulation_time_s)
-                if mission.phase == Phase.COMPLETE:
-                    if control is not None:
-                        control.transition('stopped', 'completed', observation)
-                        continue
-                    break
-                if (step + 1) * simulation.timestep_s > duration:
-                    raise DemoTimeoutError(
-                        f'Altitude hold timed out after {duration:g} s in phase {mission.phase}'
-                    )
-                # Each step returns the feedback used by the next PID update.
-                observation = simulation.step(rc_command)
-                if on_observation is not None:
-                    on_observation(observation)
-                if gui or pace:
-                    remaining = started + observation.ground_truth.simulation_time_s - time.monotonic()
-                    if remaining > 0:
-                        time.sleep(remaining)
-                timing.update(observation.ground_truth.simulation_time_s)
-                step += 1
-            except Exception:
-                if control is None:
-                    raise
-                logger.exception('Simulation episode failed')
-                control.transition('error', 'runtime_failure', observation)
+            previous_phase = mission.phase
+            rc_command = mission.command(observation, simulation.timestep_s)
+            if mission.phase != previous_phase:
+                logger.info('Altitude hold: {} at {:.3f} s', mission.phase,
+                            observation.ground_truth.simulation_time_s)
+            if mission.phase == Phase.COMPLETE:
+                break
+            if (step + 1) * simulation.timestep_s > duration:
+                raise DemoTimeoutError(
+                    f'Altitude hold timed out after {duration:g} s in phase {mission.phase}'
+                )
+            # Each step returns the feedback used by the next PID update.
+            observation = simulation.step(rc_command)
+            if on_observation is not None:
+                on_observation(observation)
+            if gui or pace:
+                remaining = started + observation.ground_truth.simulation_time_s - time.monotonic()
+                if remaining > 0:
+                    time.sleep(remaining)
+            timing.update(observation.ground_truth.simulation_time_s)
+            step += 1
         timing.update(observation.ground_truth.simulation_time_s, final=True)
         result = DemoResult(observation, tuple(mission.transitions))
     except BaseException:

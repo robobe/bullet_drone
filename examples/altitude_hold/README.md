@@ -7,12 +7,13 @@ disarms, and closes the PyBullet GUI after one second with motors off.
 Run from the repository root with Python 3.12 and uv:
 
 ```bash
-uv run --locked --extra render python -m examples.altitude_hold.main
-uv run --locked --extra render python -m examples.altitude_hold.main --headless
-uv run --locked --extra render python -m examples.altitude_hold.main --help
+uv run --locked python -m examples.altitude_hold.main
+uv run --locked python -m examples.altitude_hold.main --headless
+uv run --locked python -m examples.altitude_hold.main --help
 ```
 
-GUI mode requires a working desktop/X11 display and is paced to wall time.
+The mission starts automatically. No Godot, ZeroMQ, render extra or external Start
+command is needed. GUI mode requires a working desktop/X11 display and is paced to wall time.
 The camera frames the ground and 3 m target together. Run this standalone demo
 in its own process: its GUI framing assumes the demo owns PyBullet client 0.
 Headless mode uses the same physics and simulation timing without pacing.
@@ -34,9 +35,48 @@ step. World `position_m[2]` supplies altitude in meters and
 `linear_velocity_m_s[2]` supplies vertical velocity in m/s. These are ideal
 ground-truth measurements, not simulated sensors.
 
-The existing `AltitudeController` cascades an altitude PID into a vertical-speed
-PID. Gravity compensation converts the acceleration request to collective thrust
-in newtons. `RcCodec` converts that thrust to integer throttle channels, so the
+The [AltitudeController](../../src/bullet_drone/controllers/altitude.py) contains
+two cascaded feedback loops: **altitude control feeds vertical-velocity control**.
+Both run once per physics step at **240 Hz**.
+
+```mermaid
+flowchart LR
+    Target["Target altitude"] --> Altitude["Altitude P controller"]
+    Altitude --> Speed["Target vertical velocity"]
+    Speed --> Velocity["Vertical-velocity PI controller"]
+    Velocity --> Acceleration["Target vertical acceleration"]
+    Acceleration --> Thrust["Thrust = mass × (gravity + acceleration)"]
+    Thrust --> Physics["Motors and physics"]
+    Physics -->|Measured altitude| Altitude
+    Physics -->|Measured vertical velocity| Velocity
+```
+
+1. **Altitude loop:** compare the target Z with measured Z and calculate the
+   desired climb/descent speed. The current altitude PID uses proportional action
+   only (`Kp=1.5`, `Ki=Kd=0`). Limit the speed target to 1 m/s during takeoff/hold
+   and 0.5 m/s during landing.
+2. **Vertical-velocity loop:** compare that speed target with measured vertical
+   speed. A PI controller (`Kp=6`, `Ki=4`, `Kd=0`) calculates an acceleration
+   correction, limited to ±3 m/s². Its integral term compensates for sustained
+   velocity error.
+3. **Gravity compensation:** convert the acceleration correction to collective
+   thrust in newtons and bound it to the vehicle's available thrust.
+
+```text
+altitude_error = target_Z − measured_Z
+desired_vertical_velocity = clamp(altitude_PID(altitude_error), speed_limit)
+velocity_error = desired_vertical_velocity − measured_vertical_velocity
+desired_acceleration = vertical_velocity_PID(velocity_error)
+thrust = clamp(mass × (gravity + desired_acceleration), 0, maximum_thrust)
+```
+
+At ideal steady hover, altitude and speed errors approach zero, and the required
+acceleration correction approaches zero, so thrust approaches `mass × gravity`
+(9.81 N for this 1 kg vehicle). Persistent physical effects can require a nonzero
+integral correction. The mission selects **3 m** for takeoff/hold and **0 m** for
+landing; it does not command motor speeds directly.
+
+`RcCodec` converts that thrust to integer throttle channels, so the
 RC path introduces throttle rounding. Roll/pitch targets and yaw rate remain
 zero, arm/mode AUX channels select armed angle mode during flight, and
 `RcSimulation.step()` applies stabilization, mixing, rotor forces, and one
@@ -62,18 +102,18 @@ bundled racer vehicle parameters. Landing lowers the speed-target limit to
 
 ```mermaid
 sequenceDiagram
-    participant Loop as Demo loop
+    participant DemoLoop as Demo loop
     participant Mission as Mission state machine
     participant PID as AltitudeController
     participant RC as RcCodec
     participant Sim as RcSimulation
     participant Physics as PyBullet
-    Loop->>Sim: reset()
+    DemoLoop->>Sim: reset()
     Sim->>Physics: Initialize world
-    Sim-->>Loop: Initial observation
-    Loop->>Mission: reset(observation)
+    Sim-->>DemoLoop: Initial observation
+    DemoLoop->>Mission: reset(observation)
     loop Each fixed timestep until complete or timeout
-        Loop->>Mission: command(latest observation, dt)
+        DemoLoop->>Mission: command(latest observation, dt)
         Mission->>Mission: Update phase and simulation-time dwell
         opt Armed flight phase
             Mission->>PID: thrust(target Z, measured Z, vertical speed, dt)
@@ -81,42 +121,70 @@ sequenceDiagram
         end
         Mission->>RC: encode(angle, neutral R/P/yaw, thrust, armed)
         RC-->>Mission: RcInput
-        Mission-->>Loop: RcInput
+        Mission-->>DemoLoop: RcInput
         alt Mission complete
-            Loop->>Loop: Finish without another step
+            DemoLoop->>DemoLoop: Finish without another step
         else Continue
-            Loop->>Sim: step(RcInput)
+            DemoLoop->>Sim: step(RcInput)
             Sim->>Sim: RC decode, angle stabilization, motor mixing
             Sim->>Physics: Apply rotor forces and step physics
             Physics-->>Sim: Ground truth
-            Sim-->>Loop: Next observation
+            Sim-->>DemoLoop: Next observation
             opt GUI mode
-                Loop->>Loop: Pace to simulation time
+                DemoLoop->>DemoLoop: Pace to simulation time
             end
         end
     end
-    Loop->>Sim: close() on success, error, or interruption
+    DemoLoop->>Sim: close() on success, error, or interruption
 ```
 
-## State flow diagram
+## Mission states and transitions
 
 All phase timing uses simulation time. The takeoff and touchdown dwell timers
 reset when their respective conditions stop being true. Once the hold begins,
 its duration is 10 seconds while altitude feedback remains active.
 
 ```mermaid
-flowchart TD
-    A[Reset: disarmed ground settle] -->|0.5 s elapsed| B[Takeoff: target Z = 3 m]
-    B --> C{Altitude error at most 0.05 m<br/>and vertical speed at most 0.1 m/s?}
-    C -->|No: reset dwell| B
-    C -->|Yes continuously for 1 s| D[Hold: target Z = 3 m]
-    D -->|10 simulated seconds elapsed| E[Land: target Z = 0<br/>speed target limited to 0.5 m/s]
-    E --> F{Z at most 0.02 m<br/>and vertical speed at most 0.05 m/s?}
-    F -->|No: reset dwell| E
-    F -->|Yes continuously for 0.5 s| G[Disarmed: zero motor commands]
-    G -->|1 simulated second elapsed| H[Complete and close]
-    T[45 s timeout, exception, or Ctrl+C<br/>during any active phase] --> X[Close resources and report failure/interruption]
+stateDiagram-v2
+    direction TB
+    [*] --> SETTLE: Reset mission
+    SETTLE: SETTLE - disarmed, zero thrust
+    SETTLE --> TAKEOFF: 0.5 s elapsed
+    TAKEOFF: TAKEOFF - armed, target altitude 3 m
+    TAKEOFF --> TAKEOFF: Outside hover tolerances, reset dwell
+    TAKEOFF --> HOLD: Within hover tolerances continuously for 1 s
+    HOLD: HOLD - armed, maintain altitude 3 m
+    HOLD --> LAND: 10 s elapsed in HOLD
+    LAND: LAND - armed, target altitude 0 m
+    LAND --> LAND: Outside touchdown tolerances, reset dwell
+    LAND --> DISARMED: Within touchdown tolerances continuously for 0.5 s
+    DISARMED: DISARMED - zero thrust, motors off
+    DISARMED --> COMPLETE: 1 s elapsed
+    COMPLETE --> [*]: Close simulation
 ```
+
+The states match `Phase` in [mission.py](mission.py). `Z` is world altitude and
+`vz` is vertical velocity, both taken from ground truth.
+
+| State | Action | Condition for the next state |
+| --- | --- | --- |
+| `SETTLE` | Remain disarmed on the ground. | After 0.5 s, enter `TAKEOFF`. |
+| `TAKEOFF` | Arm, command 3 m, limit speed target to 1 m/s. | `abs(Z − 3) ≤ 0.05 m` and `abs(vz) ≤ 0.1 m/s` continuously for 1 s, then enter `HOLD`. |
+| `HOLD` | Maintain 3 m using the altitude/velocity cascade. | After 10 s in this state, enter `LAND`. |
+| `LAND` | Command 0 m, limit speed target to 0.5 m/s. | `Z ≤ 0.02 m` and `abs(vz) ≤ 0.05 m/s` continuously for 0.5 s, then enter `DISARMED`. |
+| `DISARMED` | Disarm and command zero thrust. | After 1 s with motors off, enter `COMPLETE`. |
+| `COMPLETE` | Finish the mission without another physics step. | Close simulation resources and exit successfully. |
+
+The self-arrows mean **stay in the same phase and clear its settling timer**;
+they do not restart the mission. A broken tolerance condition requires a fresh,
+continuous dwell before advancing. `HOLD` has a fixed timer and does not return
+to `TAKEOFF` when altitude drifts; the controller continues correcting it.
+
+Mission reset clears both PID histories and selects `SETTLE`. Entering `TAKEOFF`,
+`LAND` or `DISARMED` also resets the altitude and vertical-velocity PIDs. A timeout
+(45 simulated seconds by default), exception or Ctrl+C ends the run and closes
+resources through the demo runner; these are failure/interruption outcomes,
+not additional mission phases.
 
 ## Verification
 
@@ -158,17 +226,3 @@ The altitude velocity PID now uses Kp=6, Ki=4, output limit 3 m/s² and integral
 contribution limit 2 m/s² to retain altitude accuracy and land through ground
 effect. Mission routes, settling criteria and timeout limits are unchanged.
 See [aerodynamic model details](../../docs/design/aerodynamics.md).
-
-## Godot controls
-
-Run this example with `uv run --locked --extra render python -m examples.altitude_hold.main --headless`.
-The CLI initializes **Stopped** and waits for Godot's Start button; it no longer
-runs a flight immediately. Stop ends the current episode and preserves the final
-pose. Reset restores initial state at time zero and waits. Start always begins a
-fresh episode. Completion leaves the process available for another run. Only one
-physics example can own the shared ports at a time.
-
-The default profile is `../bullet_render/configs/physics.json`; override it with
-`--render-config`. Keep sibling bullet_msgs installed through the existing render
-extra. Direct `run_demo()` calls without a control adapter remain one-shot and do
-not need Godot. See [the transport/control design](../../docs/design/zmq-rendering.md).

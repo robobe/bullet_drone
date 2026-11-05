@@ -1,4 +1,55 @@
 {
   "version": "2.0.0",
-  "tasks": []
+  "tasks": [
+    {
+      "label": "Bullet: Run example",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "run",
+        "--locked",
+        "--extra",
+        "render",
+        "python",
+        "-m",
+        "${input:example}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "detail": "Altitude hold starts directly in PyBullet. Square examples wait for Godot Start; external RC also needs the app."
+    }
+  ],
+  "inputs": [
+    {
+      "id": "example",
+      "type": "pickString",
+      "description": "Choose the example to run",
+      "options": [
+        {
+          "label": "Altitude hold",
+          "value": "examples.altitude_hold.main"
+        },
+        {
+          "label": "Position square (Angle)",
+          "value": "examples.position_square.main"
+        },
+        {
+          "label": "Position square (Acro)",
+          "value": "examples.position_square_acro.main"
+        },
+        {
+          "label": "External RC (app-controlled)",
+          "value": "examples.external_rc.main"
+        }
+      ],
+      "default": "examples.altitude_hold.main"
+    }
+  ]
 }

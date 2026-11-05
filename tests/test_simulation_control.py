@@ -78,7 +78,7 @@ def test_new_controller_stops_old_run_without_replaying_start(wire):
     assert [c.poll() for c in controls] == [None, None]
 
 
-@pytest.mark.parametrize('example', ['altitude_hold','position_square','position_square_acro'])
+@pytest.mark.parametrize('example', ['position_square','position_square_acro'])
 def test_example_waits_stops_resets_and_starts_fresh(example, monkeypatch):
     demo = importlib.import_module(f'examples.{example}.demo')
     original = demo.RcSimulation
@@ -116,11 +116,11 @@ def test_example_waits_stops_resets_and_starts_fresh(example, monkeypatch):
     assert instances[0]._closed
 
 
-@pytest.mark.parametrize('example', ['altitude_hold','position_square','position_square_acro'])
+@pytest.mark.parametrize('example', ['position_square','position_square_acro'])
 @pytest.mark.parametrize('outcome', ['complete','error'])
 def test_controlled_completion_and_failure_stay_available(example, outcome, monkeypatch):
     demo = importlib.import_module(f'examples.{example}.demo')
-    mission_type = demo.AltitudeHoldMission if example=='altitude_hold' else demo.SquareMission
+    mission_type = demo.SquareMission
     original = mission_type.command
     def command(self, observation, dt):
         if observation.ground_truth.step_index == 2:
@@ -148,7 +148,7 @@ def test_controlled_completion_and_failure_stay_available(example, outcome, monk
     assert states[-1] == (('stopped','completed') if outcome=='complete' else ('error','runtime_failure'))
 
 
-@pytest.mark.parametrize('example', ['altitude_hold','position_square','position_square_acro'])
+@pytest.mark.parametrize('example', ['position_square','position_square_acro'])
 def test_actual_cli_starts_stopped_and_obeys_pubsub(example, tmp_path):
     from pathlib import Path
     import socket

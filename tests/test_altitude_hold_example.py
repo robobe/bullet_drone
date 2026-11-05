@@ -1,5 +1,6 @@
 import subprocess
 import sys
+from textwrap import dedent
 from unittest.mock import Mock
 
 import pytest
@@ -139,7 +140,8 @@ def test_parser():
     assert CliParser().parse(['--headless']) == DemoOptions(True)
 
 
-@pytest.mark.parametrize('args,status', [(['--help'], 0), (['--unknown'], 2)])
+@pytest.mark.parametrize('args,status', [(['--help'], 0), (['--unknown'], 2),
+                                        (['--render-config', 'unused.json'], 2)])
 def test_cli_does_not_start_physics(args, status):
     result = subprocess.run([sys.executable, '-m', 'examples.altitude_hold.main', *args],
                             capture_output=True, text=True, timeout=10)
@@ -157,3 +159,21 @@ def test_import_has_no_startup_or_logging_side_effects():
     result = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=10)
     assert result.returncode == 0, result.stderr
     assert result.stdout == result.stderr == ''
+
+
+def test_headless_cli_completes_without_godot_or_zmq():
+    code = dedent('''
+        import builtins
+        original_import = builtins.__import__
+        def without_rendering(name, *args, **kwargs):
+            if name.split('.')[0] in ('zmq', 'bullet_msgs') or name.startswith('tools.zmq_render'):
+                raise AssertionError('Unexpected rendering dependency: ' + name)
+            return original_import(name, *args, **kwargs)
+        builtins.__import__ = without_rendering
+        from examples.altitude_hold.main import main
+        raise SystemExit(main(['--headless']))
+    ''')
+    result = subprocess.run([sys.executable, '-c', code], capture_output=True,
+                            text=True, timeout=45)
+    assert result.returncode == 0, result.stderr
+    assert 'Completed altitude hold' in result.stderr

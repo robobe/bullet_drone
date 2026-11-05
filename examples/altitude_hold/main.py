@@ -31,18 +31,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     logger.remove()
     logger.add(sys.stderr, level='INFO', format='{level}: {message}', diagnose=False)
-    renderer = None
-    control = None
     try:
         from examples.altitude_hold.demo import run_demo
 
-        from tools.zmq_render.publisher import RenderPublisher
-        from tools.zmq_render.control import SimulationControl
-        renderer = RenderPublisher(options.render_config)
-        renderer.start()
-        control = SimulationControl(renderer.transport_path, renderer)
-        result = run_demo(gui=not options.headless, pace=True,
-                          on_observation=renderer.consume, control=control)
+        result = run_demo(gui=not options.headless)
         state = result.observation.ground_truth
         logger.info('Completed altitude hold in {:.3f} s; final altitude {:.4f} m',
                     state.simulation_time_s, state.position_m[WORLD_Z_AXIS])
@@ -56,11 +48,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception:
         logger.exception('Altitude hold failed')
         return EXIT_FAILURE
-    finally:
-        if control is not None:
-            control.close()
-        if renderer is not None:
-            renderer.close()
 
 
 if __name__ == '__main__':

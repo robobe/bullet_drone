@@ -1,7 +1,8 @@
 # Optional Godot camera publication
 
-All three example CLIs accept `--render-config ../bullet_render/configs/physics.json`.
-Install with `uv sync --extra render`. Each example owns RenderPublisher and SimulationControl lifecycles;
+The angle-square and Acro-square CLIs accept `--render-config ../bullet_render/configs/physics.json`.
+Altitude hold is a standalone PyBullet example with no Godot/control adapter.
+Install with `uv sync --extra render`. Each square example owns RenderPublisher and SimulationControl lifecycles;
 imports start no I/O. The library remains transport-independent. Existing UDP
 render adapters and the PlotJuggler sender remain available.
 
@@ -42,7 +43,7 @@ recorder together; pose v1 is rejected by the updated strict consumers.
 
 ## Command-driven example CLIs
 
-Altitude hold, angle square and Acro square start stopped by default. Their CLI
+Angle square and Acro square start stopped by default. Their CLI
 parsers select the shared sibling physics profile unless `--render-config` is
 provided, and execution requires `uv run --locked --extra render`. The library and
 direct `run_demo()` calls still execute immediately without transport dependencies.
