@@ -1,13 +1,22 @@
 # Unpatched Betaflight SITL integration
 
-Status: In progress. Implementation commit: `3cb005baf45d364be6f27cc7e7c5b96753cde582`.
+Status: Implemented and verified with documented test limitations. Firmware removal changes are uncommitted.
+Implementation commits: `3cb005baf45d364be6f27cc7e7c5b96753cde582`; removal implementation commit Pending.
 
-Goal: Support upstream Betaflight 2026.6.2 SITL while preserving the existing patched workflow. Map simulated IMU, barometer-derived altitude and pose into the FDM packet, configure MSP input and MAVLink telemetry with GPS and magnetometer disabled, and verify the full sensor, motor and telemetry loop.
+Goal (revised): Replace the patched workflow with upstream Betaflight 2026.6.2 SITL. Map simulated IMU, barometer-pressure-derived altitude and pose into the existing FDM packet, configure MSP input/feedback with GPS and magnetometer use disabled, and verify the sensor and motor loop. MAVLink work is deferred.
 
-Steps: add and test an unpatched FDM encoder, integrate an explicit backend selection, build upstream firmware with MAVLink, configure receiver and sensors, verify axis signs and pressure conversion, then run the existing regressions and headless hover check. Document configuration and limitations.
+Steps: retain the upstream-compatible FDM encoder, remove the firmware patch/build flag, build clean pinned upstream firmware, configure receiver and sensors, verify pressure conversion, then run existing regressions and live checks. Document configuration and limitations. The authorized removal and verification are tracked in [plan 0054](0054-remove-sitl-patch.md).
 
-Interfaces: preserve the existing FDM packet layout and patched encoder; add a separate upstream-compatible encoder and explicit selection.
+Interfaces: preserve the existing FDM/motor packet layouts and backend API. Use only unpatched SITL; no patched encoder or extra selection option.
 
-Verification: packet field tests, invalid sensor tests, upstream SITL sensor and motor exchange, MAVLink altitude, arming and failsafe tests, full regression suite and headless hover. No hardware flight.
+Verification: packet field/pressure tests, setup checks, upstream SITL sensor and motor exchange, MSP feedback, arming/failsafe and headless hover. No hardware flight or MAVLink implementation.
 
-Outcome: Initial FDM mapping committed. All 8 tests in `tests/test_betaflight_backend.py` pass, and `git diff --check` passes. Backend selection, preservation of the patched encoder, upstream integration, documentation and remaining verification are pending.
+Outcome: Initial FDM mapping committed. The earlier requirement to preserve the patch and add backend selection was superseded by the user's request to remove the patch. See plan 0054 for the implementation and actual verification results.
+
+Plan 0054 completed the clean upstream build, profile changes and live validation:
+pressure-derived altitude, motor exchange, arming, RC-loss disarming and motor
+timeout passed. The canonical 20-second hover check passed with 0.28 m peak
+altitude error. The full Python suite had 705 passes and three failures also
+reproduced on untouched HEAD. A separate noncanonical-profile hover run exposed
+the existing validator's post-spool altitude reference limitation; no controller
+tuning or validator thresholds were changed. MAVLink remains deferred.

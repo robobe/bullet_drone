@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="850" viewBox="0 0 1100 850" role="img" aria-labelledby="title desc">
+<title id="title">Betaflight motor order in the simulation</title><desc id="desc">Top view, forward up and left to the viewer left. M4 drives simulation rotor 0 front left, M2 rotor 3 front right, M3 rotor 1 rear left, and M1 rotor 2 rear right. Packet order is M1, M2, M3, M4.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs>
+<rect width="1100" height="850" fill="#ffffff"/>
+<style>text { font-family: 'DejaVu Sans', sans-serif; fill: #172b4d; } .title {font-size:28px;font-weight:700} .heading {font-size:20px;font-weight:700} .body {font-size:17px} .small {font-size:15px;fill:#475569} .mono {font-family:'DejaVu Sans Mono',monospace;font-size:17px} .blue {fill:#1d4ed8} .teal {fill:#0f766e}</style>
+<text x="35" y="48" class="title" text-anchor="start">
+<tspan x="35" dy="0">Motor packet → physical rotor</tspan>
+</text>
+<text x="35" y="81" class="body" text-anchor="start">
+<tspan x="35" dy="0">Top view • body FLU axes • schematic, not to scale • both bundled quad-X vehicles</tspan>
+</text>
+<path d="M 550 190 L 550 125" fill="none" stroke="#1d4ed8" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="575" y="150" class="body" text-anchor="start">
+<tspan x="575" dy="0">+X forward</tspan>
+</text>
+<path d="M 485 440 L 340 440" fill="none" stroke="#1d4ed8" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="355" y="420" class="body" text-anchor="start">
+<tspan x="355" dy="0">+Y left</tspan>
+</text>
+<text x="630" y="460" class="small" text-anchor="start">
+<tspan x="630" dy="0">+Z up, out of page</tspan>
+</text>
+<path d="M 330 270 L 770 650 M 770 270 L 330 650" fill="none" stroke="#94a3b8" stroke-width="2.5"/>
+<circle cx="550" cy="460" r="55" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2"/>
+<text x="550" y="495" class="small" text-anchor="middle">
+<tspan x="550" dy="0">Body</tspan>
+</text>
+<rect x="120" y="200" width="320" height="130" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<text x="280" y="240" class="heading" text-anchor="middle">
+<tspan x="280" dy="0">M4 → rotor 0</tspan>
+</text>
+<text x="280" y="275" class="body" text-anchor="middle">
+<tspan x="280" dy="0">Front left</tspan>
+<tspan x="280" dy="29">packet[3], bytes 12–15</tspan>
+</text>
+<rect x="660" y="200" width="320" height="130" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<text x="820" y="240" class="heading" text-anchor="middle">
+<tspan x="820" dy="0">M2 → rotor 3</tspan>
+</text>
+<text x="820" y="275" class="body" text-anchor="middle">
+<tspan x="820" dy="0">Front right</tspan>
+<tspan x="820" dy="29">packet[1], bytes 4–7</tspan>
+</text>
+<rect x="120" y="560" width="320" height="130" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<text x="280" y="600" class="heading" text-anchor="middle">
+<tspan x="280" dy="0">M3 → rotor 1</tspan>
+</text>
+<text x="280" y="635" class="body" text-anchor="middle">
+<tspan x="280" dy="0">Rear left</tspan>
+<tspan x="280" dy="29">packet[2], bytes 8–11</tspan>
+</text>
+<rect x="660" y="560" width="320" height="130" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<text x="820" y="600" class="heading" text-anchor="middle">
+<tspan x="820" dy="0">M1 → rotor 2</tspan>
+</text>
+<text x="820" y="635" class="body" text-anchor="middle">
+<tspan x="820" dy="0">Rear right</tspan>
+<tspan x="820" dy="29">packet[0], bytes 0–3</tspan>
+</text>
+<rect x="35" y="730" width="1030" height="87" rx="12" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="550" y="762" class="body" text-anchor="middle">
+<tspan x="550" dy="0">Packet: (M1, M2, M3, M4), 4 × float32, 16 bytes</tspan>
+<tspan x="550" dy="29">Simulation targets: omega_max × (packet[3], packet[2], packet[0], packet[1]) rad/s</tspan>
+</text>
+</svg>

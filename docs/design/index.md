@@ -8,6 +8,9 @@
   source-state diagnostics and controller error translation.
 - [IMU and barometer sensors](sensors.md): measurement frames, noise configuration,
   reset/step lifecycle and observation/telemetry interfaces.
+- [Simulation ↔ Betaflight SITL bridge](betaflight-sitl-bridge.md): upstream-target
+  FDM sensor fields, UDP ports, motor order, timing and implementation status,
+  with packet tables and SVG drawings.
 - [Simulation telemetry](telemetry.md): per-topic schemas, shared headers, YAML
   selection, optional example-side streaming and the future recorder strategy.
 - [PlotJuggler live position](../../plotjuggler/README.md): UDP setup, two-panel

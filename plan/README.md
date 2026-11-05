@@ -53,4 +53,6 @@
 - [0050: Shared terrain heightmap and rangefinder](0050-terrain-heightmap-rangefinder.md) — Implemented and verified, implementation commits `6fb1bd5`, `a796b0d`.
 - [0051: Preflight terrain clearance](0051-spawn-terrain-clearance.md) — Implemented; focused tests passed, implementation commit `0f60657`.
 
-- [0052: Unpatched Betaflight SITL integration](0052-unpatched-sitl.md) — In progress; 8 focused tests passed, implementation commit `3cb005baf45d364be6f27cc7e7c5b96753cde582`.
+- [0052: Unpatched Betaflight SITL integration](0052-unpatched-sitl.md) — Implemented; live upstream and canonical hover verified with test limitations recorded in 0054. Initial commit `3cb005baf45d364be6f27cc7e7c5b96753cde582`; removal commit Pending.
+- [0053: Betaflight bridge document](0053-betaflight-bridge-document.md) — Implemented and verified; upstream FDM/motor reference, three SVGs, 8 focused tests and four motor checks passed; uncommitted, implementation commit Pending.
+- [0054: Remove SITL patch](0054-remove-sitl-patch.md) — Implemented and verified; clean upstream build, live pressure/arming/failsafe checks and 20-second hover passed; three baseline test failures documented. Uncommitted, implementation commit Pending.

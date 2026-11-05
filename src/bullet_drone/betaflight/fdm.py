@@ -22,6 +22,7 @@ def pack_fdm(observation):
     pressure = barometer.pressure_pa
     if not isfinite(pressure) or pressure <= 0:
         raise ValueError('Invalid FDM pressure')
+    # Gazebo ignores the pressure slot, so invert its atmosphere model into position Z.
     altitude = (1.0 - (pressure / SEA_LEVEL_PRESSURE_PA) ** (1.0 / ATMOSPHERE_EXPONENT)) / ATMOSPHERE_ALTITUDE_FACTOR
     values = (state.simulation_time_s, gx, -gy, -gz,
               *(-value for value in imu.specific_force_m_s2),

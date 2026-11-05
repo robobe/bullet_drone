@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1030" viewBox="0 0 1280 1030" role="img" aria-labelledby="title desc">
+<title id="title">Sensor-to-FDM field map</title><desc id="desc">Seven source groups map simulation time, noisy IMU, ground-truth pose and measured barometer pressure to the 18 float64 fields of the 144-byte FDM packet. Horizontal position fields are zero placeholders.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs>
+<rect width="1280" height="1030" fill="#ffffff"/>
+<style>text { font-family: 'DejaVu Sans', sans-serif; fill: #172b4d; } .title {font-size:28px;font-weight:700} .heading {font-size:20px;font-weight:700} .body {font-size:17px} .small {font-size:15px;fill:#475569} .mono {font-family:'DejaVu Sans Mono',monospace;font-size:17px} .blue {fill:#1d4ed8} .teal {fill:#0f766e}</style>
+<text x="35" y="48" class="title" text-anchor="start">
+<tspan x="35" dy="0">Simulation sources → FDM wire fields</tspan>
+</text>
+<text x="35" y="80" class="body" text-anchor="start">
+<tspan x="35" dy="0">Little-endian &lt;18d • 144 bytes • zero-based indices • each field occupies 8 bytes</tspan>
+</text>
+<text x="50" y="132" class="heading" text-anchor="start">
+<tspan x="50" dy="0">Observation source</tspan>
+</text>
+<text x="430" y="132" class="heading" text-anchor="start">
+<tspan x="430" dy="0">Encoder transformation</tspan>
+</text>
+<text x="925" y="132" class="heading" text-anchor="start">
+<tspan x="925" dy="0">Wire indices / bytes</tspan>
+</text>
+<rect x="35" y="155" width="330" height="76" rx="12" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<rect x="410" y="155" width="435" height="76" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<rect x="890" y="155" width="355" height="76" rx="12" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="50" y="183" class="body" text-anchor="start">
+<tspan x="50" dy="0">Ground-truth clock</tspan>
+<tspan x="50" dy="25">simulation_time_s</tspan>
+</text>
+<text x="425" y="183" class="body" text-anchor="start">
+<tspan x="425" dy="0">Pass through, nonnegative</tspan>
+<tspan x="425" dy="25">Simulation seconds, not host time</tspan>
+</text>
+<text x="905" y="183" class="body" text-anchor="start">
+<tspan x="905" dy="0">[0] timestamp</tspan>
+<tspan x="905" dy="25">bytes 0–7</tspan>
+</text>
+<path d="M 365 193 L 408 193" fill="none" stroke="#1d4ed8" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 845 193 L 888 193" fill="none" stroke="#1d4ed8" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="35" y="247" width="330" height="76" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<rect x="410" y="247" width="435" height="76" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<rect x="890" y="247" width="355" height="76" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<text x="50" y="275" class="body" text-anchor="start">
+<tspan x="50" dy="0">IMU angular velocity</tspan>
+<tspan x="50" dy="25">Body FLU, rad/s</tspan>
+</text>
+<text x="425" y="275" class="body" text-anchor="start">
+<tspan x="425" dy="0">(gx, gy, gz) → (gx, -gy, -gz)</tspan>
+<tspan x="425" dy="25">No additional noise in encoder</tspan>
+</text>
+<text x="905" y="275" class="body" text-anchor="start">
+<tspan x="905" dy="0">[1–3] angular velocity</tspan>
+<tspan x="905" dy="25">bytes 8–31</tspan>
+</text>
+<path d="M 365 285 L 408 285" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 845 285 L 888 285" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="35" y="339" width="330" height="76" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<rect x="410" y="339" width="435" height="76" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<rect x="890" y="339" width="355" height="76" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<text x="50" y="367" class="body" text-anchor="start">
+<tspan x="50" dy="0">IMU specific force</tspan>
+<tspan x="50" dy="25">Body FLU, m/s²</tspan>
+</text>
+<text x="425" y="367" class="body" text-anchor="start">
+<tspan x="425" dy="0">(fx, fy, fz) → (-fx, -fy, -fz)</tspan>
+<tspan x="425" dy="25">Firmware negates and scales</tspan>
+</text>
+<text x="905" y="367" class="body" text-anchor="start">
+<tspan x="905" dy="0">[4–6] acceleration</tspan>
+<tspan x="905" dy="25">bytes 32–55</tspan>
+</text>
+<path d="M 365 377 L 408 377" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 845 377 L 888 377" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="35" y="431" width="330" height="76" rx="12" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<rect x="410" y="431" width="435" height="76" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<rect x="890" y="431" width="355" height="76" rx="12" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="50" y="459" class="body" text-anchor="start">
+<tspan x="50" dy="0">Ground-truth orientation</tspan>
+<tspan x="50" dy="25">Unit quaternion, XYZW</tspan>
+</text>
+<text x="425" y="459" class="body" text-anchor="start">
+<tspan x="425" dy="0">(x, y, z, w) → (w, x, -y, -z)</tspan>
+<tspan x="425" dy="25">Not an IMU attitude estimate</tspan>
+</text>
+<text x="905" y="459" class="body" text-anchor="start">
+<tspan x="905" dy="0">[7–10] quaternion</tspan>
+<tspan x="905" dy="25">bytes 56–87</tspan>
+</text>
+<path d="M 365 469 L 408 469" fill="none" stroke="#1d4ed8" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 845 469 L 888 469" fill="none" stroke="#1d4ed8" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="35" y="523" width="330" height="76" rx="12" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<rect x="410" y="523" width="435" height="76" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<rect x="890" y="523" width="355" height="76" rx="12" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="50" y="551" class="body" text-anchor="start">
+<tspan x="50" dy="0">Ground-truth velocity</tspan>
+<tspan x="50" dy="25">World XYZ, m/s</tspan>
+</text>
+<text x="425" y="551" class="body" text-anchor="start">
+<tspan x="425" dy="0">Pass through (vx, vy, vz)</tspan>
+<tspan x="425" dy="25">No frame rotation or GPS mapping</tspan>
+</text>
+<text x="905" y="551" class="body" text-anchor="start">
+<tspan x="905" dy="0">[11–13] velocity</tspan>
+<tspan x="905" dy="25">bytes 88–111</tspan>
+</text>
+<path d="M 365 561 L 408 561" fill="none" stroke="#1d4ed8" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 845 561 L 888 561" fill="none" stroke="#1d4ed8" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="35" y="615" width="330" height="76" rx="12" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<rect x="410" y="615" width="435" height="76" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<rect x="890" y="615" width="355" height="76" rx="12" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="50" y="643" class="body" text-anchor="start">
+<tspan x="50" dy="0">Horizontal placeholders</tspan>
+<tspan x="50" dy="25">Not simulation position</tspan>
+</text>
+<text x="425" y="643" class="body" text-anchor="start">
+<tspan x="425" dy="0">Set both fields to 0.0</tspan>
+<tspan x="425" dy="25">No georeferenced GPS position</tspan>
+</text>
+<text x="905" y="643" class="body" text-anchor="start">
+<tspan x="905" dy="0">[14–15] position X/Y</tspan>
+<tspan x="905" dy="25">bytes 112–127</tspan>
+</text>
+<path d="M 365 653 L 408 653" fill="none" stroke="#1d4ed8" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 845 653 L 888 653" fill="none" stroke="#1d4ed8" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="35" y="707" width="330" height="76" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<rect x="410" y="707" width="435" height="76" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<rect x="890" y="707" width="355" height="76" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<text x="50" y="735" class="body" text-anchor="start">
+<tspan x="50" dy="0">Barometer pressure</tspan>
+<tspan x="50" dy="25">Measured / filtered, Pa</tspan>
+</text>
+<text x="425" y="735" class="body" text-anchor="start">
+<tspan x="425" dy="0">Invert firmware atmosphere → h_wire</tspan>
+<tspan x="425" dy="25">Not barometer.altitude_m</tspan>
+</text>
+<text x="905" y="735" class="body" text-anchor="start">
+<tspan x="905" dy="0">[16] position Z, metres</tspan>
+<tspan x="905" dy="25">bytes 128–135</tspan>
+</text>
+<path d="M 365 745 L 408 745" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 845 745 L 888 745" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="35" y="799" width="330" height="76" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<rect x="410" y="799" width="435" height="76" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<rect x="890" y="799" width="355" height="76" rx="12" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.5"/>
+<text x="50" y="827" class="body" text-anchor="start">
+<tspan x="50" dy="0">Same barometer pressure</tspan>
+<tspan x="50" dy="25">No second noise sample</tspan>
+</text>
+<text x="425" y="827" class="body" text-anchor="start">
+<tspan x="425" dy="0">Pass pressure through as well</tspan>
+<tspan x="425" dy="25">Ignored by upstream Gazebo mode</tspan>
+</text>
+<text x="905" y="827" class="body" text-anchor="start">
+<tspan x="905" dy="0">[17] pressure, Pa</tspan>
+<tspan x="905" dy="25">bytes 136–143</tspan>
+</text>
+<path d="M 365 837 L 408 837" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<path d="M 845 837 L 888 837" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="35" y="910" width="1210" height="86" rx="12" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5"/>
+<text x="55" y="939" class="body" text-anchor="start">
+<tspan x="55" dy="0">Upstream Gazebo: field 16 → reconstructed pressure. Field 17 is ignored by this barometer path.</tspan>
+<tspan x="55" dy="29">Quaternion / velocity consumers depend on firmware build options. Rangefinder data is absent.</tspan>
+</text>
+</svg>

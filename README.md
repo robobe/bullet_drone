@@ -112,9 +112,15 @@ Motor targets and actual speeds use rad/s. Configuration selects the `internal`
 backend by default. `control.backend: betaflight` selects the managed SITL path:
 physics sends noisy IMU and barometer FDM on UDP 9003 and consumes normalized
 motor outputs on UDP 9002. MSP RC and estimator feedback remain application-owned.
-Build the pinned firmware with `tools/setup_betaflight_sitl.sh`, then launch it
-through `bullet_render/tools/run_flight.py --physics-config configs/basic.yaml`
-after changing that YAML backend to `betaflight`.
+Build unmodified pinned Betaflight 2026.6.2 with `tools/setup_betaflight_sitl.sh`.
+The bridge encodes measured barometer pressure into FDM `position_xyz[2]` so
+upstream Gazebo mode reconstructs that pressure. The firmware profile selects MSP
+RC and disables GPS and magnetometer use. Existing patched/modified firmware
+checkouts must be preserved and moved aside before setup can create a clean one.
+Then launch it through `bullet_render/tools/run_flight.py --physics-config configs/basic.yaml`
+with `control.backend: betaflight` in the selected physics YAML.
+See the [bridge reference](docs/design/betaflight-sitl-bridge.md) for ports,
+packet fields, sensor mappings and motor order.
 
 Rendering adapters support GUI/headless selection and UDP pose publication through
 library composition. The flight examples expose PyBullet GUI and `--headless`;

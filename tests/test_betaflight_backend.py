@@ -95,3 +95,15 @@ def test_gazebo_fdm_preserves_pressure_and_maps_pose():
     assert values[11:14] == (1, 2, 3)
     assert 101325 * (1 - 2.25577e-5 * values[16]) ** 5.25588 == pytest.approx(100000)
     assert values[17] == 100000
+
+
+@pytest.mark.parametrize('pressure_pa', [90000.25, 100000.0, 101325.0, 103000.75])
+def test_gazebo_position_z_encodes_measured_pressure_not_sensor_altitude(pressure_pa):
+    sample = observation()
+    sample = replace(sample, sensors=replace(sample.sensors,
+        barometer=replace(sample.sensors.barometer, pressure_pa=pressure_pa, altitude_m=-1234.5)))
+    values = struct.unpack(FDM_FORMAT, pack_fdm(sample))
+    reconstructed_pressure = 101325 * (1 - 2.25577e-5 * values[16]) ** 5.25588
+    assert reconstructed_pressure == pytest.approx(pressure_pa, abs=1e-8, rel=0)
+    assert values[16] != sample.sensors.barometer.altitude_m
+    assert values[17] == pressure_pa
