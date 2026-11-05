@@ -84,3 +84,14 @@ def test_udp_bridge_sends_fdm_and_receives_motor_packet_on_loopback():
             assert bridge.receive_motor_packets() == [(b'motors', 3.)]
         finally:
             bridge.close()
+
+
+def test_gazebo_fdm_preserves_pressure_and_maps_pose():
+    sample = observation()
+    sample = replace(sample, ground_truth=replace(sample.ground_truth,
+        orientation_xyzw=(0.1, 0.2, 0.3, 0.9), linear_velocity_m_s=(1, 2, 3)))
+    values = struct.unpack(FDM_FORMAT, pack_fdm(sample))
+    assert values[7:11] == (0.9, 0.1, -0.2, -0.3)
+    assert values[11:14] == (1, 2, 3)
+    assert 101325 * (1 - 2.25577e-5 * values[16]) ** 5.25588 == pytest.approx(100000)
+    assert values[17] == 100000
