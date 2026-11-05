@@ -53,4 +53,4 @@
 - [0050: Shared terrain heightmap and rangefinder](0050-terrain-heightmap-rangefinder.md) — Implemented and verified, implementation commits `6fb1bd5`, `a796b0d`.
 - [0051: Preflight terrain clearance](0051-spawn-terrain-clearance.md) — Implemented; focused tests passed, implementation commit `0f60657`.
 
-- [0052: Unpatched Betaflight SITL integration](0052-unpatched-sitl.md) — In progress; implementation commit: Pending.
+- [0052: Unpatched Betaflight SITL integration](0052-unpatched-sitl.md) — In progress; 8 focused tests passed, implementation commit `3cb005baf45d364be6f27cc7e7c5b96753cde582`.
