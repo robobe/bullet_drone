@@ -45,6 +45,39 @@ runs the same sequence faster. There is no horizontal position hold.
 See [the example README](examples/altitude_hold/README.md) for gains, timing,
 sequence and state-flow diagrams, and verification.
 
+## Betaflight SITL altitude hold example
+
+`altitde_hold_bt` independently flies the same 3 m takeoff, 10-second hold and
+landing mission with Betaflight stabilization/motor mixing and PyBullet physics.
+It owns the firmware process and uses no Godot or other example code.
+
+```bash
+tools/setup_betaflight_sitl.sh
+uv run --locked --extra sitl python -m examples.altitde_hold_bt.main
+uv run --locked --extra sitl python -m examples.altitde_hold_bt.main --headless
+```
+
+Both modes remain paced for SITL timing. See the
+[example README](examples/altitde_hold_bt/README.md) for feedback sources, startup,
+ports, mission states and live verification.
+
+## Altitude hold with the packaged renderer
+
+Build the Linux viewer and launch a complete automatic flight:
+
+```bash
+uv run --locked python external_render/build.py
+uv run --locked --extra render python -m examples.altitude_hold_external_render.main
+```
+
+The example owns headless PyBullet physics and the exported Godot viewer. It
+waits for the first camera image, then climbs to 3 m, holds for 10 seconds and
+lands without a Start button. The Godot editor and sibling renderer sources are
+needed only when building the package. See the [example and communication
+diagram](examples/altitude_hold_external_render/README.md) and
+[package instructions](external_render/README.md). Choose **Altitude hold
+(external renderer)** in the VS Code example dropdown after building.
+
 ## Position square example
 
 ```bash
@@ -73,15 +106,18 @@ uses rate PID directly. See [the Acro example and diagrams](examples/position_sq
 ## VS Code tasks
 
 Open **Tasks: Run Task → Bullet: Run example**, then select **Altitude hold**,
-**Position square (Angle)**, **Position square (Acro)** or **External RC
+**Altitude hold (external renderer)**, **Altitude hold (Betaflight SITL)**, **Position square (Angle)**,
+**Position square (Acro)** or **External RC
 (app-controlled)** from the dropdown. In the multi-folder workspace, the task
 appears under `bullet_drone`.
 
 The task runs the selected module through `uv` with its existing display defaults.
-**Altitude hold** starts flying directly in PyBullet and exits after landing; it
-does not use Godot or transport ports. The square examples start stopped and wait
+All altitude-hold choices start automatically and exit after landing. The
+external-render choice opens the packaged Godot viewer with PyBullet headless.
+The Betaflight choice requires a built SITL binary and uses its fixed UDP/MSP
+ports; the internal choice uses no transport ports. The square examples start stopped and wait
 for Godot's **Start** action; external RC also requires the app. The shared task
-includes rendering dependencies for those other choices, but the altitude-hold
+includes rendering/SITL dependencies for the other choices, but the internal altitude-hold
 CLI does not require the render extra. Use **Bullet: Run all** for the managed
 application/renderer workflow. Run only one transport-based example at a time.
 

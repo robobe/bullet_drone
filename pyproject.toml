@@ -13,6 +13,7 @@ dependencies = [
 
 [project.optional-dependencies]
 render = ["pyzmq>=27,<28", "bullet-msgs"]
+sitl = ["msp-link"]
 
 [build-system]
 requires = ["uv_build>=0.9.25,<0.10.0"]
@@ -30,3 +31,4 @@ dev = [
 
 [tool.uv.sources]
 bullet-msgs = { workspace = true }
+msp-link = { workspace = true }

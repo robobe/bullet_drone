@@ -11,6 +11,8 @@
 - [Simulation ↔ Betaflight SITL bridge](betaflight-sitl-bridge.md): upstream-target
   FDM sensor fields, UDP ports, motor order, timing and implementation status,
   with packet tables and SVG drawings.
+- [Standalone Betaflight altitude hold](../../examples/altitde_hold_bt/README.md):
+  independent mission, MSP RC, owned firmware lifecycle and PyBullet execution.
 - [Simulation telemetry](telemetry.md): per-topic schemas, shared headers, YAML
   selection, optional example-side streaming and the future recorder strategy.
 - [PlotJuggler live position](../../plotjuggler/README.md): UDP setup, two-panel
@@ -21,6 +23,9 @@
 - [Position and velocity control](position-control.md): separate XY PID interfaces,
   Z composition, RC mapping, frames, lifecycle and square-flight verification.
 - [Implemented control chain](../forces/drone_control.svg): visual command/feedback flow.
+- [Packaged external renderer](../../examples/altitude_hold_external_render/README.md):
+  automatic internal-controller altitude hold, owned exported Godot viewer,
+  image readiness, local communication and cleanup.
 - [Force and effect implementation map](../forces/force-implementation-map.md):
   source review, current status, future ownership and independent checks.
 - [Numbered force-chain tips](../forces/force-implementation-chain.svg):

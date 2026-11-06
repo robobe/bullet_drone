@@ -61,3 +61,10 @@
 - [0057: Altitude-hold sequence diagram](0057-altitude-sequence-diagram.md) — Implemented and verified; both README diagrams parsed/rendered, reserved-ID guidance added; committed, implementation commit `e8c33198686d7a33c4f224b69602d6d4a8be3240`.
 - [0058: Altitude control explanation](0058-altitude-control-explanation.md) — Implemented and verified; cascade explanation added and all three README diagrams parsed/rendered; committed, implementation commit `e8c33198686d7a33c4f224b69602d6d4a8be3240`.
 - [0059: Mission state diagram](0059-mission-state-diagram.md) — Implemented and verified; mission phases/guards documented and all README diagrams parsed/rendered; committed, implementation commit `e8c33198686d7a33c4f224b69602d6d4a8be3240`.
+- [0060: Independent Betaflight altitude hold](0060-altitde-hold-bt.md) — Implemented and verified; 11 new checks, 41 regressions and live 10-second SITL hover passed (2.7 cm peak error); uncommitted, implementation commit Pending.
+- [0061: Betaflight arming diagnostics](0061-bt-arming-diagnostics.md) — Implemented and verified; named blockers, periodic diagnostics, colored states and safe firmware-tail reads; 16 checks and real GUI-mode flight passed; startup stall unconfirmed, implementation commit Pending.
+
+- [0062: External renderer package](0062-external-render-package.md) — Implemented and verified; exported/relocated Linux viewer, full automatic flight and owned SHM cleanup passed, plus 83 tests; uncommitted, implementation commit Pending.
+- [0063: Betaflight arm-switch recovery](0063-bt-arm-switch-recovery.md) — Implemented and verified; user trace replay, 18 tests and real SITL flight passed; uncommitted, implementation commit Pending.
+- [0064: Renderer startup methods](0064-renderer-startup-methods.md) — Implemented and verified; separate Godot/ZeroMQ startup, all 15 renderer tests passed; uncommitted, implementation commit Pending.
+- [0065: Betaflight FDM pacing](0065-bt-fdm-pacing.md) — Implemented and verified; burst regression fixed, 19 checks plus real stalled/headless and GUI flights passed; uncommitted, implementation commit Pending.
