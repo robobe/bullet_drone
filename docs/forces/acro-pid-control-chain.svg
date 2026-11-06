@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="970" viewBox="0 0 1500 970" role="img" aria-labelledby="title desc">
+  <title id="title">Betaflight Acro mode PID control chain</title>
+  <desc id="desc">Example navigation cascades produce body-rate targets and throttle over MSP. Betaflight closes gyro rate PID loops and returns motor commands to PyBullet, which feeds ground-truth state back to the example.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <style>
+      text { font-family: Inter, Arial, sans-serif; fill: #172033; }
+      .title { font-size: 29px; font-weight: 700; }
+      .section { font-size: 20px; font-weight: 700; }
+      .label { font-size: 16px; font-weight: 650; }
+      .small { font-size: 14px; }
+      .tiny { font-size: 12px; }
+      .nav { fill: #e8f2ff; stroke: #3478c8; stroke-width: 2; }
+      .firmware { fill: #fff1df; stroke: #dc8428; stroke-width: 2; }
+      .physics { fill: #e9f7ef; stroke: #399565; stroke-width: 2; }
+      .io { fill: #f0eaff; stroke: #8056bc; stroke-width: 2; }
+      .wire { fill: none; stroke: #334155; stroke-width: 2.2; marker-end: url(#arrow); }
+      .feedback { fill: none; stroke: #64748b; stroke-width: 2; stroke-dasharray: 8 6; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1500" height="970" fill="#fbfcfe" rx="20"/>
+  <text x="48" y="52" class="title">Acro mode: outer navigation cascades feed Betaflight’s gyro rate PID</text>
+  <text x="50" y="82" class="small">Blue: example controllers · Purple: MSP command boundary · Orange: Betaflight firmware · Green: PyBullet physics</text>
+
+  <rect x="34" y="112" width="1065" height="695" rx="18" fill="#f3f8ff" stroke="#9abce7" stroke-width="2"/>
+  <text x="58" y="148" class="section">Example: position, altitude, and attitude control</text>
+
+  <rect x="68" y="185" width="205" height="86" rx="12" class="nav"/>
+  <text x="170" y="217" text-anchor="middle" class="label">XY position PID × 2</text>
+  <text x="170" y="243" text-anchor="middle" class="small">m error → m/s target</text>
+  <rect x="340" y="185" width="205" height="86" rx="12" class="nav"/>
+  <text x="442" y="217" text-anchor="middle" class="label">XY velocity PID × 2</text>
+  <text x="442" y="243" text-anchor="middle" class="small">m/s error → m/s²</text>
+  <rect x="612" y="185" width="205" height="86" rx="12" class="nav"/>
+  <text x="714" y="217" text-anchor="middle" class="label">World force → tilt</text>
+  <text x="714" y="243" text-anchor="middle" class="small">yaw transform · ≤15°</text>
+  <path d="M273 228 H334" class="wire"/><path d="M545 228 H606" class="wire"/>
+  <text x="302" y="207" text-anchor="middle" class="tiny">velocity target</text>
+  <text x="576" y="207" text-anchor="middle" class="tiny">acceleration</text>
+
+  <rect x="68" y="332" width="205" height="86" rx="12" class="nav"/>
+  <text x="170" y="364" text-anchor="middle" class="label">Altitude position PID</text>
+  <text x="170" y="390" text-anchor="middle" class="small">m error → m/s target</text>
+  <rect x="340" y="332" width="205" height="86" rx="12" class="nav"/>
+  <text x="442" y="364" text-anchor="middle" class="label">Vertical velocity PID</text>
+  <text x="442" y="390" text-anchor="middle" class="small">m/s error → m/s²</text>
+  <rect x="612" y="332" width="205" height="86" rx="12" class="nav"/>
+  <text x="714" y="364" text-anchor="middle" class="label">Gravity + tilt compensation</text>
+  <text x="714" y="390" text-anchor="middle" class="small">acceleration → thrust N</text>
+  <path d="M273 375 H334" class="wire"/><path d="M545 375 H606" class="wire"/>
+  <text x="302" y="354" text-anchor="middle" class="tiny">vertical speed</text>
+  <text x="576" y="354" text-anchor="middle" class="tiny">vertical acceleration</text>
+
+  <rect x="857" y="250" width="205" height="115" rx="12" class="nav"/>
+  <text x="959" y="282" text-anchor="middle" class="label">Attitude P × 3</text>
+  <text x="959" y="307" text-anchor="middle" class="small">attitude error (rad)</text>
+  <text x="959" y="331" text-anchor="middle" class="small">→ rates, ±2 rad/s</text>
+  <path d="M817 228 H840 V278 H851" class="wire"/>
+  <path d="M817 375 H838 V338 H851" class="wire"/>
+  <text x="840" y="214" text-anchor="middle" class="tiny">desired tilt</text>
+  <text x="840" y="396" text-anchor="middle" class="tiny">collective demand</text>
+  <rect x="857" y="420" width="205" height="105" rx="12" class="io"/>
+  <text x="959" y="453" text-anchor="middle" class="label">MSP RC channels</text>
+  <text x="959" y="478" text-anchor="middle" class="small">roll / pitch / yaw PWM</text>
+  <text x="959" y="502" text-anchor="middle" class="small">throttle · arm · Acro</text>
+  <path d="M959 365 V414" class="wire"/>
+  <text x="977" y="397" class="tiny">ACTUAL inverse</text>
+
+  <rect x="69" y="560" width="745" height="145" rx="12" fill="#fff" stroke="#9abce7" stroke-width="1.5"/>
+  <text x="92" y="592" class="label">Example controller settings</text>
+  <text x="92" y="620" class="small">XY position: P 0.8 · XY velocity: P 2 · altitude position: P 1.5</text>
+  <text x="92" y="647" class="small">Vertical velocity: P 6, I 4 · attitude: P 4 s⁻¹ each axis</text>
+  <text x="92" y="674" class="small">Position/altitude feedback comes from PyBullet ground truth.</text>
+  <path d="M170 560 V510 H45 V228 H62" class="feedback"/>
+  <path d="M45 375 H62" class="feedback"/>
+  <text x="41" y="458" transform="rotate(-90 41 458)" class="tiny">position and velocity feedback</text>
+  <path d="M959 560 V536" class="feedback"/>
+  <text x="973" y="554" class="tiny">measured attitude feedback</text>
+
+  <rect x="1130" y="112" width="336" height="695" rx="18" fill="#fff9f0" stroke="#e6b36f" stroke-width="2"/>
+  <text x="1155" y="148" class="section">Betaflight Acro</text>
+  <rect x="1170" y="215" width="255" height="105" rx="12" class="firmware"/>
+  <text x="1297" y="250" text-anchor="middle" class="label">Gyro rate PID × 3</text>
+  <text x="1297" y="277" text-anchor="middle" class="small">requested rate − measured rate</text>
+  <text x="1297" y="299" text-anchor="middle" class="small">IMU from FDM UDP 9003</text>
+  <rect x="1170" y="390" width="255" height="85" rx="12" class="firmware"/>
+  <text x="1297" y="425" text-anchor="middle" class="label">Motor mixer</text>
+  <text x="1297" y="450" text-anchor="middle" class="small">PID corrections + throttle</text>
+  <rect x="1170" y="565" width="255" height="90" rx="12" class="physics"/>
+  <text x="1297" y="601" text-anchor="middle" class="label">PyBullet dynamics</text>
+  <text x="1297" y="628" text-anchor="middle" class="small">4 motor inputs · UDP 9002</text>
+  <path d="M1062 465 H1110 V267 H1164" class="wire"/>
+  <text x="1106" y="442" transform="rotate(-90 1106 442)" class="tiny">body-rate demand</text>
+  <path d="M1297 320 V384" class="wire"/>
+  <path d="M1297 475 V559" class="wire"/>
+  <path d="M1170 265 H1147 V182 H1355 V208" class="feedback"/>
+  <text x="1250" y="176" text-anchor="middle" class="tiny">gyro rate feedback (firmware)</text>
+  <path d="M1170 610 H1110 V770 H36 V228 H62" class="feedback"/>
+  <text x="650" y="762" text-anchor="middle" class="tiny">PyBullet ground truth → outer position, altitude, and attitude controllers</text>
+
+  <rect x="1130" y="838" width="336" height="82" rx="12" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="1152" y="871" class="label">Important boundary</text>
+  <text x="1152" y="897" class="small">No angle/self-level mode: Betaflight gets rate targets.</text>
+  <text x="50" y="901" class="small">Firmware gyro PID gains come from the Betaflight SITL profile, not this example.</text>
+</svg>

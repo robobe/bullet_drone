@@ -1,6 +1,6 @@
 # Betaflight Acro square with external rendering
 
-Status: In progress. Implementation commit: Pending.
+Status: Implemented and verified; uncommitted. Implementation commit: Pending.
 
 ## Goal
 
@@ -35,4 +35,21 @@ this does not retune those defaults.
 
 ## Verification
 
-Pending. No commit or push requested.
+- New Acro square tests: 11 passed; focused cross-example suite: 74 passed,
+  3 opt-in tests skipped. The firmware profile regression checks the explicit
+  roll/pitch/yaw ACTUAL-rate curve values.
+- Full available suite excluding the missing optional `plotjuggler` package:
+  729 passed, 3 skipped, and 2 unrelated existing failures. PlotJuggler layout
+  test references missing `plotjuggler/layouts/ground_truth_position.xml`;
+  sensor independence test expects no rangefinder although `configs/basic.yaml`
+  enables it.
+- Real headless firmware flight completed: armed, settled all five waypoints,
+  held 10 seconds, landed and disarmed at 59.062 simulation seconds. Final
+  position `(0.00045, -0.00020, 0.01349)` m; SITL process closed.
+- Real NVIDIA viewer flight completed at 58.979 simulation seconds. Final
+  position `(-0.00053, 0.00001, 0.01349)` m; 1,770 frames scheduled, zero queue
+  drops. Viewer and SITL processes exited, and ports were released.
+- Both README Mermaid diagrams parsed and rendered. `git diff --check` and Python
+  compilation passed.
+- Full-suite collection with all workspace extras was blocked by unavailable
+  optional `plotjuggler`; no commit or push requested.

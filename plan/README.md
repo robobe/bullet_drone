@@ -72,4 +72,5 @@
 - [0067: Position square external renderer](0067-position-square-external-render.md) — Implemented and verified; automatic viewer flight and headless mission passed, 103 affected tests passed (one unrelated missing-layout failure); uncommitted, implementation commit Pending.
 - [0068: Square status colors](0068-square-status-colors.md) — Implemented and verified; colored phase transitions, active/settled waypoints, 21 tests and CLI log assertions passed; uncommitted, implementation commit Pending.
 - [0069: Godot installation](0069-godot-installation.md) — Implemented and verified; pinned editor, matching export templates, and local verification documented; uncommitted, implementation commit Pending.
-- [0070: Betaflight Acro square render](0070-betaflight-acro-square-render.md) — In progress; independent SITL Acro square with automatic packaged renderer; implementation commit Pending.
+- [0070: Betaflight Acro square render](0070-betaflight-acro-square-render.md) — Implemented and verified; independent headless and NVIDIA viewer SITL flights completed; 729 broad-suite passes with two unrelated missing/stale-fixture failures; uncommitted, implementation commit Pending.
+- [0071: Acro PID control chain](0071-acro-pid-control-chain.md) — Implemented and verified; Mermaid and SVG rendered; uncommitted, implementation commit Pending.

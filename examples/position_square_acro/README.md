@@ -35,34 +35,75 @@ viewer. Only one SITL/rendered example can own TCP 5555–5557, TCP 5761, and UD
 
 ## Control chain
 
-The example owns world XYZ navigation. Betaflight owns body-rate stabilization,
-motor mixing, and motor output:
+The controller is a cascade. Each outer loop turns a slower, larger-scale error
+into a target for the next inner loop. The example runs the position, velocity,
+altitude, and attitude stages. Betaflight receives body-rate demands in Acro
+mode, closes the fast gyro rate loops, mixes the result, and produces motor
+outputs. It does not receive an angle target and does not run an angle/self-level
+loop for this example.
+
+![Acro mode PID and signal chain](../../docs/forces/acro-pid-control-chain.svg)
 
 ```mermaid
 flowchart LR
-    Position[XY position PID] --> VelocityTarget[World XY velocity target]
-    VelocityTarget --> Velocity[XY velocity PID]
-    Altitude[Altitude and vertical-velocity PID] --> Tilt[Desired tilt and collective]
-    Velocity --> Tilt
-    Tilt --> Attitude[External attitude P]
-    Attitude --> Rates[Body-rate targets]
-    Rates --> MSP[MSP Acro RC channels]
-    MSP --> Betaflight[Betaflight rate PID and mixer]
-    Sensors[Simulated IMU and barometer] --> FDM[FDM UDP 9003]
-    FDM --> Betaflight
-    Betaflight -->|Four motors, UDP 9002| PyBullet[PyBullet dynamics]
-    PyBullet --> Sensors
-    PyBullet --> Position
-    PyBullet --> Altitude
-    PyBullet --> Renderer[Exported Godot viewer]
+    subgraph Navigation[Example navigation and control]
+        XY[XY position error, m] -->|position PIDs| Vxy[XY velocity target, m/s]
+        Vxy -->|velocity PIDs| Axy[XY acceleration target, m/s²]
+        Axy -->|yaw transform, tilt limit| Angles[Roll and pitch targets, rad]
+        Z[Altitude error, m] -->|altitude position PID| Vz[Vertical speed target, m/s]
+        Vz -->|vertical velocity PID| Az[Vertical acceleration, m/s²]
+        Az -->|gravity compensation| Tz[Vertical thrust, N]
+        Angles --> Compose[Desired attitude and collective]
+        Tz --> Compose
+        Compose -->|attitude P, measured attitude feedback| Rates[Body-rate targets, rad/s]
+        Rates -->|ACTUAL inverse, PWM| RC[MSP RC in Acro mode]
+    end
+    RC -->|target rates| RatePID[Betaflight gyro rate PID]
+    IMU[Simulated IMU over FDM UDP 9003] --> RatePID
+    RatePID --> Mixer[Betaflight mixer]
+    Mixer -->|4 motor commands, UDP 9002| Physics[PyBullet dynamics]
+    Physics -->|ground-truth position, velocity, attitude| Navigation
 ```
 
+The diagram’s two cascades have distinct outputs. For XY, two independent
+position PIDs turn world position error into a velocity target, bounded to a
+1 m/s vector. Two velocity PIDs turn velocity error into world acceleration,
+bounded to 1.5 m/s² per axis. The velocity controller rotates horizontal force
+using measured yaw and limits combined tilt to 15 degrees. For Z, the altitude
+PID outputs a vertical speed target bounded to 1 m/s in flight (0.5 m/s while
+landing); the vertical-speed PID outputs acceleration, bounded to 3 m/s². Adding
+gravity compensation and applying tilt compensation produces collective thrust.
+
+The attitude P controller compares desired roll, pitch, and held heading with
+measured attitude. Its gain is 4 s⁻¹ on each axis, and each resulting body-rate
+target is limited to ±2 rad/s. The mission inverts Betaflight’s configured ACTUAL
+rate curve to express those targets as centered MSP roll, pitch, and yaw PWM
+channels. Throttle carries collective demand. AUX1 carries arm; AUX2 stays low
+to select Acro.
+
+Betaflight’s rate PID compares each requested body rate with gyro-measured body
+rate from simulated IMU data. That firmware PID—not the example’s attitude P—
+corrects roll, pitch, and yaw rates before the mixer sends four motor commands
+back to PyBullet. PyBullet then advances the vehicle and supplies ground-truth
+position, velocity, and attitude to the example’s outer loops. Separately,
+Betaflight uses the same simulated IMU through its FDM input for its own rate
+feedback. The renderer only displays simulation state.
+
+Configured example gains and output limits:
+
+| Stage | PID gains (P, I, D) | Input → output | Limit |
+|---|---:|---|---:|
+| XY position, each axis | (0.8, 0, 0) | position error (m) → velocity target (m/s) | 1 m/s vector |
+| XY velocity, each axis | (2, 0, 0) | velocity error (m/s) → acceleration (m/s²) | 1.5 m/s² per axis |
+| Altitude position | (1.5, 0, 0) | altitude error (m) → vertical speed (m/s) | 1 m/s flight, 0.5 m/s landing |
+| Vertical velocity | (6, 4, 0) | vertical speed error (m/s) → acceleration (m/s²) | 3 m/s² output, 2 m/s² I contribution |
+| Attitude P | (4, 4, 4) s⁻¹ | attitude error (rad) → body rates (rad/s) | 2 rad/s per axis |
+
 The firmware profile selects ACTUAL rates: 70 deg/s center sensitivity, 670 deg/s
-maximum, and zero expo. The mission inverts that curve to encode bounded ±2 rad/s
-body-rate targets as PWM. AUX1 arms; AUX2 stays low so Betaflight remains in Acro.
-Throttle uses the same motor-speed-squared inversion as the standalone Betaflight
-altitude example. FDM carries simulated IMU and barometer data; returned Betaflight
-motor outputs alone drive PyBullet.
+maximum, and zero expo. The firmware-owned gyro rate PID gains are in the
+Betaflight SITL profile; they are not configured by the example. FDM carries
+simulated IMU and barometer data; returned Betaflight motor outputs alone drive
+PyBullet.
 
 ## Mission states
 
