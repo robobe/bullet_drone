@@ -1,6 +1,6 @@
 # Prevent FDM catch-up bursts from triggering RC failsafe
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `73e5b172f77e1b94309ce0cc204a4f2f344d8156`.
 
 Goal: Fix RXLOSS/failsafe disarming during flight while host MSP RC delivery
 continues. Keep upstream firmware and genuine link-loss protection unchanged.
@@ -52,3 +52,5 @@ Verification:
   passed; firmware working tree is unchanged. Full suite and hardware flight
   were not run. Genuine RC loss still aborts the mission; firmware clock scaling
   itself remains upstream code, rather than a project patch.
+
+The user subsequently authorized committing and pushing all pending changes.

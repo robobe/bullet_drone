@@ -1,6 +1,6 @@
 # Packaged Godot viewer and standalone altitude hold
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `73e5b172f77e1b94309ce0cc204a4f2f344d8156`.
 
 ## Goal
 
@@ -70,3 +70,7 @@ commit or push. Preserve concurrent Betaflight-example work from the main thread
   camera PNG and renderer startup log are alongside it. Build/test logs remain
   under `/tmp/external-render-*.log`. No full unrelated workspace suite, Windows,
   remote rendering, hardware, commit or push was performed.
+
+Related bullet_render source commit: `46006ffa7b7dd3858d68c8b8c83e997c0109ca7b`.
+
+The user subsequently authorized committing and pushing all pending changes.

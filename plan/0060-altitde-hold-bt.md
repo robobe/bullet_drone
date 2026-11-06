@@ -1,6 +1,6 @@
 # Independent Betaflight SITL altitude-hold example
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `73e5b172f77e1b94309ce0cc204a4f2f344d8156`.
 
 Goal: Create `examples/altitde_hold_bt` (the requested spelling), with its own
 CLI, SITL session, mission, loop and documentation. Climb to 3 m, hold for 10 s,
@@ -46,3 +46,7 @@ Verification:
   workspace `../uv.lock` (the parent repository owns that file).
 - No GUI/manual picker, hardware or full-suite run was performed. No firmware
   tuning/patch changes or imports from other examples were introduced.
+
+Related workspace lockfile commit: `9064c92bc7ffd8ea62da790396ca3a85e1c2709e`.
+
+The user subsequently authorized committing and pushing all pending changes.

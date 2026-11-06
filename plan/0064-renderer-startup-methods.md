@@ -1,6 +1,6 @@
 # Separate external-renderer startup methods
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `73e5b172f77e1b94309ce0cc204a4f2f344d8156`.
 
 Goal: Extract Godot process startup and ZeroMQ communication startup into their
 own focused methods in the external altitude-hold example's renderer.py.
@@ -19,3 +19,5 @@ release after communication startup. Existing occupied-port, child-exit,
 interruption, SHM ownership and mission cleanup checks passed. `git diff --check`
 passed. No new Godot export or real graphical flight was run for this
 behavior-preserving method extraction.
+
+The user subsequently authorized committing and pushing all pending changes.

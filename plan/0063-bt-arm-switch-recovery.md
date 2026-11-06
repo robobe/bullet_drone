@@ -1,6 +1,6 @@
 # Recover a failed Betaflight arm request
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `73e5b172f77e1b94309ce0cc204a4f2f344d8156`.
 
 Goal: Recover the supplied ARMING trace: RXLOSS followed by NOT_DISARMED and
 ARM_SWITCH while the example holds AUX1 high indefinitely.
@@ -35,3 +35,5 @@ Verification:
 - No new GUI-mode run or induced live RX loss was performed. The supplied trace
   is replayed deterministically at the mission boundary; intermittent RC-loss
   generation remains separate. Persistent RXLOSS still prevents arming.
+
+The user subsequently authorized committing and pushing all pending changes.

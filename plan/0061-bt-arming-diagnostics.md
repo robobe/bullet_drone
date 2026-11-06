@@ -1,6 +1,6 @@
 # Betaflight example arming diagnostics and state colors
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `73e5b172f77e1b94309ce0cc204a4f2f344d8156`.
 
 Goal: Explain why altitde_hold_bt waits on the ground and distinguish mission
 state changes with colors, without bypassing firmware arming checks.
@@ -44,3 +44,5 @@ Verification:
 Follow-up: the user supplied a trace confirming a latched ARM_SWITCH/NOT_DISARMED
 condition after RXLOSS. Its mission recovery fix is recorded in
 [plan 0063](0063-bt-arm-switch-recovery.md).
+
+The user subsequently authorized committing and pushing all pending changes.
