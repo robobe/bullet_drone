@@ -8,6 +8,44 @@ directories. It uses the machine's C/C++ runtime and OpenGL drivers.
 
 ## Build
 
+Running an existing package at `external_render/dist/linux-x86_64/render` does
+not require a separate Godot installation. Godot and its export templates are
+needed only to build or rebuild that package.
+
+### Install Godot for building
+
+Download the standard Linux x86_64 editor and export templates for
+[Godot 4.7.2](https://godotengine.org/download/archive/4.7.2-stable/) from the
+official archive. Extract the editor, make it executable, and put it on `PATH`:
+
+```bash
+chmod +x /path/to/Godot_v4.7.2-stable_linux.x86_64
+mkdir -p "$HOME/.local/bin"
+install -m 0755 /path/to/Godot_v4.7.2-stable_linux.x86_64 "$HOME/.local/bin/godot"
+```
+
+Make sure `$HOME/.local/bin` is on `PATH`, then start `godot` and open
+**Editor → Manage Export Templates**. Select Linux x86_64 and install the
+templates. Godot also accepts the downloaded `.tpz` through the template
+manager's **Install from File** action. The editor and templates must have the
+same version; the expected template directory on Linux is
+`$HOME/.local/share/godot/export_templates/4.7.2.stable`.
+
+Verify both before building:
+
+```bash
+godot --version
+test "$(godot --version)" = "4.7.2.stable.official.ed1daf0bf"
+test -d "$HOME/.local/share/godot/export_templates/4.7.2.stable"
+```
+
+Godot is self-contained, so no system package installation is required for the
+editor itself. See Godot's
+[export-template documentation](https://docs.godotengine.org/en/latest/tutorials/export/exporting_projects.html#export-templates)
+for the template-manager workflow.
+
+### Build the package
+
 From the `bullet_drone` repository:
 
 ```bash
@@ -45,7 +83,9 @@ Godot scene or extension, and stop any owned renderer before replacing its packa
 ## Run
 
 The shared Python adapter `external_render/renderer.py` owns startup, image
-readiness, transport, and shutdown for both automatic flight examples.
+readiness, transport, and shutdown for automatic altitude hold and Angle square.
+The Betaflight Acro square intentionally keeps an equivalent adapter inside its
+example so that it shares no example implementation code.
 
 For a complete automatic flight, use the
 [standalone altitude-hold example](../examples/altitude_hold_external_render/README.md):
@@ -53,6 +93,7 @@ For a complete automatic flight, use the
 ```bash
 uv run --locked --extra render python -m examples.altitude_hold_external_render.main
 uv run --locked --extra render python -m examples.position_square.main
+uv run --locked --extra render --extra sitl python -m examples.position_square_acro.main
 ```
 
 To run just the viewer, which waits for a compatible pose publisher:

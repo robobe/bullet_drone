@@ -44,13 +44,12 @@ ideal motors/propellers → PyBullet, and returns the next immutable observation
 Thrust bypasses attitude/rate PID. The example owns the loop and resource cleanup.
 No forces are applied by the position/velocity controllers.
 
-The [Acro square example](../../examples/position_square_acro/README.md) uses the
-same square mission with `flight_mode='acro'` and an injected upstream
-`AttitudeController`. Desired tilt is converted once to bounded body roll/pitch
-rates using measured orientation; heading control still supplies yaw rate. These
-rates are encoded as Acro input, so internal stabilization bypasses its attitude
-controller and runs rate PID directly. The mode defaults to angle; Acro without
-an upstream converter fails configuration validation before simulation startup.
+The independent [Acro square example](../../examples/position_square_acro/README.md)
+uses the same controller types with its own mission implementation. Desired tilt
+and held heading are converted to bounded body-rate targets, then inverted through
+the pinned firmware's ACTUAL rate curve into MSP Acro channels. Betaflight SITL
+closes the body-rate loop, mixes motors, and returns four outputs over UDP; the
+internal simulator stabilization and mixer are not used.
 
 ## Migration
 
@@ -65,5 +64,5 @@ Controller tests check force directions across yaw frames, vector/tilt/thrust
 limits, independent PID history, reset and immutable outputs. The
 [square example](../../examples/position_square/README.md) checks every control
 link during a full headless mission, settled waypoints, held heading, landing,
-stopped motors, deadlines and cleanup. Sensors, motor lag and Betaflight are outside
-this milestone.
+stopped motors, deadlines and cleanup. The separate Acro example verifies the
+same navigation composition through Betaflight SITL.

@@ -1,44 +1,44 @@
-"""Compose square-flight controllers and own the execution loop."""
+"""Own the Betaflight FDM/MSP/PyBullet loop for the Acro square."""
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 from math import ceil, radians
 import time
 
-from loguru import logger
-
-from bullet_drone.config import DroneSettings, SimulationConfig, SimulationSettings, _number
-from bullet_drone.controllers import AltitudeController, InternalControlSettings, PidSettings, PositionController, VelocityController
+from bullet_drone.betaflight.backend import BetaflightBackend
+from bullet_drone.betaflight.bridge import UdpSitlBridge
+from bullet_drone.config import ControlSettings, DroneSettings, SimulationConfig, SimulationSettings, _number
+from bullet_drone.controllers import AltitudeController, PidSettings, PositionController, VelocityController
 from bullet_drone.controllers.internal import AttitudeController
+from bullet_drone.environment import DroneEnvironment
 from bullet_drone.models import DroneObservation
-from bullet_drone.rc import RcCodec
-from bullet_drone.simulation import RcSimulation
+from bullet_drone.physics import PyBulletPhysics
+from bullet_drone.sensors import BarometerSensor, ImuSensor
 from bullet_drone.vehicle import load_racer_parameters
-from examples.position_square.mission import Phase, SquareMission, Transition, WaypointArrival
-from examples.timing import RealtimeFactorLogger
+from examples.position_square_acro.demo_cli import DEFAULT_SITL_BINARY
+from examples.position_square_acro.diagnostics import (
+    REPORT_INTERVAL_S, arming_blockers, log_status, log_transition, log_waypoint,
+)
+from examples.position_square_acro.mission import Phase, SquareMission, Transition, WaypointArrival
+from examples.position_square_acro.sitl import SAFE_CHANNELS, SitlSession
 
 
-SIMULATION_RATE_HZ = 240
-TIMESTEP_S = 1 / SIMULATION_RATE_HZ
-DEFAULT_MAX_DURATION_S = 90.0
-DRONE_MASS_KG = 1.0
+PHYSICS_HZ = 240
+TIMESTEP_S = 1 / PHYSICS_HZ
+DEFAULT_MAX_DURATION_S = 120.0
+STATUS_PERIOD_S = 0.1
+FEEDBACK_TIMEOUT_S = 0.5
+MASS_KG = 1.0
 GRAVITY_M_S2 = 9.81
-WORLD_GRAVITY_M_S2 = (0.0, 0.0, -GRAVITY_M_S2)
+GRAVITY_VECTOR_M_S2 = (0.0, 0.0, -GRAVITY_M_S2)
 INITIAL_POSITION_M = (0.0, 0.0, 0.015)
+XY_POSITION_PID = PidSettings(0.8, 0.0, 0.0, 1.0, 0.0)
+XY_VELOCITY_PID = PidSettings(2.0, 0.0, 0.0, 1.5, 0.0)
+ALTITUDE_POSITION_PID = PidSettings(1.5, 0.0, 0.0, 1.0, 0.0)
+ALTITUDE_VELOCITY_PID = PidSettings(6.0, 4.0, 0.0, 3.0, 2.0)
+MAX_TILT_RAD = radians(15)
 ATTITUDE_KP_S_INV = (4.0, 4.0, 4.0)
 MAX_BODY_RATES_RAD_S = (2.0, 2.0, 2.0)
-BODY_RATE_PID = PidSettings(kp=0.05, ki=0.0, kd=0.0, output_limit=0.1, integral_limit=0.0)
-FLIGHT_CONTROL_SETTINGS = InternalControlSettings(ATTITUDE_KP_S_INV, MAX_BODY_RATES_RAD_S,
-                                                 (BODY_RATE_PID,) * len(ATTITUDE_KP_S_INV))
-XY_POSITION_PID = PidSettings(kp=0.8, ki=0.0, kd=0.0, output_limit=1.0, integral_limit=0.0)
-XY_VELOCITY_PID = PidSettings(kp=2.0, ki=0.0, kd=0.0, output_limit=1.5, integral_limit=0.0)
-ALTITUDE_POSITION_PID = PidSettings(kp=1.5, ki=0.0, kd=0.0, output_limit=1.0, integral_limit=0.0)
-# Ground-effect lift needs more downward integral authority during touchdown.
-ALTITUDE_VELOCITY_PID = PidSettings(kp=6.0, ki=4.0, kd=0.0, output_limit=3.0, integral_limit=2.0)
-MAX_TILT_RAD = radians(15)
-
-
-class DemoTimeoutError(RuntimeError):
-    """The square mission did not finish within its simulation-time budget."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,101 +48,93 @@ class DemoResult:
     arrivals: tuple[WaypointArrival, ...]
 
 
-def run_demo(*, gui: bool = True, max_duration_s: float = DEFAULT_MAX_DURATION_S,
-             on_observation=None, pace: bool = False, control=None) -> DemoResult:
+def run_demo(*, sitl_binary=DEFAULT_SITL_BINARY,
+             max_duration_s=DEFAULT_MAX_DURATION_S, on_observation=None):
     duration = _number(max_duration_s, 'max_duration_s', positive=True)
-    max_steps = ceil(duration / TIMESTEP_S)
-    config = SimulationConfig(SimulationSettings(TIMESTEP_S, max_steps, WORLD_GRAVITY_M_S2, gui=gui),
-                              DroneSettings(DRONE_MASS_KG, INITIAL_POSITION_M))
+    config = SimulationConfig(
+        SimulationSettings(TIMESTEP_S, ceil(duration / TIMESTEP_S), GRAVITY_VECTOR_M_S2, gui=False),
+        DroneSettings(MASS_KG, INITIAL_POSITION_M), control=ControlSettings('betaflight'))
     vehicle = load_racer_parameters()
     max_thrust = len(vehicle.rotor_positions_m) * vehicle.max_thrust_per_rotor_n
     mission = SquareMission(
         PositionController(XY_POSITION_PID),
-        VelocityController(DRONE_MASS_KG, max_thrust, XY_VELOCITY_PID, MAX_TILT_RAD),
-        AltitudeController(DRONE_MASS_KG, GRAVITY_M_S2, max_thrust, ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID),
-        RcCodec(max_thrust, FLIGHT_CONTROL_SETTINGS.max_rates_rad_s, config.rc),
-        flight_mode='acro',
-        attitude_controller=AttitudeController(ATTITUDE_KP_S_INV, MAX_BODY_RATES_RAD_S),
+        VelocityController(MASS_KG, max_thrust, XY_VELOCITY_PID, MAX_TILT_RAD),
+        AltitudeController(MASS_KG, GRAVITY_M_S2, max_thrust,
+                           ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID),
+        AttitudeController(ATTITUDE_KP_S_INV, MAX_BODY_RATES_RAD_S),
+        max_thrust,
     )
-    simulation = RcSimulation(config, FLIGHT_CONTROL_SETTINGS, vehicle)
-    try:
-        observation = simulation.reset()
+    with ExitStack() as resources:
+        physics = PyBulletPhysics(config, vehicle)
+        resources.callback(physics.close)
+        environment = DroneEnvironment(
+            physics,
+            imu=ImuSensor(GRAVITY_VECTOR_M_S2, config.sensors.imu, sample_period_s=TIMESTEP_S),
+            barometer=BarometerSensor(config.sensors.barometer),
+        )
+        resources.callback(environment.close)
+        backend = BetaflightBackend(vehicle, UdpSitlBridge())
+        resources.callback(backend.close)
+        sitl = resources.enter_context(SitlSession(sitl_binary))
+        observation = environment.reset()
+        backend.reset(observation)
         if on_observation is not None:
             on_observation(observation)
-        if gui:
-            from examples.position_square_acro.gui import frame_flight
-
-            frame_flight()
         mission.reset(observation)
         started = time.monotonic()
-        timing = RealtimeFactorLogger(observation.ground_truth.simulation_time_s, started,
-                                      clock=time.monotonic)
-        logger.info('Acro position square: settle at {:.3f} s', observation.ground_truth.simulation_time_s)
-        step = 0
-        if control is not None:
-            control.transition('stopped', 'startup', observation)
+        next_status_s = started
+        next_fdm_s = started
+        next_report_s = 0.0
+        last_blockers = None
+        status = None
+        channels = SAFE_CHANNELS
+        log_transition(None, mission.phase, observation.ground_truth.simulation_time_s)
         while True:
-            if control is not None:
-                action = control.poll()
-                if action == 'reset' or (action == 'start' and control.state != 'running'):
-                    try:
-                        observation = simulation.reset()
-                        mission.reset(observation)
-                        step = 0
-                        started = time.monotonic()
-                        timing = RealtimeFactorLogger(observation.ground_truth.simulation_time_s, started,
-                                                      clock=time.monotonic)
-                        if on_observation is not None:
-                            on_observation(observation)
-                        control.transition('running' if action == 'start' else 'stopped',
-                                           'started' if action == 'start' else 'reset', observation)
-                    except Exception:
-                        logger.exception('Simulation reset failed')
-                        control.transition('error', 'reset_failed', observation)
-                elif action in ('stop', 'controller_timeout', 'controller_changed'):
-                    if control.state == 'running':
-                        control.transition('stopped', action, observation)
-                control.publish(observation)
-                if control.state != 'running':
-                    continue
+            sitl.check_running()
+            now = time.monotonic()
+            if now >= next_status_s:
+                status = sitl.commands.read_status()
+                next_status_s = time.monotonic() + STATUS_PERIOD_S
+            if status is None or not 0 <= time.monotonic() - status.received_at <= FEEDBACK_TIMEOUT_S:
+                raise RuntimeError('Betaflight status is stale')
+            previous_phase = mission.phase
+            previous_index = mission.index
+            arrival_count = len(mission.arrivals)
             try:
-                previous_phase, arrival_count = mission.phase, len(mission.arrivals)
-                rc_command = mission.command(observation, simulation.timestep_s)
-                if len(mission.arrivals) != arrival_count:
-                    arrival = mission.arrivals[-1]
-                    logger.info('Acro position square: waypoint {} settled at {:.3f} s', arrival.index,
-                                arrival.state.simulation_time_s)
-                if mission.phase != previous_phase:
-                    logger.info('Acro position square: {} at {:.3f} s', mission.phase, observation.ground_truth.simulation_time_s)
-                if mission.phase == Phase.COMPLETE:
-                    if control is not None:
-                        control.transition('stopped', 'completed', observation)
-                        continue
-                    break
-                if (step + 1) * simulation.timestep_s > duration:
-                    raise DemoTimeoutError(f'Acro position square timed out after {duration:g} s in phase {mission.phase}')
-                observation = simulation.step(rc_command)
-                if on_observation is not None:
-                    on_observation(observation)
-                if gui or pace:
-                    remaining = started + observation.ground_truth.simulation_time_s - time.monotonic()
-                    if remaining > 0:
-                        time.sleep(remaining)
-                timing.update(observation.ground_truth.simulation_time_s)
-                step += 1
+                channels = mission.command(observation, status, TIMESTEP_S)
             except Exception:
-                if control is None:
-                    raise
-                logger.exception('Simulation episode failed')
-                control.transition('error', 'runtime_failure', observation)
-        timing.update(observation.ground_truth.simulation_time_s, final=True)
-        result = DemoResult(observation, tuple(mission.transitions), tuple(mission.arrivals))
-    except BaseException:
-        try:
-            simulation.close()
-        except BaseException:
-            logger.exception('Simulation cleanup failed while handling a failure')
-        raise
-    else:
-        simulation.close()
-        return result
+                log_status(mission.phase, mission.index, observation.ground_truth, status,
+                           channels, backend, sitl.client, time.monotonic() - started)
+                raise
+            sitl.client.rc.update(channels)
+            if len(mission.arrivals) != arrival_count:
+                log_waypoint(mission.arrivals[-1], settled=True)
+            if mission.phase != previous_phase:
+                log_transition(previous_phase, mission.phase,
+                               observation.ground_truth.simulation_time_s)
+            if (mission.phase in (Phase.TAKEOFF, Phase.SQUARE)
+                    and (mission.index != previous_index or mission.phase != previous_phase)):
+                log_waypoint(WaypointArrival(mission.index, mission.waypoints[mission.index],
+                                             observation.ground_truth), settled=False)
+            elapsed_s = time.monotonic() - started
+            if (elapsed_s >= next_report_s or status.arming_disabled_flags != last_blockers
+                    or mission.phase != previous_phase or mission.index != previous_index):
+                log_status(mission.phase, mission.index, observation.ground_truth, status,
+                           channels, backend, sitl.client, elapsed_s)
+                next_report_s = elapsed_s + REPORT_INTERVAL_S
+                last_blockers = status.arming_disabled_flags
+            if mission.phase == Phase.COMPLETE:
+                return DemoResult(observation, tuple(mission.transitions), tuple(mission.arrivals))
+            if observation.ground_truth.simulation_time_s + TIMESTEP_S > duration:
+                raise TimeoutError(
+                    f'Betaflight Acro square timed out in {mission.phase}, '
+                    f'armed={status.armed}, blockers={arming_blockers(status.arming_disabled_flags)}')
+            remaining = next_fdm_s - time.monotonic()
+            if remaining > 0:
+                time.sleep(remaining)
+            rotor_command = backend.command(observation)
+            next_fdm_s = time.monotonic() + TIMESTEP_S
+            observation = (environment.hold() if mission.phase in (Phase.PREARM, Phase.ARMING)
+                           else environment.step(rotor_command))
+            if on_observation is not None:
+                on_observation(observation)

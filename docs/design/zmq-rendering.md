@@ -1,10 +1,11 @@
 # Optional Godot camera publication
 
-The Acro-square CLI accepts `--render-config ../bullet_render/configs/physics.json`.
-Altitude hold is a standalone PyBullet example with no Godot/control adapter.
-Install with `uv sync --extra render`. The Acro example owns RenderPublisher and SimulationControl lifecycles;
-imports start no I/O. The library remains transport-independent. Existing UDP
-render adapters and the PlotJuggler sender remain available.
+The automatic Angle and Betaflight Acro square CLIs accept `--render-config` and
+default to `external_render/configs/physics.json`. Standalone internal altitude
+hold has no Godot adapter. Install with `uv sync --extra render`. Each rendered
+application owns its publisher/viewer lifecycle; imports start no I/O. The
+library remains transport-independent. Existing UDP render adapters and the
+PlotJuggler sender remain available.
 
 RenderPublisher selects observations at camera FPS in simulation time and puts
 immutable resolved poses into a one-entry queue without blocking. A worker owns ZeroMQ,
@@ -52,12 +53,12 @@ and transport entirely. `--renderer` selects the exported executable and
 `--render-config` defaults to the packaged `external_render/configs/physics.json`.
 Programmatic `run_demo(control=...)` remains available.
 
-## Command-driven example CLIs
+The Betaflight Acro-square CLI has its own renderer adapter rather than importing
+another example. It uses the same packaged viewer/readiness protocol, advertises
+`backend=betaflight`, starts automatically, and closes the viewer with its owned
+SITL session. Its `--headless` path starts no rendering or ZeroMQ resources.
 
-Acro square starts stopped by default. Its CLI
-parser selects the shared sibling physics profile unless `--render-config` is
-provided, and execution requires `uv run --locked --extra render`. The library and
-direct `run_demo()` calls still execute immediately without transport dependencies.
+## Command-driven external-RC flow
 
 A main-thread SimulationControl SUB receives exact simulation/command and
 simulation/heartbeat messages from Godot PUB on TCP 5557. Physics/mission reset and

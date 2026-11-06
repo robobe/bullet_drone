@@ -61,4 +61,4 @@ rotation and quaternion sign behavior, malformed input, neutral diagnostics,
 controller rejection without PID changes, environment reset after invalid source
 geometry, and sensor imports without controllers. Geometry-only tests previously
 in the controller test file now live at the shared math interface. Full flight
-checks continue exercising the same control and physics chain in Angle and Acro.
+checks exercise the internal Angle chain and the independent Betaflight Acro chain.

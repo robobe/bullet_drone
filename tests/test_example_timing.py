@@ -13,7 +13,7 @@ SIMULATION_ORIGIN_S = 10.0
 SIMULATED_INTERVAL_S = 2.0
 FAST_STEP_COST_S = 0.001
 MISSION_STEPS = 2
-EXAMPLE_NAMES = ('altitude_hold', 'position_square', 'position_square_acro')
+EXAMPLE_NAMES = ('altitude_hold', 'position_square')
 
 
 @pytest.fixture
@@ -90,6 +90,7 @@ def test_example_timing_includes_pacing_and_excludes_setup_cleanup(example_name,
             now += CLOCK_ORIGIN_S
     class Mission:
         phase = demo.Phase.SETTLE
+        index = 0
         arrivals = ()
         transitions = ()
         def __init__(self, *args, **kwargs):

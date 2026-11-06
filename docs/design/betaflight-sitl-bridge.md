@@ -267,6 +267,12 @@ RC-loss disarming and the motor timeout passed. The managed hover check with
 `configs/basic.yaml` completed a 20-second hold at a 20 m relative target with
 0.28 m peak error. These are simulation checks, not hardware flight validation.
 
+The independent [Betaflight Acro square](../../examples/position_square_acro/README.md)
+uses the same unmodified firmware and FDM/motor adapter. Its application-owned
+navigation converts XYZ targets to Acro body-rate/throttle MSP channels while
+Betaflight closes the rate and motor loops. It owns the packaged viewer and SITL
+process, waits for the first matching image, and then starts one automatic mission.
+
 ## Source map
 
 | Subject | Source |

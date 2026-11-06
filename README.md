@@ -101,10 +101,12 @@ uv run --locked --all-packages --all-extras --all-groups python -m examples.posi
 uv run --locked --all-packages --all-extras --all-groups python -m examples.position_square_acro.main --headless
 ```
 
-This separate example flies the same square, holds home for 10 seconds, then
-lands and disarms using Acro RC channels. Navigation converts tilt targets to
-body-rate requests upstream; the simulator bypasses its internal attitude P and
-uses rate PID directly. See [the Acro example and diagrams](examples/position_square_acro/README.md).
+This independent example launches unmodified Betaflight SITL and the packaged
+Godot viewer, flies the same square with Acro RC body-rate commands, holds home
+for 10 seconds, lands, disarms, and closes both child processes. Betaflight owns
+rate stabilization, mixing, and motor output; the example owns XYZ navigation.
+Build firmware first with `tools/setup_betaflight_sitl.sh`. See
+[the Acro example and diagrams](examples/position_square_acro/README.md).
 
 ## VS Code tasks
 
@@ -127,8 +129,9 @@ NVIDIA is used for the OpenGL viewer; Bullet physics still runs on the CPU.
 All altitude-hold choices start automatically and exit after landing. The
 external-render choice opens the packaged Godot viewer with PyBullet headless.
 The Betaflight choice requires a built SITL binary and uses its fixed UDP/MSP
-ports; the internal choice uses no transport ports. Angle square starts its
-packaged viewer and flight automatically; Acro square waits for Godot's **Start** action; external RC also requires the app. The shared task
+ports; the internal choice uses no transport ports. Both square choices start
+their packaged viewers and flights automatically; Acro square also requires the
+built SITL binary. External RC requires the app. The shared task
 includes rendering/SITL dependencies for the other choices, but the internal altitude-hold
 CLI does not require the render extra. Use **Bullet: Run all** for the managed
 application/renderer workflow. Run only one transport-based example at a time.
@@ -221,24 +224,18 @@ Implementation records are in [the plan menu](plan/README.md).
 
 ## Godot / ZeroMQ camera
 
-Install `uv sync --locked --all-packages --all-extras --all-groups`, then run the square example with
-`uv run --locked --all-packages --all-extras --all-groups python -m examples.position_square_acro.main --headless --render-config ../bullet_render/configs/physics.json`
-from the physics repository root. Rendering enables wall-time pacing even without
-PyBullet GUI. See [the renderer](../bullet_render/README.md) for the native Godot and recorder commands.
+Install the workspace dependencies, build SITL and the packaged viewer, then run
+`uv run --locked --extra render --extra sitl python -m examples.position_square_acro.main`.
+The example owns Godot and Betaflight and starts after the first rendered image.
+See [the Acro square guide](examples/position_square_acro/README.md).
 
 ## Godot controls
 
-Run this example with `uv run --locked --all-packages --all-extras --all-groups python -m examples.position_square_acro.main --headless`.
-The CLI initializes **Stopped** and waits for Godot's Start button; it no longer
-runs a flight immediately. Stop ends the current episode and preserves the final
-pose. Reset restores initial state at time zero and waits. Start always begins a
-fresh episode. Completion leaves the process available for another run. Only one
-physics example can own the shared ports at a time.
-
-The default profile is `../bullet_render/configs/physics.json`; override it with
-`--render-config`. Keep sibling bullet_msgs installed through the existing render
-extra. Direct `run_demo()` calls without a control adapter remain one-shot and do
-not need Godot. See [the transport/control design](docs/design/zmq-rendering.md).
+Use `--headless` to skip the viewer while retaining paced Betaflight execution.
+The Acro CLI has no Start/Stop/Reset command channel. Override packaged paths
+with `--renderer`, `--render-config`, or `--sitl-binary`. Only one transport-based
+example can own the fixed ports at a time. See
+[the transport design](docs/design/zmq-rendering.md).
 
 ## Sensor pose for Godot and app feedback
 

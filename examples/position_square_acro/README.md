@@ -1,175 +1,106 @@
-# Position square in Acro mode
+# Betaflight SITL position square in Acro mode
 
-This example owns its simulation loop and flies the same settled 3 m square as
-the Angle example, using **Acro RC commands on every step**, including disarmed
-ground settling and the final motors-off period.
+This example automatically launches unmodified Betaflight 2026.6.2 SITL and the
+packaged Godot viewer, takes off to world Z = 3 m, flies a settled 3 m square,
+holds home for 10 simulated seconds, lands, disarms, and closes every owned
+process. It does not wait for a Godot Start command.
+
+The implementation is self-contained under `examples/position_square_acro`: its
+mission, SITL/MSP session, renderer adapter, diagnostics, CLI, and execution loop
+do not import another example. Project library components still provide physics,
+sensors, controllers, and the FDM/motor bridge.
+
+## Run
+
+Build firmware and the renderer once:
 
 ```bash
-uv run --locked --extra render python -m examples.position_square_acro.main
-uv run --locked --extra render python -m examples.position_square_acro.main --headless
-uv run --locked --extra render python -m examples.position_square_acro.main --help
+tools/setup_betaflight_sitl.sh
+uv run --locked python external_render/build.py
 ```
 
-Run from the repository root. GUI mode uses PyBullet with wall-time pacing and
-requires a desktop/X11 display. Headless mode runs the same physics without
-pacing. GUI framing assumes a standalone process owning PyBullet client 0.
-Ctrl+C releases resources and returns 130; timeout/runtime errors return 1.
+Then run from the repository root:
 
-## How Acro position control works
+```bash
+uv run --locked --extra render --extra sitl python -m examples.position_square_acro.main
+uv run --locked --extra render --extra sitl python -m examples.position_square_acro.main --headless
+```
 
-The position and velocity PIDs still calculate desired roll/pitch angles and
-tilt-compensated thrust. An **upstream attitude P controller** compares those
-angles with ground-truth orientation and produces bounded body roll/pitch rates.
-The held-heading controller supplies yaw rate. These three body rates and
-collective thrust are encoded as Acro RC channels.
+The default command opens the exported Godot viewer, waits for its first image,
+then starts the flight. `--headless` skips Godot and ZeroMQ but still runs the
+paced SITL flight. Use `--renderer`, `--render-config`, or `--sitl-binary` to
+override their packaged paths. A desktop/OpenGL display is required for the
+viewer. Only one SITL/rendered example can own TCP 5555–5557, TCP 5761, and UDP
+9002–9004 at a time.
 
-Inside `RcSimulation`, Acro bypasses the internal attitude P controller and
-passes the requested body rates directly to rate PID → mixer → motors/propellers
-→ PyBullet. Collective thrust bypasses attitude/rate PID. There is exactly one
-angle-to-rate calculation for each armed step, performed upstream of RC encoding.
-The autonomous navigation closes the attitude loop; Acro mode itself adds no
-automatic leveling. Changing only the RC mode while passing angle values as
-rates would produce a different, incorrect position-control chain.
+## Control chain
 
-`demo.py` owns composition and reset/step/pacing/cleanup; `main.py` owns diagnostics
-and CLI entry; `demo_cli.py` only parses; `gui.py` frames the flight. The example
-reuses `examples/position_square/mission.py` for route, state transitions, dwell
-and landing behavior, explicitly selecting `flight_mode='acro'` and injecting
-an upstream `AttitudeController`. Both examples retain their own execution loops.
-All tuning defaults are named constants after module imports.
-
-## Route and defaults
-
-Start at `(0,0,0.015)` m, settle disarmed for 0.5 s, then visit
-`(0,0,3) → (3,0,3) → (3,3,3) → (0,3,3) → (0,0,3)` in world meters.
-Each waypoint requires XYZ error ≤0.1 m and speed ≤0.1 m/s for 1 continuous second.
-Hold the heading captured at reset, hold home XYZ for 10 s, and land while keeping
-XY position control active. The descent speed target is limited to 0.5 m/s.
-Touchdown requires home XY error ≤0.1 m, Z ≤0.02 m and vertical speed ≤0.05 m/s
-for 0.5 s. Disarm for 1 s before closing. Overall timeout is 90 simulated seconds.
-
-The timestep is 1/240 s, mass 1 kg and gravity 9.81 m/s². XY position PID gains
-are `(0.8,0,0)` with a 1 m/s vector speed limit; XY velocity PID gains are
-`(2,0,0)` with a 1.5 m/s² per-axis acceleration limit. Maximum tilt is 15°.
-Altitude PIDs remain `(1.5,0,0)` for position and `(6,4,0)` for vertical velocity,
-with limits 1 m/s and 3 m/s² and a 2 m/s² integral contribution limit.
-Upstream attitude gain is 4 (rad/s)/rad; body-rate targets are bounded to 2 rad/s.
-Internal rate PIDs are `(0.05,0,0)`, limited to 0.1 N·m per axis. Yaw-heading
-gain is 4 s⁻¹, limited to the same 2 rad/s yaw rate. RC channels introduce rounding
-of the rate and thrust requests. All feedback is ideal ground truth.
-
-## Sequence diagram
+The example owns world XYZ navigation. Betaflight owns body-rate stabilization,
+motor mixing, and motor output:
 
 ```mermaid
-sequenceDiagram
-    participant Loop as Acro example loop
-    participant Mission as Shared square mission
-    participant Position as XY position PID
-    participant Z as Altitude cascade
-    participant Velocity as XY velocity PID and tilt conversion
-    participant Attitude as Upstream attitude P
-    participant RC as RC codec
-    participant Sim as RcSimulation in Acro mode
-    Loop->>Sim: reset()
-    Sim-->>Loop: Initial ground truth
-    Loop->>Mission: reset(observation), capture home/heading
-    loop Each fixed timestep until complete or timeout
-        Loop->>Mission: command(latest observation, dt)
-        Mission->>Mission: Update waypoint/dwell/flight phase
-        alt Armed flight
-            Mission->>Position: Target/measured XY position
-            Position-->>Mission: XY velocity target
-            Mission->>Z: Target/measured altitude and vertical speed
-            Z-->>Mission: Vertical thrust
-            Mission->>Velocity: XY target/measured velocity, vertical thrust, yaw
-            Velocity-->>Mission: Desired roll/pitch, tilt-compensated thrust
-            Mission->>Attitude: Desired tilt and measured orientation
-            Attitude-->>Mission: Bounded body roll/pitch rates
-            Mission->>Mission: Heading error to yaw rate
-            Mission->>RC: encode(acro, body rates, thrust, armed)
-        else Disarmed
-            Mission->>RC: encode(acro, zero thrust, disarmed)
-        end
-        RC-->>Mission: 18-channel RcInput
-        Mission-->>Loop: RcInput
-        alt Complete
-            Loop->>Loop: Finish without another physics step
-        else Within deadline
-            Loop->>Sim: step(RcInput)
-            Sim->>Sim: Bypass internal attitude P
-            Sim->>Sim: Rate PID, mixer, motors, propellers, PyBullet step
-            Sim-->>Loop: Next ground-truth observation
-            Loop->>Loop: Pace if GUI
-        end
-    end
-    Loop->>Sim: close() on success, timeout, failure, or interruption
+flowchart LR
+    Position[XY position PID] --> VelocityTarget[World XY velocity target]
+    VelocityTarget --> Velocity[XY velocity PID]
+    Altitude[Altitude and vertical-velocity PID] --> Tilt[Desired tilt and collective]
+    Velocity --> Tilt
+    Tilt --> Attitude[External attitude P]
+    Attitude --> Rates[Body-rate targets]
+    Rates --> MSP[MSP Acro RC channels]
+    MSP --> Betaflight[Betaflight rate PID and mixer]
+    Sensors[Simulated IMU and barometer] --> FDM[FDM UDP 9003]
+    FDM --> Betaflight
+    Betaflight -->|Four motors, UDP 9002| PyBullet[PyBullet dynamics]
+    PyBullet --> Sensors
+    PyBullet --> Position
+    PyBullet --> Altitude
+    PyBullet --> Renderer[Exported Godot viewer]
 ```
 
-## State flow diagram
+The firmware profile selects ACTUAL rates: 70 deg/s center sensitivity, 670 deg/s
+maximum, and zero expo. The mission inverts that curve to encode bounded ±2 rad/s
+body-rate targets as PWM. AUX1 arms; AUX2 stays low so Betaflight remains in Acro.
+Throttle uses the same motor-speed-squared inversion as the standalone Betaflight
+altitude example. FDM carries simulated IMU and barometer data; returned Betaflight
+motor outputs alone drive PyBullet.
+
+## Mission states
 
 ```mermaid
 flowchart TD
-    A[Ground settle: Acro, disarmed] -->|0.5 s| B[Takeoff: home XY, Z = 3 m]
-    B -->|Settled within 0.1 m and 0.1 m/s for 1 s| C[Fly 3 m square in Acro]
-    C -->|Settled for 1 s: next corner| C
-    C -->|Home arrival settled| D[Hold home XYZ and heading]
-    D -->|10 simulated seconds| E[Land: hold XY, descend at up to 0.5 m/s target]
-    E -->|Touchdown criteria met for 0.5 s| F[Acro, disarmed: motors stopped]
-    F -->|1 simulated second| G[Complete and close]
-    T[90 s timeout, runtime failure, or Ctrl+C] --> X[Close resources and report failure/interruption]
+    A[PREARM: arm low, stationary FDM] -->|No blockers for 0.5 s| B[ARMING: arm high, throttle low]
+    B -->|Betaflight reports armed| C[TAKEOFF: home XY and Z = 3 m]
+    B -->|Arming blocker appears| A
+    C -->|Waypoint 0 settled| D[SQUARE: visit four remaining targets]
+    D -->|Each target settled| D
+    D -->|Home target settled| E[HOLD: home XYZ for 10 s]
+    E --> F[LAND: home XY and Z = 0]
+    F -->|Touchdown settled for 0.5 s| G[DISARMED: arm and throttle low]
+    G -->|Firmware disarmed and 1 s elapsed| H[COMPLETE: close viewer, MSP, SITL, bridge, and physics]
 ```
+
+The targets are `(0,0,3) → (3,0,3) → (3,3,3) → (0,3,3) → (0,0,3)` m relative
+to reset XY. A waypoint requires position error ≤ 0.1 m and total speed ≤ 0.1 m/s
+for one continuous second. Landing holds home XY, limits vertical target speed to
+0.5 m/s, and requires home XY error ≤ 0.1 m, Z ≤ 0.02 m, and vertical speed
+≤ 0.05 m/s. The overall simulation-time limit is 120 seconds.
+
+## Diagnostics and cleanup
+
+Phase transitions and active/settled waypoints are colored. Once per wall-clock
+second the status line reports phase, waypoint, simulation/wall time, RTF,
+firmware armed state and blockers, RC channels, XYZ, motor outputs, and MSP/motor
+ages. Renderer loss, stale MSP status, firmware exit, unexpected disarming,
+timeout, or Ctrl+C closes the viewer, disarms MSP, terminates the owned SITL
+process, releases ports/shared memory, and closes PyBullet.
 
 ## Verification
 
 ```bash
-uv run --locked pytest -q tests/test_position_square_acro_example.py
+uv run --locked --extra render --extra sitl pytest -q tests/test_position_square_acro_example.py
 ```
 
-Tests check every RC frame is Acro, upstream conversion matches attitude feedback,
-internal attitude control is never called, the rate PID/mixer/motor chain works,
-and the mission settles, holds heading, lands and disarms. Deadline boundaries,
-timeout, injected failures/interruptions, and import/help safety are covered.
-
-## Real-time factor
-
-Every wall-clock second, and once on successful completion, the example logs
-cumulative simulation time, wall-clock time and their ratio:
-
-```text
-Timing: sim=10.000s wall=10.002s RTF=1.000x
-Final Timing: sim=23.225s wall=23.227s RTF=1.000x
-```
-
-`RTF = elapsed simulation seconds / elapsed wall-clock seconds`:
-
-- `1.0x`: one simulated second takes one real second.
-- `2.0x`: two simulated seconds pass per real second (twice real-time speed).
-- `0.5x`: one simulated second takes two real seconds (half real-time speed).
-
-GUI mode already paces the loop toward `1.0x`; sustained values below one mean
-execution is falling behind. Headless mode has no pacing and may run faster.
-Measurements include control, physics, sensors, rendering overhead and pacing
-sleep, starting after initialization and ending before cleanup. Values are
-cumulative averages, so brief stalls may be smoothed out. If no wall time has
-elapsed, the final ratio is `n/a`. This diagnostic measures execution speed,
-not physical accuracy, and does not change stepping or pacing.
-
-The examples enable the new teaching aerodynamic models with calm ambient wind.
-The altitude velocity PID now uses Kp=6, Ki=4, output limit 3 m/s² and integral
-contribution limit 2 m/s² to retain altitude accuracy and land through ground
-effect. Mission routes, settling criteria and timeout limits are unchanged.
-See [aerodynamic model details](../../docs/design/aerodynamics.md).
-
-## Godot controls
-
-Run this example with `uv run --locked --extra render python -m examples.position_square_acro.main --headless`.
-The CLI initializes **Stopped** and waits for Godot's Start button; it no longer
-runs a flight immediately. Stop ends the current episode and preserves the final
-pose. Reset restores initial state at time zero and waits. Start always begins a
-fresh episode. Completion leaves the process available for another run. Only one
-physics example can own the shared ports at a time.
-
-The default profile is `../bullet_render/configs/physics.json`; override it with
-`--render-config`. Keep sibling bullet_msgs installed through the existing render
-extra. Direct `run_demo()` calls without a control adapter remain one-shot and do
-not need Godot. See [the transport/control design](../../docs/design/zmq-rendering.md).
+The suite checks example independence, mission/arming states, all five targets,
+ACTUAL-rate and throttle mappings, cleanup, renderer readiness, CLI errors, and
+headless import isolation. A real paced SITL run is required to verify firmware
+arming, motor feedback, waypoint flight, landing, and process cleanup.

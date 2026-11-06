@@ -1,6 +1,7 @@
-"""Square example entry point; importing this module has no startup effects."""
+"""Betaflight Acro square entry point; imports start no resources."""
 
 from collections.abc import Sequence
+from contextlib import ExitStack
 import sys
 
 import click
@@ -28,36 +29,47 @@ def main(argv: Sequence[str] | None = None) -> int:
     if isinstance(options, int):
         return options
     logger.remove()
-    logger.add(sys.stderr, level='INFO', format='{level}: {message}', diagnose=False)
-    renderer = None
-    control = None
+    logger.add(sys.stderr, level='INFO', colorize=sys.stderr.isatty(),
+               format='<green>{time:HH:mm:ss.SSS}</green> | <level>{level:8}</level> | <level>{message}</level>',
+               diagnose=False)
     try:
         from examples.position_square_acro.demo import run_demo
 
-        from tools.zmq_render.publisher import RenderPublisher
-        from tools.zmq_render.control import SimulationControl
-        renderer = RenderPublisher(options.render_config)
-        renderer.start()
-        control = SimulationControl(renderer.transport_path, renderer)
-        result = run_demo(gui=not options.headless, pace=True,
-                          on_observation=renderer.consume, control=control)
-        state = result.observation.ground_truth
-        logger.info('Completed Acro square in {:.3f} s; final position {} m', state.simulation_time_s, state.position_m)
-        return EXIT_SUCCESS
+        with ExitStack() as resources:
+            viewer = None
+            if not options.headless:
+                from examples.position_square_acro.renderer import ExternalRenderer
+
+                viewer = resources.enter_context(ExternalRenderer(options.renderer, options.render_config))
+            ready = False
+
+            def render(observation):
+                nonlocal ready
+                if viewer is None:
+                    return
+                if not ready:
+                    viewer.wait_ready(observation)
+                    viewer.set_state(observation, 'running', 'automatic_start')
+                    ready = True
+                viewer.consume(observation)
+
+            result = run_demo(sitl_binary=options.sitl_binary,
+                              on_observation=render if viewer is not None else None)
+            if viewer is not None:
+                viewer.set_state(result.observation, 'stopped', 'completed')
+            state = result.observation.ground_truth
+            logger.info('Completed Betaflight Acro square in {:.3f} s; final position {} m',
+                        state.simulation_time_s, state.position_m)
+            return EXIT_SUCCESS
     except ConfigurationError as exc:
         click.UsageError(str(exc)).show()
         return EXIT_USAGE_ERROR
     except KeyboardInterrupt:
-        logger.info('Simulation interrupted; resources closed')
+        logger.info('Interrupted; renderer, firmware, MSP and physics closed')
         return EXIT_INTERRUPTED
     except Exception:
-        logger.exception('Acro position square failed')
+        logger.exception('Betaflight Acro square failed')
         return EXIT_FAILURE
-    finally:
-        if control is not None:
-            control.close()
-        if renderer is not None:
-            renderer.close()
 
 
 if __name__ == '__main__':

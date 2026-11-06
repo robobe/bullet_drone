@@ -78,7 +78,7 @@ def test_new_controller_stops_old_run_without_replaying_start(wire):
     assert [c.poll() for c in controls] == [None, None]
 
 
-@pytest.mark.parametrize('example', ['position_square','position_square_acro'])
+@pytest.mark.parametrize('example', ['position_square'])
 def test_example_waits_stops_resets_and_starts_fresh(example, monkeypatch):
     demo = importlib.import_module(f'examples.{example}.demo')
     original = demo.RcSimulation
@@ -116,7 +116,7 @@ def test_example_waits_stops_resets_and_starts_fresh(example, monkeypatch):
     assert instances[0]._closed
 
 
-@pytest.mark.parametrize('example', ['position_square','position_square_acro'])
+@pytest.mark.parametrize('example', ['position_square'])
 @pytest.mark.parametrize('outcome', ['complete','error'])
 def test_controlled_completion_and_failure_stay_available(example, outcome, monkeypatch):
     demo = importlib.import_module(f'examples.{example}.demo')
@@ -146,68 +146,6 @@ def test_controlled_completion_and_failure_stay_available(example, outcome, monk
     with pytest.raises(KeyboardInterrupt):
         demo.run_demo(gui=False, control=Control())
     assert states[-1] == (('stopped','completed') if outcome=='complete' else ('error','runtime_failure'))
-
-
-@pytest.mark.parametrize('example', ['position_square_acro'])
-def test_actual_cli_starts_stopped_and_obeys_pubsub(example, tmp_path):
-    from pathlib import Path
-    import socket
-    import subprocess
-    import sys
-    from bullet_msgs.control import ControlPublisher, STATE_TOPIC
-    with socket.socket() as telemetry, socket.socket() as images, socket.socket() as control:
-        for reservation in (telemetry, images, control):
-            reservation.bind(('127.0.0.1',0))
-        profile = dict(zip(('telemetry_endpoint','image_endpoint','control_endpoint'),
-                          (f'tcp://127.0.0.1:{s.getsockname()[1]}' for s in (telemetry,images,control))))
-    transport = tmp_path/'transport.json'
-    transport.write_text(json.dumps(profile))
-    camera = tmp_path/'physics.json'
-    camera.write_text(json.dumps(dict(transport_config='transport.json', fps=30,
-        camera=dict(width_px=2,height_px=2,fov_x_deg=90))))
-    with ControlPublisher(profile['control_endpoint']) as controller, zmq.Context() as context, context.socket(zmq.SUB) as states:
-        states.setsockopt(zmq.LINGER,0)
-        states.setsockopt(zmq.SUBSCRIBE,STATE_TOPIC)
-        states.connect(profile['telemetry_endpoint'])
-        with (tmp_path/'physics.log').open('w') as log:
-            process = subprocess.Popen([sys.executable,'-m',f'examples.{example}.main','--headless','--render-config',str(camera)],stdout=log,stderr=subprocess.STDOUT)
-            try:
-                def wait_for(predicate, *, heartbeat=True, timeout=8):
-                    deadline = time.monotonic()+timeout
-                    last_heartbeat = 0
-                    while time.monotonic()<deadline:
-                        assert process.poll() is None, (tmp_path/'physics.log').read_text()
-                        if heartbeat and time.monotonic()-last_heartbeat>=.2:
-                            controller.heartbeat()
-                            last_heartbeat=time.monotonic()
-                        if states.poll(50):
-                            topic,payload=states.recv_multipart()
-                            value=json.loads(payload)
-                            if topic==STATE_TOPIC and predicate(value):
-                                return value
-                    raise AssertionError((tmp_path/'physics.log').read_text())
-                initial = wait_for(lambda s:s['controller_id']==controller.controller_id)
-                assert initial['state']=='stopped' and initial['simulation_time_s']==0
-                controller.send('start')
-                running=wait_for(lambda s:s['state']=='running')
-                controller.send('start')
-                unchanged=wait_for(lambda s:s['state']=='running' and s['simulation_time_s']>.1)
-                assert unchanged['episode_id']==running['episode_id']
-                controller.send('stop')
-                stopped=wait_for(lambda s:s['state']=='stopped' and s['reason']=='stop')
-                held=wait_for(lambda s:s['state']=='stopped')
-                assert held['episode_id']==stopped['episode_id'] and held['simulation_time_s']==stopped['simulation_time_s']
-                controller.send('reset')
-                reset=wait_for(lambda s:s['reason']=='reset')
-                assert reset['simulation_time_s']==0 and reset['episode_id']!=stopped['episode_id']
-                controller.send('start')
-                restarted=wait_for(lambda s:s['state']=='running')
-                expired=wait_for(lambda s:s['reason']=='controller_timeout', heartbeat=False)
-                assert expired['state']=='stopped' and expired['episode_id']==restarted['episode_id']
-            finally:
-                if process.poll() is None:
-                    process.send_signal(__import__('signal').SIGINT)
-                    process.wait(5)
 
 
 def test_fresh_queued_heartbeat_prevents_false_timeout_after_busy_physics(wire):

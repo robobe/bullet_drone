@@ -50,7 +50,8 @@ limit is 90 s, including the final permitted observation before deciding timeout
 
 `demo.py` wires the modules and owns the loop, `mission.py` owns flight phases,
 `demo_cli.py` only parses, and `gui.py` frames the viewer. Constants are grouped
-after imports in each owning module. The Acro square example reuses this mission logic with an upstream angle-to-rate converter.
+after imports in each owning module. The Betaflight Acro square has an independent
+mission and execution loop.
 
 Each iteration uses the latest reset/step `DroneObservation.ground_truth`:
 
@@ -201,7 +202,7 @@ Without this flag no telemetry resources are started.
 ## External viewer and control compatibility
 
 The default CLI runs one automatic mission and closes its owned viewer after
-landing. No Start button is needed. The Acro square CLI retains the interactive
-Godot Start/Stop/Reset workflow. Direct `run_demo()` calls still support an
+landing. No Start button is needed. The Betaflight Acro square also runs one
+automatic mission with its own viewer and SITL process. Direct `run_demo()` calls still support an
 optional control adapter and PyBullet GUI for existing Python callers.
 See [transport ownership](../../docs/design/zmq-rendering.md).

@@ -39,7 +39,7 @@
   <text x="1040" y="259" class="note">Z → RC directly:</text>
   <text x="1040" y="282" class="note">altitude-hold example only</text>
   <rect x="400" y="250" width="600" height="52" rx="12" class="control"/>
-  <text x="700" y="272" class="label">RC mapping · Acro square converts tilt to rates first</text>
+  <text x="700" y="272" class="label">RC mapping · internal Acro callers provide body rates</text>
   <text x="700" y="293" class="detail">Angle: roll/pitch + yaw rate · Acro: body rates · thrust + arming</text>
   <path d="M700 320 V350" class="flow"/>
   <rect x="360" y="350" width="680" height="72" rx="13" fill="#eaf2ff" stroke="#77a3fb" stroke-width="2"/>
@@ -121,5 +121,5 @@
   <text x="95" y="729" class="feedback-label">Orientation</text>
   <path d="M95 1401 V889 H450" class="feedback"/>
   <text x="115" y="868" class="feedback-label">World → body angular rates (rad/s)</text>
-  <text x="70" y="1473" class="note">Acro square: navigation converts tilt → body rates upstream; internal Acro stabilization bypasses attitude P.</text>
+  <text x="70" y="1473" class="note">Internal Acro mode bypasses attitude P. The Betaflight Acro square uses a separate FDM/MSP/motor chain.</text>
 </svg>
