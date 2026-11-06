@@ -17,7 +17,11 @@
         "${input:example}"
       ],
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "__NV_PRIME_RENDER_OFFLOAD": "1",
+          "__GLX_VENDOR_LIBRARY_NAME": "nvidia"
+        }
       },
       "problemMatcher": [],
       "presentation": {
@@ -25,7 +29,7 @@
         "panel": "dedicated",
         "clear": true
       },
-      "detail": "Altitude hold starts automatically. External-render choice opens the packaged Godot viewer; Betaflight needs built SITL. Square examples wait for Godot Start; external RC needs the app."
+      "detail": "Altitude hold starts automatically. External-render choice opens the packaged Godot viewer; Betaflight needs built SITL. Angle square opens its packaged viewer and starts automatically; Acro square waits for Godot Start; external RC needs the app."
     }
   ],
   "inputs": [

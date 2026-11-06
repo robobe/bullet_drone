@@ -85,8 +85,11 @@ uv run --locked --all-packages --all-extras --all-groups python -m examples.posi
 uv run --locked --all-packages --all-extras --all-groups python -m examples.position_square.main --headless
 ```
 
-The example owns its loop, takes off to 3 m, flies a settled 3 m square while
-holding heading, holds home for 10 seconds, then lands and disarms. Separate XY
+The example automatically opens the packaged external Godot viewer, takes off
+to 3 m, flies a settled 3 m square while holding heading, holds home for
+10 seconds, then lands and disarms. Build the viewer first with
+`uv run --locked python external_render/build.py`.
+Use `--headless` for an automatic flight without windows. Separate XY
 position and velocity PIDs feed the existing RC angle-mode simulation. See
 [the example and diagrams](examples/position_square/README.md) and
 [controller interfaces and migration](docs/design/position-control.md).
@@ -111,12 +114,21 @@ Open **Tasks: Run Task → Bullet: Run example**, then select **Altitude hold**,
 (app-controlled)** from the dropdown. In the multi-folder workspace, the task
 appears under `bullet_drone`.
 
-The task runs the selected module through `uv` with its existing display defaults.
+The task runs the selected module through `uv` with its existing display defaults
+and NVIDIA graphics offloading: `__NV_PRIME_RENDER_OFFLOAD=1` and
+`__GLX_VENDOR_LIBRARY_NAME=nvidia`. These settings also reach child renderer
+processes. For the equivalent launch from a terminal:
+
+```bash
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia uv run --locked --extra sitl python -m examples.altitde_hold_bt.main
+```
+
+NVIDIA is used for the OpenGL viewer; Bullet physics still runs on the CPU.
 All altitude-hold choices start automatically and exit after landing. The
 external-render choice opens the packaged Godot viewer with PyBullet headless.
 The Betaflight choice requires a built SITL binary and uses its fixed UDP/MSP
-ports; the internal choice uses no transport ports. The square examples start stopped and wait
-for Godot's **Start** action; external RC also requires the app. The shared task
+ports; the internal choice uses no transport ports. Angle square starts its
+packaged viewer and flight automatically; Acro square waits for Godot's **Start** action; external RC also requires the app. The shared task
 includes rendering/SITL dependencies for the other choices, but the internal altitude-hold
 CLI does not require the render extra. Use **Bullet: Run all** for the managed
 application/renderer workflow. Run only one transport-based example at a time.
@@ -210,13 +222,13 @@ Implementation records are in [the plan menu](plan/README.md).
 ## Godot / ZeroMQ camera
 
 Install `uv sync --locked --all-packages --all-extras --all-groups`, then run the square example with
-`uv run --locked --all-packages --all-extras --all-groups python -m examples.position_square.main --headless --render-config ../bullet_render/configs/physics.json`
+`uv run --locked --all-packages --all-extras --all-groups python -m examples.position_square_acro.main --headless --render-config ../bullet_render/configs/physics.json`
 from the physics repository root. Rendering enables wall-time pacing even without
 PyBullet GUI. See [the renderer](../bullet_render/README.md) for the native Godot and recorder commands.
 
 ## Godot controls
 
-Run this example with `uv run --locked --all-packages --all-extras --all-groups python -m examples.position_square.main --headless`.
+Run this example with `uv run --locked --all-packages --all-extras --all-groups python -m examples.position_square_acro.main --headless`.
 The CLI initializes **Stopped** and waits for Godot's Start button; it no longer
 runs a flight immediately. Stop ends the current episode and preserves the final
 pose. Reset restores initial state at time zero and waits. Start always begins a

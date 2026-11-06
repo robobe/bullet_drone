@@ -148,7 +148,7 @@ def test_controlled_completion_and_failure_stay_available(example, outcome, monk
     assert states[-1] == (('stopped','completed') if outcome=='complete' else ('error','runtime_failure'))
 
 
-@pytest.mark.parametrize('example', ['position_square','position_square_acro'])
+@pytest.mark.parametrize('example', ['position_square_acro'])
 def test_actual_cli_starts_stopped_and_obeys_pubsub(example, tmp_path):
     from pathlib import Path
     import socket

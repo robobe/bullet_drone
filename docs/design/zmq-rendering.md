@@ -1,8 +1,8 @@
 # Optional Godot camera publication
 
-The angle-square and Acro-square CLIs accept `--render-config ../bullet_render/configs/physics.json`.
+The Acro-square CLI accepts `--render-config ../bullet_render/configs/physics.json`.
 Altitude hold is a standalone PyBullet example with no Godot/control adapter.
-Install with `uv sync --extra render`. Each square example owns RenderPublisher and SimulationControl lifecycles;
+Install with `uv sync --extra render`. The Acro example owns RenderPublisher and SimulationControl lifecycles;
 imports start no I/O. The library remains transport-independent. Existing UDP
 render adapters and the PlotJuggler sender remain available.
 
@@ -41,10 +41,21 @@ Pose v2 requires velocity from the same immutable ground-truth state for both
 active and held packets. Rebuild the native renderer and restart publisher and
 recorder together; pose v1 is rejected by the updated strict consumers.
 
+## Automatic square viewer
+
+The angle-square CLI owns the exported viewer through `external_render.renderer.ExternalRenderer`,
+shared with the external-render altitude example. It waits for the first matching
+episode image before mission timing starts, publishes running state, and flies
+automatically with headless PyBullet and wall-time pacing. It exits after landing;
+viewer loss fails the run and closes all resources. `--headless` skips rendering
+and transport entirely. `--renderer` selects the exported executable and
+`--render-config` defaults to the packaged `external_render/configs/physics.json`.
+Programmatic `run_demo(control=...)` remains available.
+
 ## Command-driven example CLIs
 
-Angle square and Acro square start stopped by default. Their CLI
-parsers select the shared sibling physics profile unless `--render-config` is
+Acro square starts stopped by default. Its CLI
+parser selects the shared sibling physics profile unless `--render-config` is
 provided, and execution requires `uv run --locked --extra render`. The library and
 direct `run_demo()` calls still execute immediately without transport dependencies.
 

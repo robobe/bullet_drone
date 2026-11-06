@@ -221,3 +221,26 @@ def test_cli_help_and_usage_do_not_start_physics(args, status):
                             capture_output=True, text=True, timeout=10)
     assert result.returncode == status, result.stderr
     assert 'pybullet build time' not in result.stderr and 'Position square:' not in result.stderr
+
+
+def test_headless_cli_flies_without_renderer_dependencies():
+    code = """
+import builtins
+original_import = builtins.__import__
+def without_rendering(name, *args, **kwargs):
+    if name.startswith(('tools.zmq_render', 'external_render.renderer', 'zmq', 'bullet_msgs')):
+        raise AssertionError('Unexpected renderer/control import: ' + name)
+    return original_import(name, *args, **kwargs)
+builtins.__import__ = without_rendering
+from examples.position_square.main import main
+raise SystemExit(main(['--headless']))
+"""
+    result = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=45)
+    assert result.returncode == 0, result.stderr
+    assert 'Completed square' in result.stderr
+    assert 'STATE SETTLE -> TAKEOFF' in result.stderr
+    assert 'STATE DISARMED -> COMPLETE' in result.stderr
+    for index in range(5):
+        assert result.stderr.count(f'waypoint {index} active') == 1
+        assert result.stderr.count(f'waypoint {index} settled') == 1
+    assert '\x1b[' not in result.stderr

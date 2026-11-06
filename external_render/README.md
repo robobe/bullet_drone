@@ -44,11 +44,15 @@ Godot scene or extension, and stop any owned renderer before replacing its packa
 
 ## Run
 
+The shared Python adapter `external_render/renderer.py` owns startup, image
+readiness, transport, and shutdown for both automatic flight examples.
+
 For a complete automatic flight, use the
 [standalone altitude-hold example](../examples/altitude_hold_external_render/README.md):
 
 ```bash
 uv run --locked --extra render python -m examples.altitude_hold_external_render.main
+uv run --locked --extra render python -m examples.position_square.main
 ```
 
 To run just the viewer, which waits for a compatible pose publisher:

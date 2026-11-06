@@ -88,3 +88,7 @@ rigid-body flight dynamics and never applies forces to PyBullet.
 
 See the [package README](../../external_render/README.md) for distribution contents,
 build-time requirements and platform limits.
+
+The process/transport adapter lives in `external_render/renderer.py` and is also
+used by the automatic position-square CLI. Flight mission logic remains in each
+example.

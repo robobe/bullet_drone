@@ -54,25 +54,37 @@ def test_worker_startup_failure_and_cleanup(tmp_path):
     output.close()
 
 
-def test_render_cli_paces_and_closes_on_failure(tmp_path, monkeypatch):
-    from unittest.mock import Mock
+@pytest.mark.parametrize('failure', [RuntimeError('flight failed'), KeyboardInterrupt(), None])
+def test_render_cli_automatically_starts_and_closes(monkeypatch, failure):
+    from unittest.mock import MagicMock, Mock
     from examples.position_square import main, demo
-    output = Mock()
-    path = tmp_path/'render.json'
-    path.write_text('{}')
-    monkeypatch.setattr('tools.zmq_render.publisher.RenderPublisher', Mock(return_value=output))
-    control = Mock()
-    monkeypatch.setattr('tools.zmq_render.control.SimulationControl', Mock(return_value=control))
-    run = Mock(side_effect=RuntimeError('test failure'))
-    monkeypatch.setattr(demo, 'run_demo', run)
-    assert main.main(['--headless', '--render-config', str(path)]) == 1
-    output.start.assert_called_once()
-    output.close.assert_called_once()
-    control.close.assert_called_once()
-    assert run.call_args.kwargs['pace'] is True
-    observation = object()
-    run.call_args.kwargs['on_observation'](observation)
-    output.consume.assert_called_once_with(observation)
+    viewer = MagicMock()
+    viewer.__enter__.return_value = viewer
+    factory = Mock(return_value=viewer)
+    monkeypatch.setattr('external_render.renderer.ExternalRenderer', factory)
+    initial, airborne = object(), object()
+    result = Mock()
+    result.observation.ground_truth.simulation_time_s = 50.
+    result.observation.ground_truth.position_m = (0., 0., .015)
+
+    def fly(**kwargs):
+        assert kwargs['gui'] is False and kwargs['pace'] is True
+        assert 'control' not in kwargs
+        kwargs['on_observation'](initial)
+        kwargs['on_observation'](airborne)
+        if failure is not None:
+            raise failure
+        return result
+
+    monkeypatch.setattr(demo, 'run_demo', fly)
+    expected = 130 if isinstance(failure, KeyboardInterrupt) else 1 if failure else 0
+    assert main.main([]) == expected
+    viewer.wait_ready.assert_called_once_with(initial)
+    viewer.set_state.assert_any_call(initial, 'running', 'automatic_start')
+    viewer.consume.assert_any_call(airborne)
+    viewer.__exit__.assert_called_once()
+    if failure is None:
+        viewer.set_state.assert_any_call(result.observation, 'stopped', 'completed')
 
 
 def test_real_tcp_periodic_config_pose_and_binding_cleanup(tmp_path):

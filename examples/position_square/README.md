@@ -12,11 +12,25 @@ uv run --locked --extra render python -m examples.position_square.main --headles
 uv run --locked --extra render python -m examples.position_square.main --help
 ```
 
-GUI mode uses PyBullet and wall-time pacing. It requires a desktop/X11 display.
-The camera covers the square and its altitude range. Run it as a standalone
-process; GUI framing assumes PyBullet client 0. Headless mode runs the same
-physics without a display or pacing. Ctrl+C closes resources and returns 130.
-Timeout or runtime failure returns 1; invalid configuration/arguments returns 2.
+The default command opens the packaged Godot viewer with PyBullet headless,
+waits for its first image, and starts the mission automatically. It needs a
+working desktop/OpenGL display and an exported renderer. Build it once:
+
+```bash
+uv run --locked python external_render/build.py
+```
+
+Use `--renderer /path/to/render` to select another exported executable and
+`--render-config /path/to/physics.json` for another camera/transport profile.
+Defaults live under `external_render/dist/linux-x86_64/render` and
+`external_render/configs/physics.json`. The shared adapter in
+`external_render/renderer.py` owns Godot, ZeroMQ, and cleanup.
+
+`--headless` runs the same complete flight without windows, rendering dependencies,
+or pacing. Ctrl+C closes resources and returns 130. Timeout/runtime failure
+returns 1; invalid configuration/arguments returns 2. Only one rendered example
+can own the shared ports at a time. Closing the viewer stops the flight and
+releases physics and transport resources.
 
 ## Flight sequence
 
@@ -70,18 +84,18 @@ The commanded descent-speed limit does not bound every transient measured speed.
 
 ```mermaid
 sequenceDiagram
-    participant Loop as Example loop
+    participant DemoLoop as Example loop
     participant Mission as Square mission
     participant Position as XY position PID
     participant Altitude as Z altitude cascade
     participant Velocity as XY velocity PID + tilt conversion
     participant RC as RC codec
     participant Sim as RC simulation + PyBullet
-    Loop->>Sim: reset()
-    Sim-->>Loop: Initial ground truth
-    Loop->>Mission: reset(observation), capture home and heading
+    DemoLoop->>Sim: reset()
+    Sim-->>DemoLoop: Initial ground truth
+    DemoLoop->>Mission: reset(observation), capture home and heading
     loop Until complete or timeout
-        Loop->>Mission: command(latest observation, dt)
+        DemoLoop->>Mission: command(latest observation, dt)
         Mission->>Mission: Update waypoint and simulation-time dwell
         alt Armed flight
             Mission->>Position: Target/measured XY position
@@ -96,17 +110,17 @@ sequenceDiagram
             Mission->>RC: Encode angle mode, zero thrust, disarmed
         end
         RC-->>Mission: RcInput
-        Mission-->>Loop: RcInput
+        Mission-->>DemoLoop: RcInput
         alt Mission complete
-            Loop->>Loop: Finish without another physics step
+            DemoLoop->>DemoLoop: Finish without another physics step
         else Continue within deadline
-            Loop->>Sim: step(RcInput)
+            DemoLoop->>Sim: step(RcInput)
             Sim->>Sim: Angle P, rate PID, mixer, motors, propellers, physics
-            Sim-->>Loop: Next ground-truth observation
-            Loop->>Loop: Pace if GUI
+            Sim-->>DemoLoop: Next ground-truth observation
+            DemoLoop->>DemoLoop: Publish pose, pace if external viewer or PyBullet GUI
         end
     end
-    Loop->>Sim: close() on success, timeout, error, or interruption
+    DemoLoop->>Sim: close() on success, timeout, error, or interruption
 ```
 
 ## State flow diagram
@@ -131,11 +145,20 @@ uv run --locked pytest -q tests/test_position.py tests/test_position_square_exam
 
 Tests cover separated PIDs, frame conversion, limits, reset and validation; the
 full RC/stabilization/mixer/forces chain; dwell interruptions; landing at home;
-deadline boundaries; cleanup; safe imports and help. GUI framing is checked manually.
+deadline boundaries; cleanup; safe imports and help. Viewer lifecycle and automatic startup have regression coverage.
 
 The old combined `PositionController.input()` and `PositionControlOutput` are
 removed. See [the position-control design](../../docs/design/position-control.md)
 for the new interfaces and composition. The altitude-hold example is unchanged.
+
+## Colored progress logs
+
+Phase changes show `STATE previous -> current`: settle/disarmed in yellow,
+takeoff in cyan, square in magenta, hold/complete in green, and landing in blue.
+Waypoint status shows the zero-based waypoint index, target XYZ in meters, and
+simulation time: cyan when active, green when settled. A new active waypoint
+is logged when takeoff starts or the target changes. Colors appear in terminal
+output; redirected logs remain plain text. Timing messages keep their usual format.
 
 ## Real-time factor
 
@@ -153,7 +176,7 @@ Final Timing: sim=23.225s wall=23.227s RTF=1.000x
 - `2.0x`: two simulated seconds pass per real second (twice real-time speed).
 - `0.5x`: one simulated second takes two real seconds (half real-time speed).
 
-GUI mode already paces the loop toward `1.0x`; sustained values below one mean
+External-viewer mode paces the loop toward `1.0x`; sustained values below one mean
 execution is falling behind. Headless mode has no pacing and may run faster.
 Measurements include control, physics, sensors, rendering overhead and pacing
 sleep, starting after initialization and ending before cleanup. Values are
@@ -175,23 +198,10 @@ process for ground truth. Physics remains at 240 Hz; the default UDP send cap is
 and [sender configuration/lifecycle](../../tools/telemetry_sender/README.md).
 Without this flag no telemetry resources are started.
 
-## Godot / ZeroMQ camera
+## External viewer and control compatibility
 
-Install `uv sync --extra render`, then run the square example with
-`uv run --extra render python -m examples.position_square.main --headless --render-config ../bullet_render/configs/physics.json`
-from the physics repository root. Rendering enables wall-time pacing even without
-PyBullet GUI. See [the renderer](../../../bullet_render/README.md) for the native Godot and recorder commands.
-
-## Godot controls
-
-Run this example with `uv run --locked --extra render python -m examples.position_square.main --headless`.
-The CLI initializes **Stopped** and waits for Godot's Start button; it no longer
-runs a flight immediately. Stop ends the current episode and preserves the final
-pose. Reset restores initial state at time zero and waits. Start always begins a
-fresh episode. Completion leaves the process available for another run. Only one
-physics example can own the shared ports at a time.
-
-The default profile is `../bullet_render/configs/physics.json`; override it with
-`--render-config`. Keep sibling bullet_msgs installed through the existing render
-extra. Direct `run_demo()` calls without a control adapter remain one-shot and do
-not need Godot. See [the transport/control design](../../docs/design/zmq-rendering.md).
+The default CLI runs one automatic mission and closes its owned viewer after
+landing. No Start button is needed. The Acro square CLI retains the interactive
+Godot Start/Stop/Reset workflow. Direct `run_demo()` calls still support an
+optional control adapter and PyBullet GUI for existing Python callers.
+See [transport ownership](../../docs/design/zmq-rendering.md).

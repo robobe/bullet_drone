@@ -13,7 +13,7 @@ from bullet_drone.models import DroneObservation, DroneState
 from examples.altitude_hold_external_render import demo
 from examples.altitude_hold_external_render.demo_cli import CliParser, DemoOptions
 from examples.altitude_hold_external_render.mission import Phase
-from examples.altitude_hold_external_render.renderer import ExternalRenderer
+from external_render.renderer import ExternalRenderer
 from external_render.build import bundle_dependencies
 from bullet_msgs.shm import SLOTS, slot_name
 

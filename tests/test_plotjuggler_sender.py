@@ -224,8 +224,6 @@ def test_slow_final_send_has_bounded_shutdown():
 def test_cli_closes_sender_when_flight_fails(monkeypatch, failure, expected):
     from examples.position_square import main, demo
     sender = Mock()
-    monkeypatch.setattr('tools.zmq_render.publisher.RenderPublisher', Mock(return_value=Mock()))
-    monkeypatch.setattr('tools.zmq_render.control.SimulationControl', Mock(return_value=Mock()))
     monkeypatch.setattr('tools.telemetry_sender.sender.TelemetrySender', Mock(return_value=sender))
     run = Mock(side_effect=failure)
     monkeypatch.setattr(demo, 'run_demo', run)

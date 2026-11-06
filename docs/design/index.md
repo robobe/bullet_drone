@@ -24,7 +24,7 @@
   Z composition, RC mapping, frames, lifecycle and square-flight verification.
 - [Implemented control chain](../forces/drone_control.svg): visual command/feedback flow.
 - [Packaged external renderer](../../examples/altitude_hold_external_render/README.md):
-  automatic internal-controller altitude hold, owned exported Godot viewer,
+  automatic altitude hold and angle-square flights, shared owned exported Godot viewer,
   image readiness, local communication and cleanup.
 - [Force and effect implementation map](../forces/force-implementation-map.md):
   source review, current status, future ownership and independent checks.

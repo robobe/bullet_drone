@@ -13,7 +13,7 @@ from bullet_drone.rc import RcCodec
 from bullet_drone.simulation import RcSimulation
 from bullet_drone.vehicle import load_racer_parameters
 from examples.altitude_hold_external_render.mission import AltitudeHoldMission, Phase, Transition
-from examples.altitude_hold_external_render.renderer import ExternalRenderer
+from external_render.renderer import ExternalRenderer
 
 
 PHYSICS_HZ = 240
@@ -48,7 +48,7 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
         AltitudeController(MASS_KG, GRAVITY_M_S2, max_thrust, ALTITUDE_PID, VERTICAL_SPEED_PID),
         RcCodec(max_thrust, BODY_RATE_LIMITS_RAD_S))
     with ExitStack() as resources:
-        viewer = resources.enter_context(ExternalRenderer(renderer, render_config))
+        viewer = resources.enter_context(ExternalRenderer(renderer, render_config, profile_name='altitude_hold_external_render'))
         simulation = RcSimulation(config, CONTROL_SETTINGS, vehicle)
         resources.callback(simulation.close)
         observation = simulation.reset()

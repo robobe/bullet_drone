@@ -13,6 +13,7 @@ from bullet_drone.models import DroneObservation
 from bullet_drone.rc import RcCodec
 from bullet_drone.simulation import RcSimulation
 from bullet_drone.vehicle import load_racer_parameters
+from examples.position_square.diagnostics import log_transition, log_waypoint
 from examples.position_square.mission import Phase, SquareMission, Transition, WaypointArrival
 from examples.timing import RealtimeFactorLogger
 
@@ -76,7 +77,7 @@ def run_demo(*, gui: bool = True, max_duration_s: float = DEFAULT_MAX_DURATION_S
         started = time.monotonic()
         timing = RealtimeFactorLogger(observation.ground_truth.simulation_time_s, started,
                                       clock=time.monotonic)
-        logger.info('Position square: settle at {:.3f} s', observation.ground_truth.simulation_time_s)
+        log_transition(None, mission.phase, observation.ground_truth.simulation_time_s)
         step = 0
         if control is not None:
             control.transition('stopped', 'startup', observation)
@@ -87,6 +88,7 @@ def run_demo(*, gui: bool = True, max_duration_s: float = DEFAULT_MAX_DURATION_S
                     try:
                         observation = simulation.reset()
                         mission.reset(observation)
+                        log_transition(None, mission.phase, observation.ground_truth.simulation_time_s)
                         step = 0
                         started = time.monotonic()
                         timing = RealtimeFactorLogger(observation.ground_truth.simulation_time_s, started,
@@ -105,14 +107,18 @@ def run_demo(*, gui: bool = True, max_duration_s: float = DEFAULT_MAX_DURATION_S
                 if control.state != 'running':
                     continue
             try:
-                previous_phase, arrival_count = mission.phase, len(mission.arrivals)
+                previous_phase, previous_index, arrival_count = mission.phase, mission.index, len(mission.arrivals)
                 rc_command = mission.command(observation, simulation.timestep_s)
                 if len(mission.arrivals) != arrival_count:
                     arrival = mission.arrivals[-1]
-                    logger.info('Position square: waypoint {} settled at {:.3f} s', arrival.index,
-                                arrival.state.simulation_time_s)
+                    log_waypoint(arrival.index, arrival.target_position_m,
+                                 arrival.state.simulation_time_s, settled=True)
                 if mission.phase != previous_phase:
-                    logger.info('Position square: {} at {:.3f} s', mission.phase, observation.ground_truth.simulation_time_s)
+                    log_transition(previous_phase, mission.phase, observation.ground_truth.simulation_time_s)
+                if (mission.phase in (Phase.TAKEOFF, Phase.SQUARE)
+                        and (mission.index != previous_index or mission.phase != previous_phase)):
+                    log_waypoint(mission.index, mission.waypoints[mission.index],
+                                 observation.ground_truth.simulation_time_s)
                 if mission.phase == Phase.COMPLETE:
                     if control is not None:
                         control.transition('stopped', 'completed', observation)
