@@ -1,6 +1,6 @@
 # Custom drone beginner guide
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified. Implementation commit: `3e54c9c59769ecb568b71099848fa5917abad753`.
 
 ## Goal
 
@@ -40,4 +40,4 @@ and cross-checked against the loader. Only the existing Iris airframe was flown.
 
 ## Implementation commit
 
-Pending.
+`3e54c9c59769ecb568b71099848fa5917abad753`

@@ -1,6 +1,6 @@
 # Complete Iris YAML profile
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified. Implementation commit: `3e54c9c59769ecb568b71099848fa5917abad753`.
 
 ## Goal
 
@@ -33,4 +33,4 @@ defaults.
 
 ## Implementation commit
 
-Pending.
+`3e54c9c59769ecb568b71099848fa5917abad753`
