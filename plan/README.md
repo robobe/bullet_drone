@@ -97,3 +97,5 @@
 - [0092: Smooth Betaflight terrain following](0092-smooth-terrain-following.md) — Implemented and verified; continuous lookahead flight, curved crest U-turn, 8 m offset return lane, and home landing passed focused tests plus headless/rendered SITL; implementation commit `abfc209b89962e49f4097139abbac96ee7247fb2`.
 
 - [0093: Faster terrain following](0093-faster-terrain-following.md) — Increase cruise cap to 3 m/s with 4 m lookahead; implemented and verified, 8 tests and full headless SITL passed, implementation commit Pending.
+
+- [0094: Terrain realtime pacing](0094-terrain-realtime-pacing.md) — Remove blocking status reads from the flight loop; implemented and verified, 86 tests plus headless/rendered flights passed, approximately 0.95 RTF and 28–29 camera FPS, implementation commit Pending.

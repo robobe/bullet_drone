@@ -20,6 +20,11 @@ from examples.terrain_following_bt.mission import (
 
 DT_S = 0.1
 MAX_THRUST_N = 34.0
+STATUS_DELAY_S = 0.015
+OBSERVER_STALL_S = 0.04
+OBSERVER_STALL_STEP = 20
+PACING_TEST_DURATION_S = 0.5
+TIMING_TOLERANCE_S = 1e-12
 
 
 def observation(time_s=0.0, position=(0.0, 0.0, 0.015), velocity=(0.0, 0.0, 0.0),
@@ -193,3 +198,57 @@ import examples.terrain_following_bt.main
     result = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=10)
     assert result.returncode == 0, result.stderr
     assert result.stdout == result.stderr == ''
+
+
+@pytest.mark.parametrize('reply', ['normal', 'stale', 'error'])
+def test_slow_status_reads_do_not_delay_fdm_or_cause_catchup_bursts(monkeypatch, reply):
+    now = [0.0]
+    sent_at = []
+    monkeypatch.setattr(demo.time, 'monotonic', lambda: now[0])
+    monkeypatch.setattr(demo.time, 'sleep', lambda delay: now.__setitem__(0, now[0] + delay))
+
+    def read_status():
+        now[0] += STATUS_DELAY_S
+        return SimpleNamespace(armed=False, arming_disabled_flags=1, received_at=now[0])
+
+    class PendingStatus:
+        def __init__(self):
+            self.ready_at = now[0] + STATUS_DELAY_S
+
+        def done(self):
+            return now[0] >= self.ready_at
+
+        def result(self):
+            assert self.done()
+            if reply == 'error':
+                raise RuntimeError('status request failed')
+            timestamp = self.ready_at if reply == 'normal' else -demo.FEEDBACK_TIMEOUT_S
+            return SimpleNamespace(armed=False, arming_disabled_flags=1, received_at=timestamp)
+
+    worker = MagicMock()
+    worker.__enter__.return_value = worker
+    worker.submit.side_effect = lambda callback: PendingStatus()
+    monkeypatch.setattr(demo, 'ThreadPoolExecutor', Mock(return_value=worker), raising=False)
+    session = MagicMock()
+    session.__enter__.return_value = session
+    session.commands.read_status.side_effect = read_status
+    monkeypatch.setattr(demo, 'SitlSession', Mock(return_value=session))
+    backend = Mock(received_at=None, latest=(0.0,) * 4)
+    backend.command.side_effect = lambda observation: sent_at.append(now[0])
+    monkeypatch.setattr(demo, 'BetaflightBackend', Mock(return_value=backend))
+    monkeypatch.setattr(demo, 'log_status', Mock())
+
+    def observer(observation):
+        if observation.ground_truth.step_index == OBSERVER_STALL_STEP:
+            now[0] += OBSERVER_STALL_S
+
+    error = TimeoutError if reply == 'normal' else RuntimeError
+    message = {'normal': 'timed out', 'stale': 'status is stale', 'error': 'status request failed'}
+    with pytest.raises(error, match=message[reply]):
+        demo.run_demo(max_duration_s=PACING_TEST_DURATION_S, on_observation=observer)
+    gaps = [later - earlier for earlier, later in zip(sent_at, sent_at[1:])]
+    assert min(gaps) >= demo.TIMESTEP_S - TIMING_TOLERANCE_S
+    if reply == 'normal':
+        assert max(gaps) >= OBSERVER_STALL_S
+        assert sent_at[-1] - sent_at[0] < PACING_TEST_DURATION_S + OBSERVER_STALL_S
+    worker.__exit__.assert_called_once()

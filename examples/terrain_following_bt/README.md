@@ -108,3 +108,10 @@ uv run --locked --extra sitl pytest -q tests/test_terrain_following_bt_example.p
 The automated tests cover the clearance loop, route state transitions, invalid
 rangefinder data, cleanup, and CLI import behavior. A real paced SITL run checks
 firmware arming, terrain tracking, return, landing, and disarm.
+
+Status requests run on one owned worker so MSP response latency does not block
+the 240 Hz physics loop. The loop uses the latest completed status, aborts on
+request errors or status older than 0.5 s, and waits for the worker before closing
+SITL. FDM pacing still enforces a full timestep between commands after stalls,
+without catch-up bursts. Camera captures target 30 frames per simulation second;
+wall-clock camera FPS therefore follows the achieved realtime factor.

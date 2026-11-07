@@ -1,5 +1,6 @@
 """Own the Betaflight FDM/MSP/PyBullet terrain-following loop."""
 
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from dataclasses import dataclass
 from math import ceil, radians
@@ -115,20 +116,25 @@ def run_demo(*, sitl_binary=DEFAULT_SITL_BINARY, max_duration_s=DEFAULT_MAX_DURA
         if on_observation is not None:
             on_observation(observation)
         mission.reset(observation)
+        status_worker = resources.enter_context(ThreadPoolExecutor(max_workers=1))
+        status = sitl.commands.read_status()
+        status_request = None
         started = time.monotonic()
-        next_status_s = started
+        next_status_s = started + STATUS_PERIOD_S
         next_fdm_s = started
         next_report_s = 0.0
         last_blockers = None
-        status = None
         channels = SAFE_CHANNELS
         log_transition(None, mission.phase, observation.ground_truth.simulation_time_s)
         while True:
             sitl.check_running()
             now = time.monotonic()
-            if now >= next_status_s:
-                status = sitl.commands.read_status()
-                next_status_s = time.monotonic() + STATUS_PERIOD_S
+            if status_request is not None and status_request.done():
+                status = status_request.result()
+                status_request = None
+                next_status_s = now + STATUS_PERIOD_S
+            if status_request is None and now >= next_status_s:
+                status_request = status_worker.submit(sitl.commands.read_status)
             if status is None or not 0 <= time.monotonic() - status.received_at <= FEEDBACK_TIMEOUT_S:
                 raise RuntimeError('Betaflight status is stale')
             previous_phase = mission.phase
