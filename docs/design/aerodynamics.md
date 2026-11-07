@@ -164,8 +164,7 @@ mission routes, settling criteria, altitude accuracy and duration limits remain
 unchanged. Analytical ideal tests use the explicit ideal settings fixture.
 New aerodynamic calculations can change trajectories of callers using defaults.
 
-Sensor observations and motor/propeller injections remain intact;
-[telemetry schemas](telemetry.md) describe future force/airflow capture. Physics
+Sensor observations and motor/propeller injections remain intact. Physics
 sampling, calculation, surface-query or output failures invalidate the episode;
 reset is required and cleanup remains caller-owned. Seeded wind is reset with
 physics. `tests/test_aerodynamics.py` covers independent effects, switches,

@@ -1,4 +1,4 @@
-"""Human-readable example diagnostics; no sinks or telemetry storage."""
+"""Human-readable example diagnostics; no sinks or simulation-data storage."""
 import time
 
 from loguru import logger

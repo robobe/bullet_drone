@@ -1,11 +1,8 @@
-from dataclasses import FrozenInstanceError, asdict, replace
+from dataclasses import FrozenInstanceError, replace
 from math import exp, pi
 from statistics import mean, stdev
 from unittest.mock import Mock
-import json
-
 import pytest
-from jsonschema import Draft202012Validator
 import yaml
 
 from bullet_drone.commands import InvalidCommandError, RcInput
@@ -19,8 +16,6 @@ from bullet_drone.models import DroneState
 from bullet_drone.physics import PyBulletPhysics
 from bullet_drone.sensors import BarometerSensor, ImuSensor
 from bullet_drone.sensors.barometer import ATMOSPHERIC_GRAVITY_M_S2, DRY_AIR_GAS_CONSTANT_J_KG_K
-from bullet_drone.telemetry.header import SCHEMA_VERSION
-from bullet_drone.telemetry.topics.sensors import SCHEMA as SENSORS_SCHEMA
 from bullet_drone.simulation import RcSimulation
 
 
@@ -230,7 +225,11 @@ def test_sensor_observations_and_noisy_physics_independence(config):
                         assert reading is None
                     else:
                         assert (reading.episode_id, reading.step_index, reading.simulation_time_s) == (source.episode_id, source.step_index, source.simulation_time_s)
-                assert observation.sensors.rangefinder is None
+                rangefinder = observation.sensors.rangefinder
+                if rangefinder is not None:
+                    assert (rangefinder.episode_id, rangefinder.step_index,
+                            rangefinder.simulation_time_s) == (source.episode_id, source.step_index,
+                                                               source.simulation_time_s)
             if settings.imu.enabled:
                 assert reset.sensors.imu.specific_force_m_s2 == observations[0].sensors.imu.specific_force_m_s2
             if settings.barometer.enabled:
@@ -269,7 +268,7 @@ def test_sensor_failure_requires_environment_reset_and_cleanup(config, stage, fa
 
 
 @pytest.mark.parametrize('filter_enabled', [False, True])
-def test_sensor_payloads_match_typed_schema(config, filter_enabled):
+def test_sensor_readings_match_observation_identity_and_time(config, filter_enabled):
     config = replace(config, sensors=replace(config.sensors,
                      barometer=BarometerSettings(filter_enabled=filter_enabled, pressure_stddev_pa=NOISE_STDDEV)))
     sim = make_sim(config)
@@ -278,20 +277,14 @@ def test_sensor_payloads_match_typed_schema(config, filter_enabled):
         stepped = sim.step(RcInput())
         for observation in (initial, stepped):
             state = observation.ground_truth
-            payload = json.loads(json.dumps({
-                "header": {
-                    "schema_version": SCHEMA_VERSION, "drone_id": state.drone_id,
-                    "episode_id": state.episode_id, "step_index": state.step_index,
-                    "simulation_time_s": state.simulation_time_s,
-                },
-                "data": asdict(observation.sensors),
-            }, allow_nan=False))
-            Draft202012Validator(SENSORS_SCHEMA).validate(payload)
-            for name in ('imu', 'barometer'):
-                assert payload['data'][name]['step_index'] == state.step_index
-                assert payload['data'][name]['simulation_time_s'] == state.simulation_time_s
-            assert payload['data']['imu']['specific_force_m_s2'] == list(observation.sensors.imu.specific_force_m_s2)
-            assert payload['data']['barometer']['pressure_pa'] == observation.sensors.barometer.pressure_pa
+            imu, barometer = observation.sensors.imu, observation.sensors.barometer
+            assert imu is not None and barometer is not None
+            for reading in (imu, barometer):
+                assert reading.episode_id == state.episode_id
+                assert reading.step_index == state.step_index
+                assert reading.simulation_time_s == state.simulation_time_s
+            assert len(imu.specific_force_m_s2) == 3
+            assert barometer.pressure_pa > 0
     finally:
         sim.close()
 

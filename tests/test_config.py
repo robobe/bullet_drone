@@ -27,6 +27,14 @@ def test_config_loader(tmp_path):
     assert config.simulation.gui is False
     assert config.drone.initial_position_m == (0.0, 0.0, 1.0)
     assert config.drone.drone_id == 'drone_1'
+    assert not hasattr(config, 'telemetry')
+
+
+def test_removed_telemetry_yaml_section_is_rejected(tmp_path):
+    data = valid_data()
+    data['telemetry'] = {'sensors': True}
+    with pytest.raises(ConfigurationError, match='configuration has unknown keys: telemetry'):
+        YamlConfigLoader().load(write_config(tmp_path, data))
 
 
 def test_configured_drone_id(tmp_path):

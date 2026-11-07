@@ -11,7 +11,7 @@ simulation:
 
 # Vehicle identity, external URDF, mass and initial world pose.
 drone:
-  # Stable identity for observations and telemetry.
+  # Stable identity for observations and render packets.
   drone_id: px4_iris
   # Custom URDF path, resolved relative to this profile file.
   urdf: iris.urdf
@@ -183,22 +183,6 @@ wind:
   # Random seed for repeatable gusts; integer default is 2.
   seed: 2
 
-# Select optional telemetry topic families; these switches do not start recording.
-telemetry:
-  # Select sensor topics; true is the default and does not enable or disable sensors.
-  sensors: true
-  # Select raw 18-channel RC input topics; true is the default.
-  rc_input: true
-  # Select decoded control request topics; true is the default.
-  control: true
-  # Select motor allocation and saturation topics; true is the default.
-  allocation: true
-  # Select modeled force and torque topics; true is the default.
-  forces: true
-  # Select ambient wind, wake and relative-airflow topics; true is the default.
-  airflow: true
-  # Select simulation timing and real-time-factor topics; true is the default.
-  timing: true
 
 # Select measured or ground-truth values for published pose fields.
 pose_sources:

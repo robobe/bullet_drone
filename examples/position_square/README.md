@@ -191,14 +191,6 @@ contribution limit 2 m/s² to retain altitude accuracy and land through ground
 effect. Mission routes, settling criteria and timeout limits are unchanged.
 See [aerodynamic model details](../../docs/design/aerodynamics.md).
 
-## Optional live telemetry
-
-Use `--telemetry-config tools/telemetry_sender/config.yaml` to start a sender child
-process for ground truth. Physics remains at 240 Hz; the default UDP send cap is
-5 Hz wall-clock time. See the [PlotJuggler setup and layout](../../plotjuggler/README.md)
-and [sender configuration/lifecycle](../../tools/telemetry_sender/README.md).
-Without this flag no telemetry resources are started.
-
 ## External viewer and control compatibility
 
 The default CLI runs one automatic mission and closes its owned viewer after

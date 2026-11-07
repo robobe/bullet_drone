@@ -321,7 +321,7 @@ configuration field with comments. In the `drone` section, set:
 
 ```yaml
 drone:
-  # Stable identity used by observations and telemetry.
+  # Stable identity used by observations and render packets.
   drone_id: my_quad
   # URDF filename, relative to this YAML file.
   urdf: my_quad.urdf
@@ -339,7 +339,7 @@ internal` is the easiest first setup because it does not require Betaflight
 SITL.
 
 The other YAML sections configure RC channels, sensors, aerodynamic effects,
-wind, telemetry, pose sources, attitude estimation, and terrain. They do not
+wind, pose sources, attitude estimation, and terrain. They do not
 define the vehicle's rotor geometry or motor constants. Every key has a comment
 beside it; retain those comments when editing values.
 

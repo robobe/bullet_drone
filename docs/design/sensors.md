@@ -204,7 +204,7 @@ random generator. Default seeds differ between sensors; use distinct seeds acros
 drones when independent noise is wanted. Identical seeds and sampling patterns
 produce identical random streams. Reset restarts both history and seeded noise.
 
-## Lifecycle and telemetry
+## Lifecycle and readings
 
 Reset returns fresh readings for both sensors. Each successful step produces
 fresh readings after physics advances. No independent sampling rates, delivery
@@ -218,14 +218,8 @@ physics advances invalidates the current episode: reset is required before the
 next step, and the failed observation is not returned. Callers still own cleanup
 with `close()`. Sensor objects own no external resources.
 
-The `simulation/sensors` schema uses the [shared telemetry header](telemetry.md)
-and a `data` object with typed IMU/barometer slots and a null rangefinder slot.
-Disabled readings remain null. Embedded readings retain their measurement episode,
-step and simulation time. Schemas do not collect readings or start a recorder;
-applications can convert the immutable sensor dataclasses to JSON-compatible data.
-
 Tests cover physical formulas, frames, bias/noise statistics and repeatability,
-configuration validation, lifecycle, payloads and unchanged physics with sensors
+configuration validation, lifecycle, timestamps and unchanged physics with sensors
 enabled/noisy/disabled. Run `uv run --locked pytest -q tests/test_sensors.py`.
 
 ## Sensor pose selection and attitude estimation
@@ -403,8 +397,8 @@ Nyquist is rejected before sensor state advances. Episode reset clears filter an
 bias histories and reseeds noise, including on spawn replacement. Invalid source
 chronology, numeric failures and lifecycle handling retain existing semantics.
 
-`ImuReading` and sensor telemetry still contain only measured specific force and
-body rates. The complementary attitude estimator consumes these outputs without
+`ImuReading` still contains only measured specific force and body rates. The
+complementary attitude estimator consumes these outputs without
 another noise draw. Internal stabilization and physics remain unchanged. Legacy
 settings retain their exact seeded measurement sequences when new options are
 omitted. Startup stdout includes all resolved IMU settings automatically.

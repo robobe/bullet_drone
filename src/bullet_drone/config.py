@@ -1,6 +1,6 @@
 """Load and validate simulation configuration before acquiring resources."""
 
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 from math import hypot, isfinite, pi
 from pathlib import Path
 
@@ -395,24 +395,6 @@ class WindSettings:
 
 
 @dataclass(frozen=True, slots=True)
-class TelemetrySettings:
-    """Select optional schemas; these switches do not start a recorder."""
-
-    sensors: bool = True
-    rc_input: bool = True
-    control: bool = True
-    allocation: bool = True
-    forces: bool = True
-    airflow: bool = True
-    timing: bool = True
-
-    def __post_init__(self) -> None:
-        for setting in fields(self):
-            if type(getattr(self, setting.name)) is not bool:
-                raise ConfigurationError(f"telemetry.{setting.name} must be a boolean")
-
-
-@dataclass(frozen=True, slots=True)
 class PoseSources:
     altitude: str = 'ground_truth'
     attitude: str = 'ground_truth'
@@ -470,7 +452,6 @@ class SimulationConfig:
     sensors: SensorsSettings = field(default_factory=SensorsSettings)
     forces: ForcesSettings = field(default_factory=ForcesSettings)
     wind: WindSettings = field(default_factory=WindSettings)
-    telemetry: TelemetrySettings = field(default_factory=TelemetrySettings)
     pose_sources: PoseSources = field(default_factory=PoseSources)
     attitude_estimator: AttitudeEstimatorSettings = field(default_factory=AttitudeEstimatorSettings)
     terrain: TerrainSettings = field(default_factory=TerrainSettings)
@@ -478,8 +459,6 @@ class SimulationConfig:
     def __post_init__(self) -> None:
         if not isinstance(self.pose_sources, PoseSources) or not isinstance(self.attitude_estimator, AttitudeEstimatorSettings):
             raise ConfigurationError('pose_sources/attitude_estimator settings have invalid types')
-        if not isinstance(self.telemetry, TelemetrySettings):
-            raise ConfigurationError('telemetry must be TelemetrySettings')
         if not isinstance(self.rc, RcSettings):
             raise ConfigurationError('rc must be RcSettings')
         if not isinstance(self.sensors, SensorsSettings):
@@ -525,7 +504,7 @@ class YamlConfigLoader:
             data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
         except (OSError, UnicodeError, yaml.YAMLError) as exc:
             raise ConfigurationError(f"Cannot read YAML configuration {path}: {exc}") from exc
-        root = _mapping(data, "configuration", {"simulation", "drone"}, {"control", "rc", "sensors", "forces", "wind", "telemetry", "pose_sources", "attitude_estimator", "terrain"})
+        root = _mapping(data, "configuration", {"simulation", "drone"}, {"control", "rc", "sensors", "forces", "wind", "pose_sources", "attitude_estimator", "terrain"})
         simulation = _mapping(
             root["simulation"], "simulation",
             {"timestep_s", "max_steps", "gravity_m_s2"}, {"gui"},
@@ -553,8 +532,6 @@ class YamlConfigLoader:
                                                            set(settings_type.__dataclass_fields__)))
         forces = ForcesSettings(**force_options)
         wind = WindSettings(**_mapping(root.get("wind", {}), "wind", set(), set(WindSettings.__dataclass_fields__)))
-        telemetry = TelemetrySettings(**_mapping(root.get("telemetry", {}), "telemetry", set(),
-                                                 set(TelemetrySettings.__dataclass_fields__)))
         pose_sources = PoseSources(**_mapping(root.get('pose_sources', {}), 'pose_sources', set(),
                                                set(PoseSources.__dataclass_fields__)))
         estimator = AttitudeEstimatorSettings(**_mapping(root.get('attitude_estimator', {}), 'attitude_estimator', set(),
@@ -567,5 +544,5 @@ class YamlConfigLoader:
                 terrain_values["heightmap_path"] = str(Path(path).resolve().parent / terrain_path)
         terrain = TerrainSettings(**terrain_values)
         return SimulationConfig(SimulationSettings(**simulation), DroneSettings(**drone), control, rc,
-                                SensorsSettings(imu, barometer, rangefinder), forces, wind, telemetry, pose_sources, estimator,
+                                SensorsSettings(imu, barometer, rangefinder), forces, wind, pose_sources, estimator,
                                 terrain=terrain)

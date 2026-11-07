@@ -7,19 +7,14 @@
 - [Shared frame math](frame-math.md): quaternion conventions, validation,
   source-state diagnostics and controller error translation.
 - [IMU and barometer sensors](sensors.md): measurement frames, noise configuration,
-  reset/step lifecycle and observation/telemetry interfaces.
+  reset/step lifecycle and observation interfaces.
 - [Simulation ↔ Betaflight SITL bridge](betaflight-sitl-bridge.md): upstream-target
   FDM sensor fields, UDP ports, motor order, timing and implementation status,
   with packet tables and SVG drawings.
 - [Standalone Betaflight altitude hold](../../examples/altitde_hold_bt/README.md):
   independent mission, MSP RC, owned firmware lifecycle and PyBullet execution.
-- [Simulation telemetry](telemetry.md): per-topic schemas, shared headers, YAML
-  selection, optional example-side streaming and the future recorder strategy.
-- [PlotJuggler live position](../../plotjuggler/README.md): UDP setup, two-panel
-  layout, isolated project profile and VS Code tasks;
-  [sender ownership/config](../../tools/telemetry_sender/README.md).
-- [Drone identity and telemetry](drone-identity-and-telemetry.md): configured
-  drone IDs, episode identity, shared header identity and compatibility.
+- [Drone identity](drone-identity.md): configured drone IDs and per-reset episode
+  identity.
 - [Vehicle URDF selection](vehicle-urdf.md): packaged model aliases, custom
   four-rotor URDF paths, required asset contract and YAML path resolution.
 - [Position and velocity control](position-control.md): separate XY PID interfaces,

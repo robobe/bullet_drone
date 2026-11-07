@@ -35,14 +35,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         from examples.position_square.demo import run_demo
 
         with ExitStack() as resources:
-            sender = viewer = None
-            if options.telemetry_config is not None:
-                from tools.telemetry_sender.config import load_settings
-                from tools.telemetry_sender.sender import TelemetrySender
-
-                sender = TelemetrySender(load_settings(options.telemetry_config))
-                resources.callback(sender.close)
-                sender.start()
+            viewer = None
             if not options.headless:
                 from external_render.renderer import ExternalRenderer
 
@@ -61,11 +54,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         viewer.set_state(observation, 'running', 'automatic_start')
                         ready = True
                     viewer.consume(observation)
-                if sender is not None:
-                    sender.consume(observation)
-
             result = run_demo(gui=False, pace=viewer is not None, profile=options.profile,
-                              on_observation=consume if viewer is not None or sender is not None else None)
+                              on_observation=consume if viewer is not None else None)
             if viewer is not None:
                 viewer.set_state(result.observation, 'stopped', 'completed')
             state = result.observation.ground_truth

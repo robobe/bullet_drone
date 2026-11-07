@@ -144,8 +144,8 @@ translation, stabilization, mixing, and physics; the caller owns its execution
 loop. Call `reset()` before stepping and `close()` when finished.
 
 Optional `drone.drone_id` in YAML defaults to `drone_1`. It is retained in
-`DroneState` across resets and used in the shared simulation telemetry header.
-See [drone identity and telemetry](docs/design/drone-identity-and-telemetry.md).
+`DroneState` across resets and appears in render and observation data.
+See [drone identity](docs/design/drone-identity.md).
 
 `AltitudeController` supplies collective thrust in newtons from world Z altitude
 and vertical speed. `PositionController` supplies world XY velocity targets;
@@ -191,20 +191,6 @@ example CLIs use Python defaults and do not load YAML. For exact ideal-rotor
 experiments, select `ForcesSettings.ideal()` and disable ambient wind.
 See [models, defaults and compatibility](docs/design/aerodynamics.md).
 
-## Optional telemetry
-
-The telemetry package defines ten simulation topic schemas with a shared header
-(schema version, drone/episode identity, step and simulation time). Seven optional
-topics can be selected with `SimulationConfig.telemetry` or the commented
-`telemetry` section in `configs/basic.yaml`; ground truth, config and events are
-mandatory. `selected_schemas(settings)` returns the selected topic/schema mapping.
-
-These contracts do not start recording or change physics. The optional Angle
-square example can now [stream ground truth to PlotJuggler](plotjuggler/README.md)
-through a sender process configured by its own YAML outside src. General collection
-and file recording remain future work; the MCAP adapter has been removed. See [schemas and the recording strategy](docs/design/telemetry.md) and the
-[recorder TODO](docs/todo.md).
-
 ## Assets and verification
 
 The racer model is adapted from MIT-licensed gym-pybullet-drones. Front propellers
@@ -217,8 +203,8 @@ uv run --locked --all-packages --all-extras --all-groups pytest -q
 
 Tests cover lifecycle and cleanup, configuration, gravity/contact, force and torque
 directions, mixer limits, PID control, RC translation and arming, rendering adapters,
-and both flight missions. Telemetry tests validate schemas, shared headers,
-payloads, topic selection and import safety without a recording service.
+and both flight missions. Sensor tests cover reading values, timestamps, noise,
+filtering and lifecycle while keeping measured data separate from ground truth.
 
 Implementation records are in [the plan menu](plan/README.md).
 
@@ -273,11 +259,3 @@ stepping, or live during flight. Start, Reset and spawn changes retain settings
 and restart gust history; restarting physics reloads YAML defaults. The spectator
 windsock shows actual mean-plus-gust velocity and is excluded from drone images.
 See [runtime wind behavior](docs/design/aerodynamics.md#runtime-wind-updates).
-
-### Recorded flight diagnostics
-
-The standard workspace **Bullet: Run all** task now records each external-RC
-flight automatically in MCAP, with separate process logs per launch. Actual ground
-truth, available sensor outputs, effective configuration and wind are recorded
-independently of render-pose selection. See [telemetry design](docs/design/telemetry.md#external-rc-flight-recording-adapter)
-and the sibling recorder README for the offline clipping report command.

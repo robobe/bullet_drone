@@ -4,8 +4,8 @@ The automatic Angle and Betaflight Acro square CLIs accept `--render-config` and
 default to `external_render/configs/physics.json`. Standalone internal altitude
 hold has no Godot adapter. Install with `uv sync --extra render`. Each rendered
 application owns its publisher/viewer lifecycle; imports start no I/O. The
-library remains transport-independent. Existing UDP render adapters and the
-PlotJuggler sender remain available.
+library remains transport-independent. Existing UDP and ZeroMQ render adapters
+remain available.
 
 RenderPublisher selects observations at camera FPS in simulation time and puts
 immutable resolved poses into a one-entry queue without blocking. A worker owns ZeroMQ,
@@ -27,13 +27,13 @@ in m/s, Z up), drone/episode/stream identity, step, simulation time,
 sequence and publisher_drops. Shared schemas are packaged by sibling bullet_msgs; renderer/recorder
 profiles remain in sibling bullet_render. No physics dependencies leak into the native adapter.
 
-Godot requests are latest-only, never acknowledged back to physics. Telemetry uses loopback TCP port 5555, with both Godot and MCAP as subscribers.
-Godot publishes image descriptors on loopback TCP port 5556; image pixels use
-three nonblocking, flock-protected POSIX SHM slots from bullet_msgs. MCAP and
-video_viewer copy pixels under shared locks, skipping stale/busy slots. MCAP uses arrival timestamps;
-there is no exact association between image and pose messages. Scenery is visual
-only and does not alter Bullet contacts. See ../bullet_render/README.md from the
-projects parent directory for launch commands and verification.
+Godot requests are latest-only, never acknowledged back to physics. The existing
+transport profile key `telemetry_endpoint` carries renderer pose/config and
+application feedback topics; the separate `analysis/physics/*` sample stream has
+been removed from Bullet Drone. Godot publishes image descriptors on loopback TCP
+port 5556; image pixels use three nonblocking, flock-protected POSIX SHM slots
+from bullet_msgs. Scenery is visual only and does not alter Bullet contacts. See
+the sibling `bullet_render` README for its own viewer and consumer workflows.
 
 The image wire format replaces the old socket-pixel format. See ../bullet_msgs/README.md
 from the projects directory for the shared protocol. The video_viewer sibling uv

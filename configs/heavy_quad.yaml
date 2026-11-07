@@ -10,7 +10,7 @@ simulation:
   gravity_m_s2: [0.0, 0.0, -9.81]
 
 drone:
-  # Stable telemetry identity for this vehicle.
+  # Stable identity used in observations and render packets.
   drone_id: drone_1
   # Built-in racer/heavy_quad or a custom four-rotor URDF path; relative paths resolve from this YAML file.
   urdf: heavy_quad
@@ -31,7 +31,7 @@ terrain:
   origin_m: [-250.0, -250.0]
 
 sensors:
-  # Downward AGL sensor used by the physics telemetry stream.
+  # Enable the downward AGL rangefinder sensor reading.
   rangefinder:
     # Enable the body-down terrain measurement.
     enabled: true

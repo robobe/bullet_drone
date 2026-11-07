@@ -5,6 +5,7 @@ import sys
 from unittest.mock import Mock
 
 import pytest
+import click
 
 from bullet_drone.controllers import IdealStateFeedback
 from bullet_drone.geometry import attitude_error, from_rpy, yaw_from_quaternion
@@ -209,6 +210,8 @@ def test_parser_and_import_safety():
     assert CliParser().parse([]) == DemoOptions(False)
     assert CliParser().parse(['--headless']) == DemoOptions(True)
     assert CliParser().parse(['--profile', 'custom/iris.yaml']).profile == Path('custom/iris.yaml')
+    with pytest.raises(click.ClickException, match="No such option '--telemetry-config'"):
+        CliParser().parse(['--telemetry-config', 'removed.yaml'])
     code = ("from loguru import logger; import sys; "
             "logger.add = logger.remove = lambda *a, **k: (_ for _ in ()).throw(AssertionError('logging')); "
             "import examples.position_square.main; assert 'pybullet' not in sys.modules")
