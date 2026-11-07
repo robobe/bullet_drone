@@ -6,12 +6,21 @@ import time
 
 from loguru import logger
 
-from bullet_drone.config import DroneSettings, SimulationConfig, SimulationSettings, _number
+from bullet_drone.config import (
+    DroneSettings,
+    PoseSources,
+    RangefinderSettings,
+    SensorsSettings,
+    SimulationConfig,
+    SimulationSettings,
+    _number,
+)
 from bullet_drone.controllers import AltitudeController, InternalControlSettings, PidSettings
 from bullet_drone.models import DroneObservation
 from bullet_drone.rc import RcCodec
 from bullet_drone.simulation import RcSimulation
 from bullet_drone.vehicle import load_racer_parameters
+from examples.altitude_hold.diagnostics import print_observation, print_phase_change
 from examples.altitude_hold.mission import AltitudeHoldMission, Phase, Transition
 from examples.timing import RealtimeFactorLogger
 
@@ -19,6 +28,7 @@ from examples.timing import RealtimeFactorLogger
 SIMULATION_RATE_HZ = 240
 TIMESTEP_S = 1 / SIMULATION_RATE_HZ
 DEFAULT_MAX_DURATION_S = 45.0
+STATUS_INTERVAL_S = 1.0
 DRONE_MASS_KG = 1.0
 GRAVITY_M_S2 = 9.81
 WORLD_GRAVITY_M_S2 = (0.0, 0.0, -GRAVITY_M_S2)
@@ -35,6 +45,8 @@ FLIGHT_CONTROL_SETTINGS = InternalControlSettings(
 ALTITUDE_POSITION_PID = PidSettings(kp=1.5, ki=0.0, kd=0.0, output_limit=1.0, integral_limit=0.0)
 # Ground-effect lift needs more downward integral authority during touchdown.
 ALTITUDE_VELOCITY_PID = PidSettings(kp=6.0, ki=4.0, kd=0.0, output_limit=3.0, integral_limit=2.0)
+SENSOR_SETTINGS = SensorsSettings(rangefinder=RangefinderSettings(enabled=True))
+POSE_SOURCES = PoseSources(attitude='imu')
 
 
 class DemoTimeoutError(RuntimeError):
@@ -55,6 +67,8 @@ def run_demo(*, gui: bool = True, max_duration_s: float = DEFAULT_MAX_DURATION_S
     config = SimulationConfig(
         SimulationSettings(dt, max_steps, WORLD_GRAVITY_M_S2, gui=gui),
         DroneSettings(DRONE_MASS_KG, INITIAL_POSITION_M),
+        sensors=SENSOR_SETTINGS,
+        pose_sources=POSE_SOURCES,
     )
     vehicle = load_racer_parameters()
     settings = FLIGHT_CONTROL_SETTINGS
@@ -74,18 +88,20 @@ def run_demo(*, gui: bool = True, max_duration_s: float = DEFAULT_MAX_DURATION_S
 
             frame_flight()
         mission.reset(observation)
+        previous_phase = mission.phase
+        print_phase_change(None, mission.phase, observation.ground_truth.simulation_time_s)
+        next_status_time_s = STATUS_INTERVAL_S
         started = time.monotonic()
         timing = RealtimeFactorLogger(observation.ground_truth.simulation_time_s, started,
                                       clock=time.monotonic)
-        logger.info('Altitude hold: settle at {:.3f} s', observation.ground_truth.simulation_time_s)
         # Observe the final permitted step before deciding whether the mission timed out.
         step = 0
         while True:
-            previous_phase = mission.phase
             rc_command = mission.command(observation, simulation.timestep_s)
             if mission.phase != previous_phase:
-                logger.info('Altitude hold: {} at {:.3f} s', mission.phase,
-                            observation.ground_truth.simulation_time_s)
+                print_phase_change(previous_phase, mission.phase,
+                                   observation.ground_truth.simulation_time_s)
+                previous_phase = mission.phase
             if mission.phase == Phase.COMPLETE:
                 break
             if (step + 1) * simulation.timestep_s > duration:
@@ -94,6 +110,9 @@ def run_demo(*, gui: bool = True, max_duration_s: float = DEFAULT_MAX_DURATION_S
                 )
             # Each step returns the feedback used by the next PID update.
             observation = simulation.step(rc_command)
+            if observation.ground_truth.simulation_time_s >= next_status_time_s:
+                print_observation(observation, mission.phase)
+                next_status_time_s += STATUS_INTERVAL_S
             if on_observation is not None:
                 on_observation(observation)
             if gui or pace:

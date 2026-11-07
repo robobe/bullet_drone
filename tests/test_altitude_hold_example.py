@@ -86,7 +86,7 @@ def assert_closed(simulation):
     assert simulation._rc._closed
 
 
-def test_complete_headless_flight(monkeypatch):
+def test_complete_headless_flight(monkeypatch, capsys):
     samples = []
     simulations = record_simulations(monkeypatch, samples)
     result = demo.run_demo(gui=False)
@@ -103,6 +103,13 @@ def test_complete_headless_flight(monkeypatch):
     assert final.simulation_time_s - transitions[Phase.DISARMED] >= 1
     assert final.simulation_time_s < 45
     assert_closed(simulations[0])
+    output = capsys.readouterr().out
+    status_times = [float(line.split()[1].removesuffix('s'))
+                    for line in output.splitlines() if line.startswith('[OBS ')]
+    assert status_times == [float(second) for second in range(1, 33)]
+    assert '[STATE ' in output and ' -> ' in output
+    assert 'GT position_m=' in output and 'IMU specific_force_m_s2=' in output
+    assert 'BARO pressure_pa=' in output
 
 
 def test_timeout_closes_resources(monkeypatch):

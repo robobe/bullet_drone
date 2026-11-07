@@ -29,9 +29,10 @@ An observation contains:
   rotor speeds.
 - `sensors.imu`: body-frame specific force and angular velocity, when enabled.
 - `sensors.barometer`: pressure and measured altitude, when enabled.
-- `sensors.rangefinder`: distance and validity, when configured; it is `None`
-  in the current standard altitude-hold setup.
-- `attitude_estimate`: an optional estimate derived from the IMU.
+- `sensors.rangefinder`: distance and validity, when enabled. The altitude-hold
+  example enables it, so a terrain hit appears as a distance in centimetres.
+- `attitude_estimate`: an optional orientation estimate derived from the IMU.
+  The altitude-hold example selects this source and prints the estimate.
 
 Sensor slots can be `None` when a sensor is disabled or unavailable. The state
 and sensor readings are immutable values. Sensor readings include the episode,
