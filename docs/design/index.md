@@ -32,6 +32,7 @@ This checkout does not include the older architecture or force-roadmap
 documents referenced in repository guidance. This menu documents the current
 library interfaces rather than reconstructing those missing records.
 
+- [External renderer interface](external-render-interface.md): process ownership, configuration, ZeroMQ topics, pose/image data, readiness, and cleanup.
 - [Godot / ZeroMQ camera](zmq-rendering.md): Godot Start/Stop/Reset, physics-paced poses, TCP signaling and local SHM images.
 - [App flight channel](app-flight-channel.md): external RC lease, readiness,
   sensor-only feedback, expiry watchdog and exact capture-source timestamps.
