@@ -1,7 +1,9 @@
+from dataclasses import asdict
 from pathlib import Path
 
 import pybullet as p
 import pytest
+import yaml
 
 from bullet_drone.config import YamlConfigLoader
 from bullet_drone.physics import PyBulletPhysics
@@ -9,6 +11,21 @@ from bullet_drone.vehicle import load_vehicle_parameters
 
 
 CUSTOM_PROFILE = Path(__file__).resolve().parents[1] / 'custom/iris.yaml'
+
+
+def _assert_all_fields_are_explicit(defaults, values, path='configuration'):
+    assert isinstance(values, dict), f'{path} must be present as a mapping'
+    for name, default in defaults.items():
+        field_path = f'{path}.{name}'
+        assert name in values, f'{field_path} is missing from the profile'
+        if isinstance(default, dict):
+            _assert_all_fields_are_explicit(default, values[name], field_path)
+
+
+def test_iris_profile_explicitly_sets_every_configuration_field():
+    config = YamlConfigLoader().load(CUSTOM_PROFILE)
+    values = yaml.safe_load(CUSTOM_PROFILE.read_text(encoding='utf-8'))
+    _assert_all_fields_are_explicit(asdict(config), values)
 
 
 def test_iris_profile_loads_custom_urdf_and_vehicle_parameters():

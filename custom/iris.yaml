@@ -9,6 +9,7 @@ simulation:
   # World-frame gravity in m/s²; world Z points upward.
   gravity_m_s2: [0.0, 0.0, -9.81]
 
+# Vehicle identity, external URDF, mass and initial world pose.
 drone:
   # Stable identity for observations and telemetry.
   drone_id: px4_iris
@@ -19,6 +20,211 @@ drone:
   # Initial world position in metres; Z places the 0.11 m body on the ground.
   initial_position_m: [0.0, 0.0, 0.055]
 
+# Controller backend used by the simulation; this profile uses the internal controller.
 control:
   # Use the built-in internal angle/rate stabilizer.
   backend: internal
+
+# RC channel layout, switch thresholds and maximum commanded angle.
+rc:
+  # One-based roll, pitch, throttle, yaw channel order; must permute channels 1 through 4.
+  aetr_channels: [1, 2, 3, 4]
+  # AUX arm-switch channel, distinct from mode_channel; accepted channels are 5 through 18.
+  arm_channel: 5
+  # AUX flight-mode channel, distinct from arm_channel; accepted channels are 5 through 18.
+  mode_channel: 6
+  # PWM arm threshold in microseconds; accepted integer range is 1001 through 2000.
+  arm_threshold: 1500
+  # PWM angle-mode threshold in microseconds; accepted integer range is 1001 through 2000.
+  angle_threshold: 1500
+  # Maximum roll/pitch angle in radians; must be positive and below pi/2 (default pi/4).
+  max_angle_rad: 0.7853981633974483
+
+# Measurement models; enabling these readings does not change physics ground truth.
+sensors:
+  # Accelerometer and gyroscope noise, bias, filtering and repeatable seed.
+  imu:
+    # Enable IMU readings; true is the default and false returns no IMU reading.
+    enabled: true
+    # Per-sample Gaussian accelerometer standard deviation in body XYZ m/s²; nonnegative, used with per_sample.
+    accelerometer_stddev_m_s2: [0.0, 0.0, 0.0]
+    # Fixed body XYZ accelerometer bias in m/s²; finite values, default zero.
+    accelerometer_bias_m_s2: [0.0, 0.0, 0.0]
+    # Per-sample Gaussian gyro standard deviation in body XYZ rad/s; nonnegative, used with per_sample.
+    gyro_stddev_rad_s: [0.0, 0.0, 0.0]
+    # Fixed body XYZ gyro bias in rad/s; finite values, default zero.
+    gyro_bias_rad_s: [0.0, 0.0, 0.0]
+    # Random seed for repeatable IMU noise; integer default is 0.
+    seed: 0
+    # Noise mode is per_sample or density; per_sample is the default and selected here.
+    noise_model: per_sample
+    # One-sided body XYZ accelerometer noise density in (m/s²)/sqrt(Hz); nonnegative, requires density mode.
+    accelerometer_noise_density_m_s2_sqrt_hz: [0.0, 0.0, 0.0]
+    # One-sided body XYZ gyro noise density in (rad/s)/sqrt(Hz); nonnegative, requires density mode.
+    gyro_noise_density_rad_s_sqrt_hz: [0.0, 0.0, 0.0]
+    # Enable the low-pass filters before attitude estimation; false is the default.
+    filter_enabled: false
+    # Accelerometer low-pass cutoff in Hz; positive and below Nyquist when filtering is enabled (default 30).
+    accelerometer_cutoff_hz: 30.0
+    # Gyro low-pass cutoff in Hz; positive and below Nyquist when filtering is enabled (default 60).
+    gyro_cutoff_hz: 60.0
+    # Residual accelerometer bias random-walk density in body XYZ (m/s²)/sqrt(s); nonnegative, default zero.
+    accelerometer_bias_random_walk_m_s2_sqrt_s: [0.0, 0.0, 0.0]
+    # Residual gyro bias random-walk density in body XYZ (rad/s)/sqrt(s); nonnegative, default zero.
+    gyro_bias_random_walk_rad_s_sqrt_s: [0.0, 0.0, 0.0]
+  # Pressure noise, atmosphere reference and optional pressure smoothing.
+  barometer:
+    # Enable pressure-derived altitude readings; true is the default and false returns no reading.
+    enabled: true
+    # Per-sample Gaussian pressure standard deviation in Pa; nonnegative, default zero.
+    pressure_stddev_pa: 0.0
+    # Fixed pressure bias in Pa applied before altitude conversion; finite, default zero.
+    pressure_bias_pa: 0.0
+    # Reference pressure in Pa at reference_altitude_m; positive, standard-atmosphere default is 101325.
+    reference_pressure_pa: 101325.0
+    # Reference temperature in kelvin; positive, default is 288.15 K.
+    reference_temperature_k: 288.15
+    # World-Z altitude in metres associated with reference_pressure_pa; finite, default zero.
+    reference_altitude_m: 0.0
+    # Random seed for repeatable pressure noise; integer default is 1.
+    seed: 1
+    # Smooth pressure before converting it to altitude; false is the default.
+    filter_enabled: false
+    # Positive pressure-filter time constant in seconds; default 0.1, larger values add more lag.
+    filter_time_constant_s: 0.1
+  # Optional body-down range measurement against terrain.
+  rangefinder:
+    # Enable the body-down terrain range measurement; false is the default.
+    enabled: false
+    # Maximum ray length in metres; positive, default 50, no hit produces an invalid reading.
+    max_range_m: 50.0
+    # Sensor mount offset in body-frame XYZ metres; finite, default is the vehicle origin.
+    mount_position_body_m: [0.0, 0.0, 0.0]
+
+# Aerodynamic effect models and their physical coefficients.
+forces:
+  # Air density in kg/m³ used for body drag and rotor wakes; positive, default 1.225.
+  air_density_kg_m3: 1.225
+  # Rotor disk radius in metres used by airflow effects; positive, default 0.0635.
+  rotor_radius_m: 0.0635
+  # Quadratic vehicle-body resistance.
+  body_drag:
+    # Enable quadratic body drag; true is the default.
+    enabled: true
+    # Body XYZ drag coefficient-area products in m²; finite nonnegative values, default [0.02, 0.02, 0.03].
+    cd_area_m2: [0.02, 0.02, 0.03]
+  # Rotor-speed-dependent resistance in relative airflow.
+  rotor_drag:
+    # Enable linear rotor drag from local airflow; true is the default.
+    enabled: true
+    # Body XYZ coefficients in N/((rad/s)(m/s)); nonnegative, defaults [0.00001, 0.00001, 0.000011].
+    coefficients_n_per_rad_s_m_s: [0.00001, 0.00001, 0.000011]
+  # Explicit torque opposing body angular velocity.
+  angular_damping:
+    # Enable explicit aerodynamic rate damping; true is the default.
+    enabled: true
+    # Roll, pitch, yaw coefficients in N·m/(rad/s); nonnegative, defaults [0.002, 0.002, 0.001].
+    coefficients_nm_per_rad_s: [0.002, 0.002, 0.001]
+  # Thrust reduction as rotors move through horizontal airflow.
+  inflow:
+    # Enable per-rotor advance-ratio thrust reduction; true is the default.
+    enabled: true
+    # Dimensionless nonnegative thrust-reduction strength; default 1.0, zero disables reduction.
+    coefficient: 1.0
+    # Minimum dimensionless thrust multiplier in (0, 1]; default 0.5.
+    minimum_multiplier: 0.5
+  # Rotor-disc tilt force caused by horizontal airflow.
+  flapping:
+    # Enable per-rotor in-plane flapping force; true is the default.
+    enabled: true
+    # Dimensionless nonnegative flapping strength; default 0.1.
+    coefficient: 0.1
+  # Rotor angular-momentum reaction during vehicle rotation.
+  gyroscopic:
+    # Enable rotor angular-momentum reaction torque; true is the default.
+    enabled: true
+    # Per-rotor spin-axis inertia in kg·m²; nonnegative, default 0.00001.
+    rotor_inertia_kg_m2: 0.00001
+  # Thrust increase near supporting surfaces.
+  ground_effect:
+    # Enable near-ground rotor thrust increase; true is the default.
+    enabled: true
+    # Dimensionless nonnegative gain coefficient; default 0.1.
+    coefficient: 0.1
+    # Maximum thrust multiplier; finite and at least 1, default 1.2.
+    maximum_multiplier: 1.2
+    # Downward surface-query distance in metres; positive, default 1.0.
+    query_range_m: 1.0
+    # Minimum distance in metres for the ground-effect calculation; positive and no greater than query_range_m.
+    minimum_distance_m: 0.01
+  # Local airflow generated by downstream rotor wakes.
+  propwash:
+    # Enable wake airflow from each rotor; true is the default.
+    enabled: true
+    # Dimensionless nonnegative wake widening per downstream metre; default 0.1.
+    spread: 0.1
+    # Maximum combined wake speed in m/s; positive, default 20.
+    maximum_speed_m_s: 20.0
+    # Body-frame XYZ wake sampling offset in metres; finite, default [0, 0, -0.03].
+    body_sample_offset_m: [0.0, 0.0, -0.03]
+
+# Ambient world-frame airflow, independent of rotor-generated propwash.
+wind:
+  # Enable ambient airflow; true is the default, while false leaves rotor wakes enabled.
+  enabled: true
+  # Ambient wind mode: constant or gusts; constant is the default.
+  behavior: constant
+  # World-frame XYZ wind velocity in m/s; finite, default calm [0, 0, 0].
+  velocity_world_m_s: [0.0, 0.0, 0.0]
+  # Stationary per-axis gust standard deviation in m/s; nonnegative, used only with gusts mode.
+  gust_stddev_m_s: [0.0, 0.0, 0.0]
+  # Positive gust correlation time in simulation seconds; default 1.0.
+  correlation_time_s: 1.0
+  # Random seed for repeatable gusts; integer default is 2.
+  seed: 2
+
+# Select optional telemetry topic families; these switches do not start recording.
+telemetry:
+  # Select sensor topics; true is the default and does not enable or disable sensors.
+  sensors: true
+  # Select raw 18-channel RC input topics; true is the default.
+  rc_input: true
+  # Select decoded control request topics; true is the default.
+  control: true
+  # Select motor allocation and saturation topics; true is the default.
+  allocation: true
+  # Select modeled force and torque topics; true is the default.
+  forces: true
+  # Select ambient wind, wake and relative-airflow topics; true is the default.
+  airflow: true
+  # Select simulation timing and real-time-factor topics; true is the default.
+  timing: true
+
+# Select measured or ground-truth values for published pose fields.
+pose_sources:
+  # Published altitude source: ground_truth or barometer; ground_truth is the default.
+  altitude: ground_truth
+  # Published attitude source: ground_truth or imu; ground_truth is the default.
+  attitude: ground_truth
+
+# Complementary-filter gains used only when pose_sources.attitude is imu.
+attitude_estimator:
+  # Accelerometer tilt-correction gain in 1/s; finite and nonnegative, default 2.0.
+  kp_s_inv: 2.0
+  # Gyroscope bias-adaptation gain in 1/s²; finite and nonnegative, default 0.05.
+  ki_s_inv2: 0.05
+  # Fraction of gravity magnitude allowed for accelerometer correction; strictly between 0 and 1, default 0.2.
+  acceleration_rejection_fraction: 0.2
+
+# Optional heightmap geometry; a null path uses the default flat plane.
+terrain:
+  # Optional relative float32 little-endian heightmap; null keeps the default flat ground.
+  heightmap_path: null
+  # Terrain width and depth in metres when heightmap_path is set; default 500.
+  world_size_m: 500.0
+  # Heightmap sample count along world X including both edges; integer default 121.
+  samples_x: 121
+  # Heightmap sample count along world Y including both edges; integer default 121.
+  samples_z: 121
+  # World-frame XY origin in metres for the first heightmap sample; default [-250, -250].
+  origin_m: [-250.0, -250.0]
