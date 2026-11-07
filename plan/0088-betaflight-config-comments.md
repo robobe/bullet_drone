@@ -1,6 +1,6 @@
 # Explain Betaflight SITL profile settings
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified. Implementation commit: `aa3e3079d81f8331412b4f6063ae51b0314bc9ca`.
 
 ## Goal
 
@@ -29,4 +29,4 @@ behavior changes.
 
 ## Implementation commit
 
-Pending.
+`aa3e3079d81f8331412b4f6063ae51b0314bc9ca`
