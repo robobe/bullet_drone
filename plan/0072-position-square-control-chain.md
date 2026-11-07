@@ -1,6 +1,6 @@
 # Position square control chain diagram
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified. Implementation commit: `abc4b70`.
 
 ## Goal
 
@@ -32,4 +32,4 @@ Documentation only. No controller behavior, tuning, or APIs change.
 
 ## Implementation commit
 
-Pending.
+`abc4b70`.
