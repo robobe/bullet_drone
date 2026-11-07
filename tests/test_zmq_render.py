@@ -11,11 +11,11 @@ from bullet_drone.models import DroneState
 from tools.zmq_render.publisher import RenderPublisher
 
 
-def publisher(tmp_path):
+def publisher(tmp_path, **metadata):
     path = tmp_path / 'render.json'
     path.write_text(json.dumps({'transport_config': 'transport.json', 'fps': 30,
         'camera': {'width_px': 640, 'height_px': 480, 'fov_x_deg': 90}}))
-    return RenderPublisher(path)
+    return RenderPublisher(path, **metadata)
 
 
 def test_simulation_scheduling_bounded_queue_and_episode_reset(tmp_path):
@@ -44,6 +44,16 @@ def test_invalid_render_settings_and_inactive_publisher(tmp_path):
     path.write_text(json.dumps(value))
     with pytest.raises(ConfigurationError):
         RenderPublisher(path)
+
+
+@pytest.mark.parametrize(('profile_name', 'backend'), [
+    ('iris', 'internal'), ('position_square_acro', 'betaflight'),
+])
+def test_render_profile_metadata_carries_active_profile_and_backend(tmp_path, profile_name, backend):
+    output = publisher(tmp_path, profile_name=profile_name, backend=backend)
+    assert output.profile['profile_name'] == profile_name
+    assert output.profile['backend'] == backend
+    assert output.profile['drone_model'] == 'racer'
 
 
 def test_worker_startup_failure_and_cleanup(tmp_path):
@@ -128,13 +138,14 @@ def test_real_tcp_periodic_config_pose_and_binding_cleanup(tmp_path):
             repeated_topic, repeated_payload = subscriber.recv_multipart()
             assert repeated_topic == b'render/drone_1/profile'
             assert json.loads(repeated_payload)['stream_id'] == output.stream
-            state = DroneState('drone_1', 0, 0, (0, 0, 3), (0, 0, 0, 1), (1.25, -2.5, 0.75), (0, 0, 0))
+            state = DroneState('px4_iris', 0, 0, (0, 0, 3), (0, 0, 0, 1), (1.25, -2.5, 0.75), (0, 0, 0))
             output.consume(SimpleNamespace(ground_truth=state))
             assert subscriber.poll(2000)
             topic, payload = subscriber.recv_multipart()
             packet = json.loads(payload)
             validate(packet, json.loads(schema_bytes('pose.json')))
             assert topic == b'render/drone_1/pose'
+            assert packet['drone_id'] == 'drone_1'
             assert packet['sequence'] == 0 and packet['position_m'] == [0, 0, 3]
             assert packet['schema_version'] == 2
             assert packet['linear_velocity_m_s'] == [1.25, -2.5, 0.75]

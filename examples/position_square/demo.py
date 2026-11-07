@@ -1,18 +1,19 @@
 """Compose square-flight controllers and own the execution loop."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from math import ceil, radians
+from pathlib import Path
 import time
 
 from loguru import logger
 
-from bullet_drone.config import DroneSettings, SimulationConfig, SimulationSettings, _number
+from bullet_drone.config import DroneSettings, SimulationConfig, SimulationSettings, YamlConfigLoader, _number
 from bullet_drone.controllers import AltitudeController, InternalControlSettings, PidSettings, PositionController, VelocityController
 from bullet_drone.models import DroneObservation
 from bullet_drone.rc import RcCodec
 from bullet_drone.simulation import RcSimulation
-from bullet_drone.vehicle import load_racer_parameters
+from bullet_drone.vehicle import load_racer_parameters, load_vehicle_parameters
 from examples.position_square.diagnostics import log_transition, log_waypoint
 from examples.position_square.mission import Phase, SquareMission, Transition, WaypointArrival
 from examples.timing import RealtimeFactorLogger
@@ -32,6 +33,9 @@ FLIGHT_CONTROL_SETTINGS = InternalControlSettings(ATTITUDE_KP_S_INV, MAX_BODY_RA
                                                  (BODY_RATE_PID,) * len(ATTITUDE_KP_S_INV))
 XY_POSITION_PID = PidSettings(kp=0.8, ki=0.0, kd=0.0, output_limit=1.0, integral_limit=0.0)
 XY_VELOCITY_PID = PidSettings(kp=2.0, ki=0.0, kd=0.0, output_limit=1.5, integral_limit=0.0)
+# External airframes need gentler XY commands to settle within the waypoint envelope.
+PROFILE_XY_POSITION_PID = PidSettings(kp=0.35, ki=0.0, kd=0.0, output_limit=0.7, integral_limit=0.0)
+PROFILE_XY_VELOCITY_PID = PidSettings(kp=0.8, ki=0.0, kd=0.0, output_limit=0.8, integral_limit=0.0)
 ALTITUDE_POSITION_PID = PidSettings(kp=1.5, ki=0.0, kd=0.0, output_limit=1.0, integral_limit=0.0)
 # Ground-effect lift needs more downward integral authority during touchdown.
 ALTITUDE_VELOCITY_PID = PidSettings(kp=6.0, ki=4.0, kd=0.0, output_limit=3.0, integral_limit=2.0)
@@ -51,17 +55,27 @@ class DemoResult:
 
 def run_demo(*, gui: bool = True, max_duration_s: float = DEFAULT_MAX_DURATION_S,
              on_observation: Callable[[DroneObservation], None] | None = None,
-             pace: bool = False, control=None) -> DemoResult:
+             pace: bool = False, control=None, profile: str | Path | None = None) -> DemoResult:
     duration = _number(max_duration_s, 'max_duration_s', positive=True)
-    max_steps = ceil(duration / TIMESTEP_S)
-    config = SimulationConfig(SimulationSettings(TIMESTEP_S, max_steps, WORLD_GRAVITY_M_S2, gui=gui),
-                              DroneSettings(DRONE_MASS_KG, INITIAL_POSITION_M))
-    vehicle = load_racer_parameters()
+    if profile is None:
+        max_steps = ceil(duration / TIMESTEP_S)
+        config = SimulationConfig(SimulationSettings(TIMESTEP_S, max_steps, WORLD_GRAVITY_M_S2, gui=gui),
+                                  DroneSettings(DRONE_MASS_KG, INITIAL_POSITION_M))
+        vehicle = load_racer_parameters()
+    else:
+        config = YamlConfigLoader().load(profile)
+        config = replace(config, simulation=replace(config.simulation, max_steps=ceil(
+            duration / config.simulation.timestep_s), gui=gui))
+        vehicle = load_vehicle_parameters(config.drone.urdf)
+    mass_kg = config.drone.mass_kg
+    gravity_m_s2 = -config.simulation.gravity_m_s2[2]
+    xy_position_pid = PROFILE_XY_POSITION_PID if profile is not None else XY_POSITION_PID
+    xy_velocity_pid = PROFILE_XY_VELOCITY_PID if profile is not None else XY_VELOCITY_PID
     max_thrust = len(vehicle.rotor_positions_m) * vehicle.max_thrust_per_rotor_n
     mission = SquareMission(
-        PositionController(XY_POSITION_PID),
-        VelocityController(DRONE_MASS_KG, max_thrust, XY_VELOCITY_PID, MAX_TILT_RAD),
-        AltitudeController(DRONE_MASS_KG, GRAVITY_M_S2, max_thrust, ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID),
+        PositionController(xy_position_pid),
+        VelocityController(mass_kg, max_thrust, xy_velocity_pid, MAX_TILT_RAD),
+        AltitudeController(mass_kg, gravity_m_s2, max_thrust, ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID),
         RcCodec(max_thrust, FLIGHT_CONTROL_SETTINGS.max_rates_rad_s, config.rc),
     )
     simulation = RcSimulation(config, FLIGHT_CONTROL_SETTINGS, vehicle)

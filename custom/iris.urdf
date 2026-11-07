@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<robot name="px4_iris_reference">
+  <!-- PX4 SITL Iris constants converted to this loader's RPM-based properties. -->
+  <properties kf="6.4042766336e-8" km="3.84256598016e-9" thrust2weight="1.92086986069" prop_radius="0.128" />
+
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="1.5" />
+      <inertia ixx="0.029125" ixy="0" ixz="0" iyy="0.029125" iyz="0" izz="0.055225" />
+    </inertial>
+    <visual>
+      <geometry><box size="0.47 0.47 0.11" /></geometry>
+      <material name="iris_body"><color rgba="0.18 0.20 0.23 1" /></material>
+    </visual>
+    <collision>
+      <geometry><box size="0.47 0.47 0.11" /></geometry>
+    </collision>
+  </link>
+
+  <!-- prop0: PX4 rotor0, CCW, position (0.13, -0.22, 0.023) m. -->
+  <link name="prop0_link">
+    <inertial><origin xyz="0.13 -0.22 0.023"/><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual><origin xyz="0.13 -0.22 0.023"/><geometry><cylinder radius="0.128" length="0.005"/></geometry><material name="prop_ccw_a"><color rgba="0.05 0.35 0.85 0.55"/></material></visual>
+    <collision><origin xyz="0.13 -0.22 0.023"/><geometry><cylinder radius="0.128" length="0.005"/></geometry></collision>
+  </link>
+  <joint name="prop0_joint" type="fixed"><parent link="base_link"/><child link="prop0_link"/></joint>
+
+  <!-- prop1: PX4 rotor2, CW, position (0.13, 0.22, 0.023) m. -->
+  <link name="prop1_link">
+    <inertial><origin xyz="0.13 0.22 0.023"/><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual><origin xyz="0.13 0.22 0.023"/><geometry><cylinder radius="0.128" length="0.005"/></geometry><material name="prop_cw_a"><color rgba="0.95 0.28 0.08 0.55"/></material></visual>
+    <collision><origin xyz="0.13 0.22 0.023"/><geometry><cylinder radius="0.128" length="0.005"/></geometry></collision>
+  </link>
+  <joint name="prop1_joint" type="fixed"><parent link="base_link"/><child link="prop1_link"/></joint>
+
+  <!-- prop2: PX4 rotor1, CCW, position (-0.13, 0.20, 0.023) m. -->
+  <link name="prop2_link">
+    <inertial><origin xyz="-0.13 0.20 0.023"/><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual><origin xyz="-0.13 0.20 0.023"/><geometry><cylinder radius="0.128" length="0.005"/></geometry><material name="prop_ccw_b"><color rgba="0.05 0.35 0.85 0.55"/></material></visual>
+    <collision><origin xyz="-0.13 0.20 0.023"/><geometry><cylinder radius="0.128" length="0.005"/></geometry></collision>
+  </link>
+  <joint name="prop2_joint" type="fixed"><parent link="base_link"/><child link="prop2_link"/></joint>
+
+  <!-- prop3: PX4 rotor3, CW, position (-0.13, -0.20, 0.023) m. -->
+  <link name="prop3_link">
+    <inertial><origin xyz="-0.13 -0.20 0.023"/><mass value="0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual><origin xyz="-0.13 -0.20 0.023"/><geometry><cylinder radius="0.128" length="0.005"/></geometry><material name="prop_cw_b"><color rgba="0.95 0.28 0.08 0.55"/></material></visual>
+    <collision><origin xyz="-0.13 -0.20 0.023"/><geometry><cylinder radius="0.128" length="0.005"/></geometry></collision>
+  </link>
+  <joint name="prop3_joint" type="fixed"><parent link="base_link"/><child link="prop3_link"/></joint>
+</robot>

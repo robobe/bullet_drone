@@ -17,7 +17,7 @@ WORLD_Z_AXIS = 2
 XY_AXIS_COUNT = 2
 SIDE_LENGTH_M = 3.0
 TARGET_ALTITUDE_M = 3.0
-LANDING_ALTITUDE_M = 0.0
+TOUCHDOWN_ALTITUDE_TOLERANCE_M = 0.02
 GROUND_SETTLE_DURATION_S = 0.5
 ARRIVAL_POSITION_TOLERANCE_M = 0.1
 ARRIVAL_SPEED_TOLERANCE_M_S = 0.1
@@ -77,6 +77,7 @@ class SquareMission:
         self.arrivals: list[WaypointArrival] = []
         self.index = 0
         self.home_xy_m = ROUTE_OFFSETS_XY_M[0]
+        self.home_altitude_m = 0.0
         self.heading_rad = 0.0
         self.waypoints: tuple[tuple[float, float, float], ...] = ()
         self._phase_started_s = 0.0
@@ -92,6 +93,7 @@ class SquareMission:
         self.phase = Phase.SETTLE
         self.index = 0
         self.home_xy_m = state.position_m[:XY_AXIS_COUNT]
+        self.home_altitude_m = state.position_m[WORLD_Z_AXIS]
         self.heading_rad = yaw_from_quaternion(state.orientation_xyzw)
         self.waypoints = tuple((self.home_xy_m[0] + x, self.home_xy_m[1] + y, TARGET_ALTITUDE_M)
                                for x, y in ROUTE_OFFSETS_XY_M)
@@ -137,7 +139,8 @@ class SquareMission:
             self._transition(Phase.LAND, now)
         elif self.phase == Phase.LAND:
             touchdown = (dist(state.position_m[:XY_AXIS_COUNT], self.home_xy_m) <= TOUCHDOWN_XY_TOLERANCE_M
-                         and state.position_m[WORLD_Z_AXIS] <= TOUCHDOWN_ALTITUDE_M
+                         and abs(state.position_m[WORLD_Z_AXIS] - self.home_altitude_m)
+                         <= TOUCHDOWN_ALTITUDE_TOLERANCE_M
                          and abs(state.linear_velocity_m_s[WORLD_Z_AXIS]) <= TOUCHDOWN_SPEED_TOLERANCE_M_S)
             if self._settled(touchdown, now, TOUCHDOWN_SETTLE_DURATION_S):
                 self._transition(Phase.DISARMED, now)
@@ -148,7 +151,7 @@ class SquareMission:
         if not armed:
             return self.codec.encode(mode=self.flight_mode, armed=False)
         landing = self.phase == Phase.LAND
-        target = (*self.home_xy_m, LANDING_ALTITUDE_M) if landing else self.waypoints[self.index]
+        target = (*self.home_xy_m, self.home_altitude_m) if landing else self.waypoints[self.index]
         measured_yaw = yaw_from_quaternion(state.orientation_xyzw)
         desired_velocity = self.position.velocity(target[:XY_AXIS_COUNT], state.position_m[:XY_AXIS_COUNT], dt_s)
         vertical_thrust = self.altitude.thrust(

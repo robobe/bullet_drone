@@ -2,6 +2,36 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Bullet: Position square (PX4 Iris)",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "run",
+        "--locked",
+        "--extra",
+        "render",
+        "python",
+        "-m",
+        "examples.position_square.main",
+        "--profile",
+        "custom/iris.yaml"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "__NV_PRIME_RENDER_OFFLOAD": "1",
+          "__GLX_VENDOR_LIBRARY_NAME": "nvidia"
+        }
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "detail": "Runs the position-square mission using custom/iris.yaml and custom/iris.urdf in the external renderer."
+    },
+    {
       "label": "Bullet: Run example",
       "type": "process",
       "command": "uv",

@@ -29,13 +29,13 @@ SHM_LOG_PATTERN = re.compile(r'^SHM publisher session: ([0-9a-f]{32})\r?$', re.M
 
 
 class ExternalRenderer:
-    def __init__(self, executable, config, *, profile_name='external_render'):
+    def __init__(self, executable, config, *, profile_name='external_render', backend='internal'):
         self.executable = Path(executable).resolve()
         if not self.executable.is_file() or not os.access(self.executable, os.X_OK):
             raise FileNotFoundError(
                 f'Renderer missing or not executable: {self.executable}. '
                 'Run: uv run --locked python external_render/build.py')
-        self.publisher = RenderPublisher(config, profile_name=profile_name)
+        self.publisher = RenderPublisher(config, profile_name=profile_name, backend=backend)
         self.transport = load_transport(self.publisher.transport_path)
         self.physics_id = uuid4().hex
         self.process = self.log = self.images = self.reader = None

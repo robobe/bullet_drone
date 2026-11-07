@@ -18,6 +18,7 @@ class DemoOptions:
     telemetry_config: Path | None = None
     render_config: Path = DEFAULT_RENDER_CONFIG
     renderer: Path = DEFAULT_RENDERER
+    profile: Path | None = None
 
 
 class CliParser:
@@ -30,8 +31,11 @@ class CliParser:
                       help='Camera/transport profile for the automatic external viewer.')
         @click.option('--renderer', default=DEFAULT_RENDERER, type=click.Path(dir_okay=False, path_type=Path),
                       help='Exported Godot viewer executable (ignored with --headless).')
-        def command(headless: bool, telemetry_config: Path | None, render_config: Path, renderer: Path) -> DemoOptions:
+        @click.option('--profile', type=click.Path(exists=True, dir_okay=False, path_type=Path),
+                      help='Simulation YAML profile, including its drone URDF.')
+        def command(headless: bool, telemetry_config: Path | None, render_config: Path, renderer: Path,
+                    profile: Path | None) -> DemoOptions:
             """Fly a settled 3 m square at altitude 3 m in RC angle mode."""
-            return DemoOptions(headless, telemetry_config, render_config, renderer)
+            return DemoOptions(headless, telemetry_config, render_config, renderer, profile)
 
         return command.main(args=argv, prog_name='position-square', standalone_mode=False)

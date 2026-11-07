@@ -87,7 +87,7 @@ class PyBulletPhysics:
                                                flags=p.GEOM_FORCE_CONCAVE_TRIMESH, physicsClientId=client)
                 self._terrain_body = p.createMultiBody(baseMass=0, baseCollisionShapeIndex=shape,
                                                        basePosition=[0, 0, 0], physicsClientId=client)
-            # Load the selected packaged URDF, including in an installed wheel.
+            # Load the selected packaged or external vehicle URDF.
             with as_file(vehicle_urdf_path(self._config.drone.urdf)) as urdf:
                 self._body = p.loadURDF(
                     str(urdf),

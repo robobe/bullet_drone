@@ -90,8 +90,8 @@ class DroneSettings:
             raise ConfigurationError(
                 f"drone.drone_id must be a nonblank string of at most {MAX_DRONE_ID_LENGTH} characters"
             )
-        if self.urdf not in ('racer', 'heavy_quad'):
-            raise ConfigurationError("drone.urdf must be 'racer' or 'heavy_quad'")
+        if not isinstance(self.urdf, str) or not self.urdf.strip():
+            raise ConfigurationError("drone.urdf must be a built-in name or a nonblank URDF path")
         object.__setattr__(self, "mass_kg", _number(self.mass_kg, "drone.mass_kg", positive=True))
         object.__setattr__(self, "initial_position_m", _vector(self.initial_position_m, "drone.initial_position_m"))
 
@@ -530,7 +530,13 @@ class YamlConfigLoader:
             root["simulation"], "simulation",
             {"timestep_s", "max_steps", "gravity_m_s2"}, {"gui"},
         )
-        drone = _mapping(root["drone"], "drone", {"mass_kg", "initial_position_m"}, {"drone_id", "urdf"})
+        drone = dict(_mapping(root["drone"], "drone", {"mass_kg", "initial_position_m"}, {"drone_id", "urdf"}))
+        urdf = drone.get("urdf", "racer")
+        if isinstance(urdf, str) and urdf not in ("racer", "heavy_quad"):
+            urdf_path = Path(urdf)
+            if not urdf_path.is_absolute():
+                urdf_path = Path(path).resolve().parent / urdf_path
+            drone["urdf"] = str(urdf_path.resolve())
         control = ControlSettings(**_mapping(root["control"], "control", set(), {"backend"})) if "control" in root else ControlSettings()
         rc = RcSettings(**_mapping(root['rc'], 'rc', set(), set(RcSettings.__dataclass_fields__))) if 'rc' in root else RcSettings()
         sensors = _mapping(root.get("sensors", {}), "sensors", set(), {"imu", "barometer", "rangefinder"})

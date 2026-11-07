@@ -12,7 +12,7 @@ simulation:
 drone:
   # Stable telemetry identity for this vehicle.
   drone_id: drone_1
-  # Selects the packaged URDF and actuator parameter set.
+  # Built-in racer/heavy_quad or a custom four-rotor URDF path; relative paths resolve from this YAML file.
   urdf: heavy_quad
   # Total vehicle mass in kilograms; must match the intended payload configuration.
   mass_kg: 5.0

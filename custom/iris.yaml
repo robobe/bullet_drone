@@ -1,0 +1,24 @@
+# Headless 240 Hz profile for loading the adjacent PX4 Iris reference URDF.
+simulation:
+  # Physics timestep in seconds; 0.0041666667 is 240 Hz.
+  timestep_s: 0.004166666666666667
+  # Caller-owned step budget; 1200 steps are five simulated seconds.
+  max_steps: 1200
+  # Keep PyBullet headless; set true only when a display is available.
+  gui: false
+  # World-frame gravity in m/s²; world Z points upward.
+  gravity_m_s2: [0.0, 0.0, -9.81]
+
+drone:
+  # Stable identity for observations and telemetry.
+  drone_id: px4_iris
+  # Custom URDF path, resolved relative to this profile file.
+  urdf: iris.urdf
+  # PX4 Iris base-link mass in kg; scales base mass and inertia in PyBullet.
+  mass_kg: 1.5
+  # Initial world position in metres; Z places the 0.11 m body on the ground.
+  initial_position_m: [0.0, 0.0, 0.055]
+
+control:
+  # Use the built-in internal angle/rate stabilizer.
+  backend: internal

@@ -13,6 +13,7 @@ from bullet_drone.rendering.config import CameraSettings, number
 
 
 POSE_SCHEMA_VERSION = 2
+RENDER_DRONE_ID = 'drone_1'
 TELEMETRY_HWM = 64
 QUEUE_CAPACITY = 1
 START_TIMEOUT_S = 15
@@ -261,6 +262,8 @@ class RenderPublisher:
                                  if name in ('drone_id', 'episode_id', 'step_index',
                                              'simulation_time_s', 'position_m', 'orientation_xyzw',
                                              'linear_velocity_m_s')}}
+                    # The renderer has one fixed scene slot; retain the simulation ID elsewhere.
+                    packet['drone_id'] = RENDER_DRONE_ID
                     if source is not None:
                         packet.update(schema_version=3, source=source)
                     socket.send_multipart([b'render/drone_1/pose', json.dumps(packet, allow_nan=False).encode()], flags=zmq.DONTWAIT)

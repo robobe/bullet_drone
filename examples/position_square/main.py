@@ -7,7 +7,7 @@ import sys
 import click
 from loguru import logger
 
-from bullet_drone.config import ConfigurationError
+from bullet_drone.config import ConfigurationError, YamlConfigLoader
 from examples.position_square.demo_cli import CliParser
 
 
@@ -46,8 +46,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             if not options.headless:
                 from external_render.renderer import ExternalRenderer
 
+                profile_name = options.profile.stem if options.profile is not None else 'position_square'
+                backend = (YamlConfigLoader().load(options.profile).control.backend
+                           if options.profile is not None else 'internal')
                 viewer = resources.enter_context(ExternalRenderer(
-                    options.renderer, options.render_config, profile_name='position_square'))
+                    options.renderer, options.render_config, profile_name=profile_name, backend=backend))
             ready = False
 
             def consume(observation):
@@ -61,7 +64,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if sender is not None:
                     sender.consume(observation)
 
-            result = run_demo(gui=False, pace=viewer is not None,
+            result = run_demo(gui=False, pace=viewer is not None, profile=options.profile,
                               on_observation=consume if viewer is not None or sender is not None else None)
             if viewer is not None:
                 viewer.set_state(result.observation, 'stopped', 'completed')

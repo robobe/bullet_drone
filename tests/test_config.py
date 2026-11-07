@@ -47,9 +47,63 @@ def test_heavy_quad_urdf_selection(tmp_path):
     assert vehicle.max_thrust_per_rotor_n > 5. * 9.81 / 4
 
 
-def test_unknown_urdf_rejected():
+def test_custom_urdf_relative_path_resolves_from_yaml_and_loads_parameters(tmp_path):
+    models = tmp_path / 'models'
+    models.mkdir()
+    custom_urdf = models / 'quad.urdf'
+    packaged = Path(__file__).resolve().parents[1] / 'src/bullet_drone/assets/heavy_quad/heavy_quad.urdf'
+    custom_urdf.write_bytes(packaged.read_bytes())
+    data = valid_data()
+    data['drone']['urdf'] = 'models/quad.urdf'
+
+    config = YamlConfigLoader().load(write_config(tmp_path, data))
+    vehicle = load_vehicle_parameters(config.drone.urdf)
+
+    assert config.drone.urdf == str(custom_urdf.resolve())
+    assert vehicle.rotor_positions_m[0] == pytest.approx((.240416, .240416, 0.))
+
+
+def test_custom_urdf_absolute_path_is_preserved(tmp_path):
+    custom_urdf = tmp_path / 'quad.urdf'
+    packaged = Path(__file__).resolve().parents[1] / 'src/bullet_drone/assets/heavy_quad/heavy_quad.urdf'
+    custom_urdf.write_bytes(packaged.read_bytes())
+    data = valid_data()
+    data['drone']['urdf'] = str(custom_urdf)
+
+    config = YamlConfigLoader().load(write_config(tmp_path, data))
+
+    assert config.drone.urdf == str(custom_urdf)
+    assert load_vehicle_parameters(config.drone.urdf).max_thrust_per_rotor_n == pytest.approx(30.65625)
+
+
+def test_direct_settings_custom_path_resolves_from_working_directory(tmp_path, monkeypatch):
+    packaged = Path(__file__).resolve().parents[1] / 'src/bullet_drone/assets/heavy_quad/heavy_quad.urdf'
+    (tmp_path / 'quad.urdf').write_bytes(packaged.read_bytes())
+    monkeypatch.chdir(tmp_path)
+
+    settings = DroneSettings(1, (0, 0, 1), urdf='quad.urdf')
+
+    assert load_vehicle_parameters(settings.urdf).max_thrust_per_rotor_n == pytest.approx(30.65625)
+
+
+@pytest.mark.parametrize('urdf', ['', '  ', None, 5])
+def test_invalid_urdf_setting_rejected(urdf):
     with pytest.raises(ConfigurationError, match='drone.urdf'):
-        DroneSettings(1, (0, 0, 1), urdf='unknown')
+        DroneSettings(1, (0, 0, 1), urdf=urdf)
+
+
+@pytest.mark.parametrize('contents', ['not xml', '<robot/>'])
+def test_missing_or_incompatible_custom_urdf_rejected(tmp_path, contents):
+    path = tmp_path / 'custom.urdf'
+    if contents != 'not xml':
+        path.write_text(contents)
+    with pytest.raises(ConfigurationError, match='Invalid vehicle URDF'):
+        load_vehicle_parameters(str(path))
+
+
+def test_missing_custom_urdf_rejected(tmp_path):
+    with pytest.raises(ConfigurationError, match='Invalid vehicle URDF'):
+        load_vehicle_parameters(str(tmp_path / 'missing.urdf'))
 
 
 @pytest.mark.parametrize('profile', ['internal_heavy_quad.yaml', 'betaflight_heavy_quad.yaml'])

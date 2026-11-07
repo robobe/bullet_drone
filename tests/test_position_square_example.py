@@ -1,4 +1,5 @@
 from math import isfinite, dist, hypot
+from pathlib import Path
 import subprocess
 import sys
 from unittest.mock import Mock
@@ -49,7 +50,7 @@ def test_mission_dwell_interruptions_heading_hold_and_landing_home():
     m.command(observation(hold_started+10, (1,2,3)), 1/240)
     assert m.phase == Phase.LAND
     position.velocity.assert_called_with((1,2), (1,2), 1/240)
-    assert altitude.thrust.call_args.args[0] == 0
+    assert altitude.thrust.call_args.args[0] == pytest.approx(.015)
     assert altitude.thrust.call_args.kwargs['velocity_limit_m_s'] == .5
     t = hold_started + 11
     m.command(observation(t, (4,5,.015)), 1/240)  # Wrong pad cannot finish landing.
@@ -207,12 +208,35 @@ def test_failure_and_timeout_cleanup(monkeypatch, stage, failure):
 def test_parser_and_import_safety():
     assert CliParser().parse([]) == DemoOptions(False)
     assert CliParser().parse(['--headless']) == DemoOptions(True)
+    assert CliParser().parse(['--profile', 'custom/iris.yaml']).profile == Path('custom/iris.yaml')
     code = ("from loguru import logger; import sys; "
             "logger.add = logger.remove = lambda *a, **k: (_ for _ in ()).throw(AssertionError('logging')); "
             "import examples.position_square.main; assert 'pybullet' not in sys.modules")
     result = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=10)
     assert result.returncode == 0, result.stderr
     assert result.stdout == result.stderr == ''
+
+
+def test_renderer_metadata_uses_profile_name_and_configured_backend(monkeypatch):
+    from examples.position_square import main as entry
+
+    viewer = Mock()
+    viewer.__enter__ = Mock(return_value=viewer)
+    viewer.__exit__ = Mock(return_value=False)
+    factory = Mock(return_value=viewer)
+    monkeypatch.setattr('external_render.renderer.ExternalRenderer', factory)
+
+    def run_demo(**kwargs):
+        initial = observation()
+        kwargs['on_observation'](initial)
+        return demo.DemoResult(initial, (), ())
+
+    monkeypatch.setattr(demo, 'run_demo', run_demo)
+    profile = Path(__file__).resolve().parents[1] / 'custom/iris.yaml'
+
+    assert entry.main(['--profile', str(profile)]) == 0
+    assert factory.call_args.kwargs['profile_name'] == 'iris'
+    assert factory.call_args.kwargs['backend'] == 'internal'
 
 
 @pytest.mark.parametrize('args,status', [(['--help'], 0), (['--unknown'], 2)])

@@ -86,6 +86,8 @@ The shared Python adapter `external_render/renderer.py` owns startup, image
 readiness, transport, and shutdown for automatic altitude hold and Angle square.
 The Betaflight Acro square intentionally keeps an equivalent adapter inside its
 example so that it shares no example implementation code.
+The viewer profile label shows the active profile and backend (`INTERNAL SIM`
+or `BETAFLIGHT SITL`); YAML-driven runs use the YAML filename as the profile.
 
 For a complete automatic flight, use the
 [standalone altitude-hold example](../examples/altitude_hold_external_render/README.md):

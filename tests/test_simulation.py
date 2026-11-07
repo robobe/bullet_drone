@@ -1,4 +1,5 @@
 from dataclasses import FrozenInstanceError, replace
+from pathlib import Path
 
 import pybullet as p
 import pytest
@@ -167,6 +168,20 @@ def test_racer_model_colors_mass_and_inertia(config):
             assert visuals[links[name]][7] == pytest.approx((0.05, 0.3, 0.9, 1))
         assert all(shape[2] == p.GEOM_MESH for shape in visuals.values())
         assert len(visuals) == 5
+    finally:
+        physics.close()
+
+
+def test_custom_urdf_initializes_pybullet(config, tmp_path):
+    source = Path(__file__).resolve().parents[1] / 'src/bullet_drone/assets/heavy_quad/heavy_quad.urdf'
+    custom_urdf = tmp_path / 'custom_quad.urdf'
+    custom_urdf.write_bytes(source.read_bytes())
+    custom_config = replace(config, drone=replace(config.drone, urdf=str(custom_urdf)))
+    physics = PyBulletPhysics(custom_config)
+    try:
+        state = physics.reset()
+        assert state.position_m == custom_config.drone.initial_position_m
+        assert p.getNumJoints(physics._body, physicsClientId=physics._client) >= 4
     finally:
         physics.close()
 

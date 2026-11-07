@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from importlib.resources import files
 from math import isfinite, pi, sqrt
+from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from bullet_drone.config import ConfigurationError
@@ -45,15 +46,16 @@ VEHICLE_URDFS = {'racer': ('racer', 'racer.urdf'), 'heavy_quad': ('heavy_quad', 
 
 
 def vehicle_urdf_path(name: str = 'racer'):
-    try:
+    if isinstance(name, str) and name in VEHICLE_URDFS:
         directory, filename = VEHICLE_URDFS[name]
-    except (KeyError, TypeError) as exc:
-        raise ConfigurationError(f"unknown vehicle URDF: {name}") from exc
-    return files("bullet_drone").joinpath("assets", directory, filename)
+        return files("bullet_drone").joinpath("assets", directory, filename)
+    if not isinstance(name, str) or not name.strip():
+        raise ConfigurationError("vehicle URDF must be a built-in name or a nonblank path")
+    return Path(name).resolve()
 
 
 def load_vehicle_parameters(name: str = 'racer') -> VehicleParameters:
-    """Read actuator and geometry parameters from a packaged vehicle URDF."""
+    """Read actuator and geometry parameters from a built-in or external URDF."""
     try:
         root = ET.fromstring(vehicle_urdf_path(name).read_bytes())
         properties = root.find("properties")
@@ -71,7 +73,7 @@ def load_vehicle_parameters(name: str = 'racer') -> VehicleParameters:
             max_thrust_per_rotor_n=nominal_mass * 9.81 * float(properties.get("thrust2weight")) / 4,
         )
     except (OSError, ET.ParseError, AttributeError, TypeError, ValueError, OverflowError) as exc:
-        raise ConfigurationError(f"Invalid bundled {name} actuator parameters: {exc}") from exc
+        raise ConfigurationError(f"Invalid vehicle URDF {name!r}: {exc}") from exc
 
 
 def load_racer_parameters() -> VehicleParameters:

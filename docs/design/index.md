@@ -20,6 +20,8 @@
   [sender ownership/config](../../tools/telemetry_sender/README.md).
 - [Drone identity and telemetry](drone-identity-and-telemetry.md): configured
   drone IDs, episode identity, shared header identity and compatibility.
+- [Vehicle URDF selection](vehicle-urdf.md): packaged model aliases, custom
+  four-rotor URDF paths, required asset contract and YAML path resolution.
 - [Position and velocity control](position-control.md): separate XY PID interfaces,
   Z composition, RC mapping, frames, lifecycle and square-flight verification.
 - [Implemented control chain](../forces/drone_control.svg): visual command/feedback flow.
