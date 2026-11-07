@@ -14,6 +14,7 @@ dependencies = [
 [project.optional-dependencies]
 render = ["pyzmq>=27,<28", "bullet-msgs"]
 sitl = ["msp-link"]
+mavlink = ["pymavlink>=2.4,<3"]
 
 [build-system]
 requires = ["uv_build>=0.9.25,<0.10.0"]

@@ -42,6 +42,8 @@
         "render",
         "--extra",
         "sitl",
+        "--extra",
+        "mavlink",
         "python",
         "-m",
         "${input:example}"
@@ -91,6 +93,10 @@
         {
           "label": "Terrain following (Betaflight SITL)",
           "value": "examples.terrain_following_bt.main"
+        },
+        {
+          "label": "Terrain following (MAVLink telemetry, MSP Acro)",
+          "value": "examples.terrain_following_mavlink.main"
         },
         {
           "label": "External RC (app-controlled)",

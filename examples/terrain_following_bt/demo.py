@@ -74,7 +74,7 @@ class DemoResult:
 
 
 def run_demo(*, sitl_binary=DEFAULT_SITL_BINARY, max_duration_s=DEFAULT_MAX_DURATION_S,
-             on_observation=None):
+             on_observation=None, sitl_session_factory=None):
     duration = _number(max_duration_s, 'max_duration_s', positive=True)
     if not TERRAIN_HEIGHTMAP_PATH.is_file():
         raise FileNotFoundError(f'Terrain heightmap is missing: {TERRAIN_HEIGHTMAP_PATH}')
@@ -110,7 +110,7 @@ def run_demo(*, sitl_binary=DEFAULT_SITL_BINARY, max_duration_s=DEFAULT_MAX_DURA
         resources.callback(environment.close)
         backend = BetaflightBackend(vehicle, UdpSitlBridge())
         resources.callback(backend.close)
-        sitl = resources.enter_context(SitlSession(sitl_binary))
+        sitl = resources.enter_context((sitl_session_factory or SitlSession)(sitl_binary))
         observation = environment.reset()
         backend.reset(observation)
         if on_observation is not None:

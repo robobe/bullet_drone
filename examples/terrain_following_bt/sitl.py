@@ -24,7 +24,9 @@ LOG_TAIL_BYTES = 2000
 
 
 class SitlSession:
-    def __init__(self, binary):
+    def __init__(self, binary, *, profile_path=PROFILE_PATH, extra_ports=()):
+        self.profile_path = profile_path
+        self.extra_ports = extra_ports
         self.binary = Path(binary).resolve()
         if not self.binary.is_file() or not os.access(self.binary, os.X_OK):
             raise ValueError('SITL binary missing or not executable. Run tools/setup_betaflight_sitl.sh first.')
@@ -33,6 +35,7 @@ class SitlSession:
 
     def __enter__(self):
         for kind, port in ((socket.SOCK_STREAM, MSP_PORT),
+                           *((socket.SOCK_STREAM, port) for port in self.extra_ports),
                            *((socket.SOCK_DGRAM, port) for port in UDP_PORTS)):
             with socket.socket(socket.AF_INET, kind) as probe:
                 if kind == socket.SOCK_STREAM:
@@ -45,8 +48,8 @@ class SitlSession:
             self.work = tempfile.TemporaryDirectory(prefix='terrain-following-bt-')
             self.log = tempfile.TemporaryFile(mode='w+')
             logger.info('Starting SITL: binary={} profile={} workdir={}',
-                        self.binary, PROFILE_PATH, self.work.name)
-            subprocess.run([str(self.binary), '--config', str(PROFILE_PATH)], cwd=self.work.name,
+                        self.binary, self.profile_path, self.work.name)
+            subprocess.run([str(self.binary), '--config', str(self.profile_path)], cwd=self.work.name,
                            stdout=self.log, stderr=self.log, timeout=STARTUP_TIMEOUT_S, check=True)
             self.process = subprocess.Popen([str(self.binary), '--ip', HOST], cwd=self.work.name,
                                             stdout=self.log, stderr=self.log)
