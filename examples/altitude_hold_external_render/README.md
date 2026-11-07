@@ -33,6 +33,85 @@ Start button is needed. Closing the renderer before completion ends the example
 with an error; Ctrl+C closes both processes. Missing package, unavailable ports,
 startup timeout or runtime failure also releases physics, sockets and the child.
 
+## Observation to render pose
+
+The example first resets the simulation to get its initial observation. On each
+physics step, it gets the next `DroneObservation`, then passes that observation
+to the external renderer adapter. The adapter publishes a selected pose to
+Godot:
+
+```mermaid
+sequenceDiagram
+    participant Mission as Python mission loop
+    participant Simulation as RcSimulation
+    participant Environment as DroneEnvironment
+    participant Physics as PyBullet
+    participant Sensors as Configured sensors
+    participant Adapter as ExternalRenderer
+    participant Publisher as RenderPublisher
+    participant Zmq as ZeroMQ PUB
+    participant Godot as Godot
+
+    Mission->>Simulation: reset()
+    Simulation->>Environment: reset()
+    Environment->>Physics: reset scene
+    Physics-->>Environment: initial DroneState
+    Environment->>Sensors: reset sensors from initial state
+    Sensors-->>Environment: initial sensor readings
+    Environment-->>Simulation: initial DroneObservation
+    Simulation-->>Mission: initial observation
+    Mission->>Adapter: wait_ready(initial observation)
+
+    loop each 240 Hz physics step
+        Mission->>Mission: compute RcInput from latest observation
+        Mission->>Simulation: step(RcInput)
+        Simulation->>Environment: step(rotor command)
+        Environment->>Physics: apply forces and advance
+        Physics-->>Environment: completed DroneState
+        Environment->>Sensors: sample completed state
+        Sensors-->>Environment: current sensor readings
+        Environment-->>Simulation: DroneObservation
+        Simulation-->>Mission: observation
+        Mission->>Adapter: consume(observation)
+        Adapter->>Publisher: consume(observation, source metadata)
+        Publisher->>Publisher: resolve pose and enqueue snapshot
+        Publisher->>Zmq: worker publishes pose
+        Zmq-->>Godot: pose packet
+    end
+
+    Note over Publisher,Godot: Worker publishes at configured render FPS. Packet contains position, orientation, velocity and source identity/time. It omits full observation and sensor readings.
+```
+
+`DroneObservation` contains ground truth and configured sensor readings. The
+render pose packet contains only the selected pose fields, with identity and
+timing metadata. This keeps the render stream separate from full observation
+full sensor observations.
+
+### Click a method to open its source
+
+The nodes in this flowchart link to the corresponding code. Link support
+depends on the Markdown viewer allowing Mermaid links:
+
+```mermaid
+%%{init: {"securityLevel": "loose"}}%%
+flowchart LR
+    Observation["RcSimulation.step()<br/>returns DroneObservation"]
+    Demo["demo.py<br/>reads observation and calls viewer.consume()"]
+    Adapter["ExternalRenderer.consume()"]
+    Publisher["RenderPublisher.consume()"]
+    Pose["resolve_pose()<br/>selects position and orientation"]
+    Packet["ZeroMQ pose packet<br/>render/drone_1/pose"]
+
+    Observation --> Demo --> Adapter --> Publisher --> Pose --> Packet
+
+    click Observation "https://github.com/robobe/bullet_drone/blob/main/src/bullet_drone/simulation.py#L105" "Open RcSimulation.step()" _blank
+    click Demo "https://github.com/robobe/bullet_drone/blob/main/examples/altitude_hold_external_render/demo.py#L73" "Open the observation and viewer calls" _blank
+    click Adapter "https://github.com/robobe/bullet_drone/blob/main/external_render/renderer.py#L97" "Open ExternalRenderer.consume()" _blank
+    click Publisher "https://github.com/robobe/bullet_drone/blob/main/tools/zmq_render/publisher.py#L127" "Open RenderPublisher.consume()" _blank
+    click Pose "https://github.com/robobe/bullet_drone/blob/main/tools/zmq_render/publisher.py#L132" "Open pose selection" _blank
+    click Packet "https://github.com/robobe/bullet_drone/blob/main/tools/zmq_render/publisher.py#L269" "Open ZeroMQ pose publication" _blank
+```
+
 ## Communication
 
 ```mermaid

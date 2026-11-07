@@ -183,7 +183,6 @@ wind:
   # Random seed for repeatable gusts; integer default is 2.
   seed: 2
 
-
 # Select measured or ground-truth values for published pose fields.
 pose_sources:
   # Published altitude source: ground_truth or barometer; ground_truth is the default.
@@ -200,10 +199,10 @@ attitude_estimator:
   # Fraction of gravity magnitude allowed for accelerometer correction; strictly between 0 and 1, default 0.2.
   acceleration_rejection_fraction: 0.2
 
-# Optional heightmap geometry; a null path uses the default flat plane.
+# Local custom heightmap and matching collision mesh in custom/terrain/.
 terrain:
-  # Optional relative float32 little-endian heightmap; null keeps the default flat ground.
-  heightmap_path: null
+  # Relative float32 little-endian heightmap; the adjacent terrain.obj supplies collision geometry.
+  heightmap_path: terrain/terrain_heightmap.f32
   # Terrain width and depth in metres when heightmap_path is set; default 500.
   world_size_m: 500.0
   # Heightmap sample count along world X including both edges; integer default 121.

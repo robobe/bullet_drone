@@ -1,21 +1,12 @@
 # Bullet Drone
 
-This project is a member of the [Bullet workspace](../README.md). All six
-projects share `../.venv` and `../uv.lock`; run uv commands with the
-workspace flags below to retain every project and optional dependency.
-
-A Python quadcopter simulation using PyBullet, configurable aerodynamic forces, PID control,
-and RC Angle/Acro stabilization. The bundled racer model needs no asset downloads.
-The altitude-hold example takes off to 3 m, holds for 10 simulated seconds after
-settling, then lands and disarms.
-
-See the [implemented RC and internal control chain](docs/forces/drone_control.svg)
-for command routing, motor mixing, physics, and ground-truth feedback.
-
-The [force and effect implementation map](docs/forces/force-implementation-map.md)
-reviews the course inventory against this code. Its
-[numbered SVG tips](docs/forces/force-implementation-chain.svg) link each effect
-to its owning stage and table row, marking future models separately.
+Bullet Drone is a quadcopter simulation for exploring physics, flight control,
+sensors, and firmware integration. PyBullet advances the drone and environment
+one fixed step at a time, and each step returns a `DroneObservation` with
+ground-truth state and configured sensor readings. Example programs generate
+commands using either the internal controller or Betaflight SITL. Rendering is
+optional and consumes pose data without owning the physics, so the same
+simulation can run headless or with a viewer.
 
 ## Setup and run
 
@@ -29,6 +20,19 @@ The package is a library. Runnable examples provide their own entry points and
 own their execution loops, pacing, diagnostics, and cleanup. GUI mode uses
 PyBullet's built-in viewer and requires a desktop/X11 display. Headless mode
 needs no display or wall-time pacing. Ctrl+C releases simulation resources.
+
+---
+
+## Examples
+
+| Example | Description |
+| --- | --- |
+| [Altitude hold](#altitude-hold-example) | Internal Angle-mode flight, take off to 3 m, hold, then land. |
+| [Altitude hold with packaged renderer](#altitude-hold-with-the-packaged-renderer) | The altitude-hold mission with the external Godot viewer. |
+| [Betaflight SITL altitude hold](#betaflight-sitl-altitude-hold-example) | Altitude hold using Betaflight firmware for stabilization and motor output. |
+| [Position square](#position-square-example) | Fly a square using internal position and velocity control with Angle mode. |
+| [Acro position square](#acro-position-square-example) | Fly a square using position navigation and Betaflight Acro rate control. |
+| [External RC](docs/design/app-flight-channel.md) | Connect an external app that sends RC commands and receives flight feedback. |
 
 ## Altitude hold example
 
