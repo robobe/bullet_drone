@@ -26,7 +26,7 @@ None. Use existing `RangefinderSettings`, `SensorsSettings`, and `PoseSources` o
 
 ## Status
 
-Implemented and verified; uncommitted.
+Implemented and verified.
 
 - Altitude hold enables `RangefinderSettings` and sets `PoseSources(attitude='imu')`.
 - The altitude-hold usage guide now describes these readings as enabled.
@@ -35,4 +35,4 @@ Implemented and verified; uncommitted.
 
 ## Implementation commit
 
-Pending
+`f932febf8e273be96dd8aa4cc4dcea0a288e4cd3`

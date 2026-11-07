@@ -28,8 +28,8 @@ No library API changes. `RcSimulation` and the existing observation callback are
 
 ## Status
 
-Implemented and verified; uncommitted.
+Implemented and verified.
 
 ## Implementation commit
 
-Pending
+`f932febf8e273be96dd8aa4cc4dcea0a288e4cd3`
