@@ -12,7 +12,7 @@ The example uses the tracked heightmap and collision mesh in `custom/terrain/`.
 World Z is up and positive yaw is counterclockwise. At Y = 0 m the drone takes
 off, turns to +90°, and follows this route to the hilltop before retracing it.
 It holds the +90° heading throughout the route. The uphill leg follows the
-existing +Y route at up to **2 m/s**. A continuous lookahead target replaces the
+existing +Y route at up to **3 m/s**. A continuous 4 m lookahead target replaces the
 stop-and-settle behavior at intermediate points. At the crest, a 4 m radius
 half-circle turns the path onto a return lane 8 m to the +X side; the return
 curve merges back to home near the bottom. The speed remains subject to the

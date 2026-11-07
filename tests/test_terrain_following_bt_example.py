@@ -111,6 +111,16 @@ def test_mission_follows_continuous_route_without_settling_at_waypoints():
     assert value.path_progress_m == pytest.approx(value.path_distance_m[-1])
 
 
+
+def test_straight_route_lookahead_requests_three_metres_per_second():
+    value = mission()
+    value.position = PositionController(demo.POSITION_PID)
+    value.reset(observation())
+    target = value._lookahead_target()
+    velocity = value.position.velocity(target, (0.0, 0.0), DT_S)
+    assert velocity == pytest.approx((0.0, 3.0))
+
+
 def test_invalid_or_stale_rangefinder_aborts_without_ground_truth_fallback():
     value = mission()
     invalid = observation(valid=False)

@@ -1,6 +1,6 @@
 # Smooth Betaflight terrain following
 
-Status: Pending implementation. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `abfc209b89962e49f4097139abbac96ee7247fb2`.
 
 ## Goal
 
@@ -18,7 +18,11 @@ No public library interface changes. The terrain-following example's internal ro
 
 ## Verification
 
-Run the focused example tests, Ruff, CLI/task checks, and paced headless and NVIDIA-rendered Betaflight SITL flights. Verify no intermediate waypoint dwell, successful return and landing, and record clearance and path tracking.
+- `uv run --locked --extra sitl pytest -q tests/test_terrain_following_bt_example.py` — 7 passed.
+- Ruff, CLI help, VS Code task JSON, and `git diff --check` passed.
+- Headless SITL completed the continuous climb, crest turn, offset return, landing, and disarm in 111.483 simulated seconds.
+- NVIDIA-rendered SITL completed the same route in 110.446 simulated seconds; renderer reported zero queue drops.
+- Flight status showed clearance near 3 m, including brief readings around 2.9 m in the crest turn. The example does not aggregate the exact minimum.
 
 ## Scope and defaults
 
@@ -26,4 +30,4 @@ Keep the 3 m rangefinder clearance target, +90 degree yaw target, current terrai
 
 ## Implementation commit
 
-Pending.
+`abfc209b89962e49f4097139abbac96ee7247fb2`

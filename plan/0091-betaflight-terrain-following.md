@@ -1,6 +1,6 @@
 # Betaflight SITL terrain following
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified; committed. Implementation commit: `abfc209b89962e49f4097139abbac96ee7247fb2`.
 
 ## Goal
 
@@ -31,4 +31,4 @@ Use the tracked custom terrain assets, racer vehicle, 240 Hz physics, current Be
 
 ## Implementation commit
 
-Pending.
+`abfc209b89962e49f4097139abbac96ee7247fb2`
