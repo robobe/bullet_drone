@@ -26,7 +26,7 @@ None. The guide uses `examples.altitude_hold.demo.run_demo(on_observation=...)` 
 
 ## Status
 
-Implemented and verified; uncommitted.
+Implemented and verified.
 
 - Headless altitude-hold CLI completed successfully.
 - The documented callback printed 7,879 observations, from reset at step 0 through step 7,878, including ground truth, IMU, and barometer data.
@@ -34,4 +34,4 @@ Implemented and verified; uncommitted.
 
 ## Implementation commit
 
-Pending
+`fd94104ab616445eee14e45a47e1ff92a3591f8c`
