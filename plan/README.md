@@ -74,3 +74,4 @@
 - [0069: Godot installation](0069-godot-installation.md) — Implemented and verified; pinned editor, matching export templates, and local verification documented; uncommitted, implementation commit Pending.
 - [0070: Betaflight Acro square render](0070-betaflight-acro-square-render.md) — Implemented and verified; independent headless and NVIDIA viewer SITL flights completed; 729 broad-suite passes with two unrelated missing/stale-fixture failures; uncommitted, implementation commit Pending.
 - [0071: Acro PID control chain](0071-acro-pid-control-chain.md) — Implemented and verified; Mermaid and SVG rendered; uncommitted, implementation commit Pending.
+- [0072: Position square control chain](0072-position-square-control-chain.md) — Implemented and verified; two Mermaid-rendered SVGs separate navigation and mixer stages, with feedback mapped in a table; uncommitted, implementation commit Pending.

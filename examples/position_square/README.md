@@ -206,3 +206,40 @@ landing. No Start button is needed. The Betaflight Acro square also runs one
 automatic mission with its own viewer and SITL process. Direct `run_demo()` calls still support an
 optional control adapter and PyBullet GUI for existing Python callers.
 See [transport ownership](../../docs/design/zmq-rendering.md).
+
+## Control signal chain
+
+The diagrams follow the default Angle-mode example from waypoint targets through
+the navigation cascades, RC translation, internal stabilization, and the motor
+mixer. They are split into navigation and mixer stages so each signal label is
+readable. Navigation runs in the example mission; attitude/rate stabilization
+and mixing run inside `RcSimulation`.
+
+### Navigation cascades
+
+![XY and altitude cascades](control-navigation.svg)
+
+### RC, stabilization, and mixer
+
+![RC command to motor mixer](control-mixer.svg)
+
+Every measured value below comes from the latest PyBullet ground-truth
+observation; these controllers do not use noisy sensor samples.
+
+| Controller stage | Target / command input | Feedback input | Output |
+| --- | --- | --- | --- |
+| XY position PID ×2 | Waypoint XY position (m) | Ground-truth XY position (m) | XY velocity target (m/s), limited to 1 m/s vector magnitude |
+| XY velocity PID ×2 | Velocity target (m/s) | Ground-truth XY velocity (m/s) | World XY acceleration (m/s²), limited to 1.5 m/s² per axis |
+| Altitude position PID | Target altitude (m) | Ground-truth altitude (m) | Vertical speed target (m/s), limited to 1 m/s in flight and 0.5 m/s landing |
+| Vertical velocity PID | Vertical speed target (m/s) | Ground-truth vertical speed (m/s) | Vertical acceleration (m/s²) |
+| Yaw-aware force conversion | World XY acceleration and vertical thrust | Ground-truth yaw | Roll/pitch targets (rad), collective thrust (N) with tilt compensation |
+| Heading hold P | Heading captured at reset (rad) | Ground-truth yaw (rad) | Yaw-rate target (rad/s), gain 4 s⁻¹ |
+| Angle P | Roll/pitch targets (rad) | Ground-truth orientation | Body-rate targets (rad/s), limited to 2 rad/s per axis |
+| Body-rate PID ×3 | Body-rate targets (rad/s) | Ground-truth body rates (rad/s) | Roll/pitch/yaw torque (N·m), limited to 0.1 N·m per axis |
+| Motor mixer | Collective thrust (N) and body torque (N·m) | None | Four motor speed targets (rad/s), bounded by motor limits |
+
+The mission encodes roll/pitch angle, yaw rate, thrust, and arm state as 18 RC
+channels. Software RC decoding turns those channels back into an angle-mode
+command. Collective thrust goes directly to the mixer; the Angle P and body-rate
+PID stages produce the torque corrections that the mixer allocates across the
+four motors.

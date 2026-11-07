@@ -1,0 +1,19 @@
+flowchart TB
+    subgraph XY[XY position loop]
+        XYInput["XY waypoint + measured position<br/>input: position in m"] -->|position error in m| XYPos["Position PID ×2<br/>output: velocity target in m/s<br/>limit: 1 m/s vector"]
+        XYPos -->|velocity target| XYVel["Velocity PID ×2<br/>input: measured XY velocity in m/s<br/>output: acceleration in m/s²<br/>limit: 1.5 m/s² per axis"]
+        XYVel -->|world acceleration in m/s²| Tilt["Yaw-aware force conversion<br/>input: acceleration + measured yaw<br/>output: roll and pitch targets in rad<br/>tilt limit: 15°"]
+    end
+    subgraph Z[Vertical altitude loop]
+        ZInput["Altitude target + measured Z<br/>input: altitude in m"] -->|altitude error in m| ZPos["Altitude PID<br/>output: vertical-speed target in m/s<br/>limit: 1 m/s climb, 0.5 m/s landing"]
+        ZPos -->|target + measured Vz in m/s| ZVel["Vertical-velocity PID<br/>output: acceleration in m/s²<br/>limit: 3 m/s²"]
+        ZVel -->|acceleration + gravity| Thrust["Gravity and tilt compensation<br/>output: collective thrust in N"]
+    end
+    Heading["Held heading + measured yaw in rad<br/>P gain: 4 s⁻¹<br/>output: yaw-rate target in rad/s"]
+
+    classDef input fill:#f1f5f9,stroke:#64748b,stroke-width:2px,color:#172033;
+    classDef controller fill:#e8f2ff,stroke:#3478c8,stroke-width:2px,color:#172033;
+    classDef output fill:#e9f7ef,stroke:#399565,stroke-width:2px,color:#172033;
+    class XYInput,ZInput input;
+    class XYPos,XYVel,ZPos,ZVel controller;
+    class Tilt,Thrust,Heading output;

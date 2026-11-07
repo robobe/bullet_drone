@@ -1,0 +1,14 @@
+flowchart TB
+    RC["Mission + RC codec<br/>roll/pitch angles in rad<br/>yaw rate in rad/s<br/>collective thrust in N, arm state<br/>output: 18 PWM channels"] --> Decode["Software RC decode<br/>PWM channels → angle-mode command"]
+    Decode --> Angle["Angle P controller<br/>angle target − measured attitude<br/>output: body-rate targets in rad/s<br/>limit: 2 rad/s per axis"]
+    Angle --> Rate["Body-rate PID ×3<br/>rate target − measured body rates<br/>output: torque in N·m<br/>limit: 0.1 N·m per axis"]
+    Decode -->|collective thrust bypasses PIDs| Mixer["MotorMixer<br/>collective thrust + body torque"]
+    Rate -->|roll, pitch, yaw torque| Mixer
+    Mixer --> Motors["Four motor speed targets<br/>in rad/s → PyBullet physics"]
+
+    classDef command fill:#f1eaff,stroke:#8056bc,stroke-width:2px,color:#172033;
+    classDef controller fill:#fff1df,stroke:#dc8428,stroke-width:2px,color:#172033;
+    classDef output fill:#e9f7ef,stroke:#399565,stroke-width:2px,color:#172033;
+    class RC,Decode command;
+    class Angle,Rate controller;
+    class Mixer,Motors output;
