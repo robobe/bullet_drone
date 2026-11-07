@@ -1,6 +1,6 @@
 # Remove Bullet Drone telemetry and recording output
 
-Status: Implemented and verified; uncommitted. Implementation commit: `9fdb8375300743d92f83f77b8a072bc070207d8b`.
+Status: Implemented and verified. Implementation commit: `9fdb8375300743d92f83f77b8a072bc070207d8b`.
 
 ## Goal
 
