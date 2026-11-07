@@ -1,6 +1,6 @@
 # Custom drone ID renderer compatibility
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified. Implementation commit: `13cecd004545235fffb78fdfa840e59f7902e361`.
 
 ## Goal
 
@@ -29,4 +29,4 @@ single-drone render pose uses the viewer's established `drone_1` slot.
 
 ## Implementation commit
 
-Pending.
+`13cecd004545235fffb78fdfa840e59f7902e361`

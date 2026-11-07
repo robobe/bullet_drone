@@ -1,6 +1,6 @@
 # PX4 Iris custom URDF profile
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified. Implementation commit: `13cecd004545235fffb78fdfa840e59f7902e361`.
 
 ## Goal
 
@@ -32,4 +32,4 @@ sign convention.
 
 ## Implementation commit
 
-Pending.
+`13cecd004545235fffb78fdfa840e59f7902e361`

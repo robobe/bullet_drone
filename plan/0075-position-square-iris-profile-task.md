@@ -1,6 +1,6 @@
 # Position square with PX4 Iris profile
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified. Implementation commit: `13cecd004545235fffb78fdfa840e59f7902e361`.
 
 ## Goal
 
@@ -12,7 +12,7 @@ Add a VS Code task that launches the position-square example using
 1. Allow the position-square example to accept an optional simulation profile.
 2. Use profile mass, gravity, initial position, rotor model and RC mapping when
    a profile is supplied, keeping current defaults otherwise.
-3. Add the profile-backed choice to the existing VS Code example picker.
+3. Add a dedicated VS Code task for the profile-backed run.
 4. Tune the external-profile navigation path and use the spawn altitude for
    landing so the Iris mission completes on its taller body.
 5. Verify CLI parsing, task JSON, affected tests and a full headless flight.
@@ -33,4 +33,4 @@ existing external-render flow. Stock example settings remain the default.
 
 ## Implementation commit
 
-Pending.
+`13cecd004545235fffb78fdfa840e59f7902e361`

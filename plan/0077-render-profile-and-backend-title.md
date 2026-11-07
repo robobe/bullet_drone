@@ -1,6 +1,8 @@
 # Render profile and backend title
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified. Implementation commits: bullet_drone
+`13cecd004545235fffb78fdfa840e59f7902e361`, bullet_render
+`268d40c4a306450027cd4bcfb60893927975e992`.
 
 ## Goal
 
@@ -33,4 +35,5 @@ without extension, or the example name when no YAML profile is supplied.
 
 ## Implementation commit
 
-Pending.
+bullet_drone: `13cecd004545235fffb78fdfa840e59f7902e361`
+bullet_render: `268d40c4a306450027cd4bcfb60893927975e992`

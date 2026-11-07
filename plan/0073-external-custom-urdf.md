@@ -1,6 +1,6 @@
 # External custom URDF loading
 
-Status: Implemented and verified; uncommitted. Implementation commit: Pending.
+Status: Implemented and verified. Implementation commit: `13cecd004545235fffb78fdfa840e59f7902e361`.
 
 ## Goal
 
@@ -36,4 +36,4 @@ No CLI changes, arbitrary rotor layouts, or separate actuator configuration.
 
 ## Implementation commit
 
-Pending.
+`13cecd004545235fffb78fdfa840e59f7902e361`
