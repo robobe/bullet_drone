@@ -13,6 +13,8 @@
   with packet tables and SVG drawings.
 - [Standalone Betaflight altitude hold](../../examples/altitde_hold_bt/README.md):
   independent mission, MSP RC, owned firmware lifecycle and PyBullet execution.
+- [Betaflight SITL terrain following](../../examples/terrain_following_bt/README.md):
+  rangefinder-based 3 m terrain clearance, Acro rate control, and owned firmware lifecycle.
 - [Drone identity](drone-identity.md): configured drone IDs and per-reset episode
   identity.
 - [Vehicle URDF selection](vehicle-urdf.md): packaged model aliases, custom

@@ -32,6 +32,7 @@ needs no display or wall-time pacing. Ctrl+C releases simulation resources.
 | [Betaflight SITL altitude hold](#betaflight-sitl-altitude-hold-example) | Altitude hold using Betaflight firmware for stabilization and motor output. | Betaflight SITL |
 | [Position square](#position-square-example) | Fly a square using internal position and velocity control with Angle mode. | Internal |
 | [Acro position square](#acro-position-square-example) | Fly a square using position navigation and Betaflight Acro rate control. | Betaflight SITL |
+| [Terrain following](examples/terrain_following_bt/README.md) | Follow uneven ground at 3 m rangefinder clearance and return to home. | Betaflight SITL |
 | [External RC](docs/design/app-flight-channel.md) | Connect an external app that sends RC commands and receives flight feedback. | Betaflight SITL |
 
 ## Altitude hold example

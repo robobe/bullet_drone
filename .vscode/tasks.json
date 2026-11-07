@@ -59,7 +59,7 @@
         "panel": "dedicated",
         "clear": true
       },
-      "detail": "Automatic examples start immediately. External-render choices open packaged Godot; Betaflight altitude and Acro square need built SITL. External RC needs the app."
+      "detail": "Automatic examples start immediately. External-render choices open packaged Godot; Betaflight examples need built SITL. External RC needs the app."
     }
   ],
   "inputs": [
@@ -87,6 +87,10 @@
         {
           "label": "Position square (Acro)",
           "value": "examples.position_square_acro.main"
+        },
+        {
+          "label": "Terrain following (Betaflight SITL)",
+          "value": "examples.terrain_following_bt.main"
         },
         {
           "label": "External RC (app-controlled)",
