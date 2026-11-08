@@ -107,3 +107,5 @@
 - [0097: Separate protocol libraries](0097-remove-bullet-msgs.md) — Implemented and verified; 574 repository tests and 111 extracted contract tests passed; uncommitted; implementation commit Pending.
 
 - [0098: Example-owned MSP](0098-remove-msp-link.md) — Implemented and verified; 582 passed, 3 skipped and real headless altitude-hold flight completed; uncommitted; implementation commit Pending.
+
+- [0099: README render diagram](0099-readme-render-diagram.md) — Implemented and verified with Mermaid CLI; uncommitted; implementation commit Pending.

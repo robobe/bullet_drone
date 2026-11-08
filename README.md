@@ -25,6 +25,31 @@ needs no display or wall-time pacing. Ctrl+C releases simulation resources.
 
 ## Examples
 
+```mermaid
+flowchart LR
+    subgraph Python["Python simulation process"]
+        direction LR
+        Sim["Simulation<br/>Physics + sensors"]
+        Wrapper["ExternalRenderer wrapper<br/>Receives observation"]
+        Publisher["RenderPublisher<br/>Selects pose + serializes JSON"]
+        Sim -->|DroneObservation| Wrapper
+        Wrapper -->|Observation| Publisher
+    end
+
+    subgraph Godot["Godot renderer process"]
+        direction LR
+        Receiver["Receives pose + attitude"]
+        Scene["Updates drone + camera pose"]
+        Receiver --> Scene
+    end
+
+    Publisher -->|"ZeroMQ + JSON<br/>Position + attitude quaternion"| Receiver
+```
+
+The simulation produces observations. The ExternalRenderer wrapper passes them
+to RenderPublisher, which selects position and attitude and sends JSON to Godot
+over ZeroMQ. Godot updates the drone and camera pose without importing Python.
+
 | Example | Description | Control backend |
 | --- | --- | --- |
 | [Altitude hold](#altitude-hold-example) | Internal Angle-mode flight, take off to 3 m, hold, then land. | Internal |
