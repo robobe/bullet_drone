@@ -42,3 +42,5 @@ library interfaces rather than reconstructing those missing records.
 - [MAVLink terrain monitor](../../examples/terrain_following_mavlink/README.md): separate MAVLink telemetry connection with shared MSP Acro mission. The terrain runner accepts an optional SITL session factory; the base session accepts a profile path and additional reserved TCP ports.
 
 - [Local protocol libraries](../../libs/README.md): simulation contracts and independent image transport, packaged as separate wheels.
+
+- [Rendered takeoff and SHM image viewer](../../examples/takeoff_image_viewer/README.md): separate camera process with bounded frame polling and owned lifecycle.

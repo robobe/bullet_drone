@@ -109,3 +109,9 @@
 - [0098: Example-owned MSP](0098-remove-msp-link.md) — Implemented and verified; 582 passed, 3 skipped and real headless altitude-hold flight completed; uncommitted; implementation commit Pending.
 
 - [0099: README render diagram](0099-readme-render-diagram.md) — Implemented and verified with Mermaid CLI; uncommitted; implementation commit Pending.
+
+- [0100: Rendered takeoff and image viewer](0100-rendered-takeoff-image-viewer.md) — Implemented and verified; 22 tests and desktop flight passed; uncommitted; implementation commit Pending.
+
+- [0101: Camera viewer FPS](0101-camera-viewer-fps.md) — Implemented and verified; 8 tests and desktop idle check passed; uncommitted; implementation commit Pending.
+
+- [0102: Takeoff viewer task](0102-takeoff-viewer-task.md) — Implemented and verified; uncommitted; implementation commit Pending.

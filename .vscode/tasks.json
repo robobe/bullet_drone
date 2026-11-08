@@ -79,6 +79,10 @@
           "value": "examples.altitude_hold_external_render.main"
         },
         {
+          "label": "Takeoff (external renderer + SHM camera viewer with FPS)",
+          "value": "examples.takeoff_image_viewer.main"
+        },
+        {
           "label": "Altitude hold (Betaflight SITL)",
           "value": "examples.altitde_hold_bt.main"
         },
