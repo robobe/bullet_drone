@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 
 from loguru import logger
-from msp_link import Client, FlightCommands, MspError, TcpTransport
+from examples.common.msp import Client, FlightCommands, MspError, TcpTransport
 
 
 PROFILE_PATH = Path(__file__).resolve().parents[2] / 'configs/betaflight.config'

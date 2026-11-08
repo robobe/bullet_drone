@@ -22,7 +22,7 @@ uv run --locked --extra sitl python -m examples.altitde_hold_bt.main --help
 ```
 
 Or use **Tasks: Run Task → Bullet: Run example → Altitude hold (Betaflight SITL)**.
-The `sitl` extra supplies the existing workspace `msp-link` library. There is no
+The TCP MSP client lives in `examples/common/msp`; the empty `sitl` extra is retained for command compatibility. There is no
 Godot/ZeroMQ requirement. The normal `altitude_hold` example remains independent
 and uses the internal controller.
 

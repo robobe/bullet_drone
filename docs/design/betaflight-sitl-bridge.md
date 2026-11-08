@@ -293,3 +293,11 @@ process, waits for the first matching image, and then starts one automatic missi
 Upstream facts were checked against the local firmware checkout's **Git HEAD**.
 The rebuilt checkout has no tracked source changes. Sibling links require the shared
 workspace; the packet/adapter reference is contained in this repository.
+
+## Example-owned MSP client
+
+SITL examples use `examples.common.msp` for TCP MSP requests, RC streaming,
+firmware identification and feedback. This standard-library-only helper preserves
+MSP framing, deadlines, reconnect and cleanup behavior. Serial transport is excluded.
+The core physics bridge remains independent of MSP. The `sitl` extra is retained
+as an empty compatibility extra; examples do not require the sibling msp-link package.

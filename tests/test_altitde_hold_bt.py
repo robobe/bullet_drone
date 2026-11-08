@@ -181,11 +181,10 @@ def test_no_code_imports_from_other_examples_or_apps():
                      [alias.name for alias in node.names] if isinstance(node, ast.Import) else [])
             for name in names:
                 assert not name.startswith(('bullet_app', 'tools.zmq_render', 'zmq'))
-                assert not name.startswith('examples.') or name.startswith('examples.altitde_hold_bt.'), (path, name)
+                assert not name.startswith('examples.') or name.startswith(('examples.altitde_hold_bt.', 'examples.common.msp')), (path, name)
 
 
 def test_missing_binary_fails_before_physics(tmp_path, monkeypatch):
-    pytest.importorskip('msp_link')
     from examples.altitde_hold_bt import demo
     physics = Mock()
     monkeypatch.setattr(demo, 'PyBulletPhysics', physics)
@@ -195,7 +194,6 @@ def test_missing_binary_fails_before_physics(tmp_path, monkeypatch):
 
 
 def test_occupied_port_does_not_start_firmware(tmp_path, monkeypatch):
-    pytest.importorskip('msp_link')
     from examples.altitde_hold_bt import sitl
     binary = tmp_path / 'firmware'
     binary.write_text('#!/bin/sh\nexit 0\n')
@@ -212,7 +210,6 @@ def test_occupied_port_does_not_start_firmware(tmp_path, monkeypatch):
 
 
 def test_session_stops_process_and_removes_workdir_on_startup_error(tmp_path, monkeypatch):
-    pytest.importorskip('msp_link')
     from examples.altitde_hold_bt import sitl
     binary = tmp_path / 'firmware'
     binary.write_text('#!/bin/sh\nexit 0\n')
@@ -235,7 +232,6 @@ def test_session_stops_process_and_removes_workdir_on_startup_error(tmp_path, mo
 
 
 def test_firmware_log_tail_does_not_move_the_shared_write_offset(tmp_path):
-    pytest.importorskip('msp_link')
     from examples.altitde_hold_bt.sitl import SitlSession
     binary = tmp_path / 'firmware'
     binary.write_text('#!/bin/sh\nexit 0\n')
@@ -258,7 +254,6 @@ def test_firmware_log_tail_does_not_move_the_shared_write_offset(tmp_path):
     ('timeout', None), ('mission', RuntimeError('firmware disarmed')),
 ])
 def test_loop_closes_physics_backend_and_session_on_failure_or_timeout(monkeypatch, stage, failure):
-    pytest.importorskip('msp_link')
     from examples.altitde_hold_bt import demo
     session = MagicMock()
     session.__enter__.return_value = session
@@ -299,7 +294,6 @@ def test_loop_closes_physics_backend_and_session_on_failure_or_timeout(monkeypat
 @pytest.mark.parametrize('stall_s', [0.0, INJECTED_STALL_S])
 @pytest.mark.skipif(os.environ.get('BULLET_RUN_SITL') != '1', reason='Opt-in real paced SITL flight')
 def test_live_headless_flight_and_cleanup(monkeypatch, stall_s):
-    pytest.importorskip('msp_link')
     from examples.altitde_hold_bt import demo
     sessions = []
     original = demo.SitlSession
@@ -333,7 +327,6 @@ def test_live_headless_flight_and_cleanup(monkeypatch, stall_s):
 
 
 def test_stalled_loop_spaces_fdm_packets_instead_of_bursting_to_catch_up(monkeypatch):
-    pytest.importorskip('msp_link')
     from examples.altitde_hold_bt import demo
     now = [0.0]
     sent_at = []

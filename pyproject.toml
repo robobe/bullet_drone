@@ -13,7 +13,7 @@ dependencies = [
 
 [project.optional-dependencies]
 render = ["pyzmq>=27,<28", "bullet-simulation-protocol", "bullet-image-transport"]
-sitl = ["msp-link"]
+sitl = []
 mavlink = ["pymavlink>=2.4,<3"]
 
 [build-system]
@@ -33,4 +33,3 @@ dev = [
 [tool.uv.sources]
 bullet-simulation-protocol = { workspace = true }
 bullet-image-transport = { workspace = true }
-msp-link = { workspace = true }
