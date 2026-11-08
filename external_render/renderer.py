@@ -47,6 +47,8 @@ class ExternalRenderer:
             for name in ('image_endpoint', 'control_endpoint'):
                 address = urlsplit(self.transport[name])
                 with socket.socket() as probe:
+                    # Match ZeroMQ reuse semantics for recently closed TCP connections.
+                    probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     try:
                         probe.bind((address.hostname, address.port))
                     except OSError as error:

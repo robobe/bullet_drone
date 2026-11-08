@@ -183,3 +183,25 @@ def test_cli_help_and_errors_do_not_start_physics(arguments, status):
     assert result.returncode == status, result.stderr
     assert 'pybullet build time' not in result.stderr
     assert CliParser().parse([]) == DemoOptions()
+
+
+@pytest.mark.parametrize('endpoint', ['image_endpoint', 'control_endpoint'])
+@pytest.mark.parametrize('acro', [False, True])
+def test_renderer_preflight_accepts_closed_connection_in_time_wait(profile, tmp_path, monkeypatch, endpoint, acro):
+    from examples.position_square_acro.renderer import ExternalRenderer as AcroRenderer
+    adapter = AcroRenderer if acro else ExternalRenderer
+    config, transport = profile
+    address = ('127.0.0.1', int(transport[endpoint].rsplit(':', 1)[1]))
+    with socket.socket() as listener:
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(address)
+        listener.listen()
+        with socket.create_connection(address, timeout=1) as client:
+            connection, _ = listener.accept()
+            connection.close()
+            assert client.recv(1) == b''
+    start = Mock()
+    monkeypatch.setattr(adapter, '_start_zmq', start)
+    monkeypatch.setattr(adapter, '_start_godot', Mock())
+    with adapter(executable(tmp_path, 'pass\n'), config):
+        start.assert_called_once()

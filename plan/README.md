@@ -115,3 +115,7 @@
 - [0101: Camera viewer FPS](0101-camera-viewer-fps.md) — Implemented and verified; 8 tests and desktop idle check passed; uncommitted; implementation commit Pending.
 
 - [0102: Takeoff viewer task](0102-takeoff-viewer-task.md) — Implemented and verified; uncommitted; implementation commit Pending.
+
+- [0103: Rendered wind controls](0103-rendered-wind-ui.md) — Implemented and verified; 24 tests and desktop wind-update flight passed; uncommitted; implementation commit Pending.
+
+- [0104: Renderer TIME_WAIT restart](0104-renderer-port-time-wait.md) — Implemented and verified; 35 passed, 1 skipped and two consecutive real renderer starts passed; uncommitted; implementation commit Pending.

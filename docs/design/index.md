@@ -44,3 +44,5 @@ library interfaces rather than reconstructing those missing records.
 - [Local protocol libraries](../../libs/README.md): simulation contracts and independent image transport, packaged as separate wheels.
 
 - [Rendered takeoff and SHM image viewer](../../examples/takeoff_image_viewer/README.md): separate camera process with bounded frame polling and owned lifecycle.
+
+- [Live wind UI example](../../examples/wind_control/README.md): example-owned wind editor, step-boundary application and renderer wind-state publication.
