@@ -119,3 +119,7 @@
 - [0103: Rendered wind controls](0103-rendered-wind-ui.md) — Implemented and verified; 24 tests and desktop wind-update flight passed; uncommitted; implementation commit Pending.
 
 - [0104: Renderer TIME_WAIT restart](0104-renderer-port-time-wait.md) — Implemented and verified; 35 passed, 1 skipped and two consecutive real renderer starts passed; uncommitted; implementation commit Pending.
+
+- [0105: Wind flow diagram](0105-wind-flow-diagram.md) — Implemented and verified with Mermaid CLI; uncommitted; implementation commit Pending.
+
+- [0106: Viewer windsock](0106-viewer-windsock.md) — Implemented and verified; rebuilt viewer, Godot checks, 24 Python checks and live screenshot passed; uncommitted; implementation commit Pending.
