@@ -320,7 +320,7 @@ its existing ideal feedback. For library publisher callers, pass
 Render and app attitude use the same estimate and original source stamp. Stopped
 publication reuses cached values without integrating time or drawing new noise.
 The flight config advertises `attitude_model=imu_complementary` when selected,
-otherwise `ideal`. Deploy the updated shared `bullet_msgs` contract with publisher
+otherwise `ideal`. Deploy the updated shared `bullet_simulation_protocol` contract with publisher
 and app. The old standalone UDP/render-profile API is unchanged.
 
 No position estimator or magnetometer is modeled. Selected noisy render poses

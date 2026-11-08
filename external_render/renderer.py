@@ -12,8 +12,8 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 import zmq
-from bullet_msgs import load_transport
-from bullet_msgs.shm import FrameReader, SLOTS, slot_name, topic_prefix
+from bullet_simulation_protocol import load_transport
+from bullet_image_transport.shm import FrameReader, SLOTS, slot_name, topic_prefix
 
 from tools.zmq_render.publisher import RenderPublisher
 

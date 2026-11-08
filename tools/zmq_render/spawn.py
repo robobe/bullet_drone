@@ -1,8 +1,8 @@
 """External-runner spawn transaction bookkeeping, independent of physics internals."""
 from collections import OrderedDict
 
-from bullet_msgs.control import COMMAND_MAX_AGE_S, HEARTBEAT_TIMEOUT_S
-from bullet_msgs.spawn import validate_request, DEFAULT_TAKEOFF_HEIGHT_M
+from bullet_simulation_protocol.control import COMMAND_MAX_AGE_S, HEARTBEAT_TIMEOUT_S
+from bullet_simulation_protocol.spawn import validate_request, DEFAULT_TAKEOFF_HEIGHT_M
 
 MAX_REQUEST_HISTORY = 128
 

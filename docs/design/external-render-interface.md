@@ -58,7 +58,7 @@ transport file path. Startup readiness requires an image whose `stream_id` and
 Every ZeroMQ message is multipart: the first frame is a UTF-8 topic and the
 second frame is a UTF-8 JSON object. The publisher emits the following topics
 on the telemetry endpoint. Topic contracts shared with the renderer live in
-`bullet_msgs`.
+`bullet_simulation_protocol`.
 
 | Topic | Publisher cadence | Main fields and purpose |
 | --- | --- | --- |
@@ -83,7 +83,7 @@ blocking the simulation, and `publisher_drops` reports these replacements.
 Godot sends image descriptors on `camera/front/image`. The descriptor contains
 frame metadata, including the publisher stream/episode source and a shared-memory
 session/slot reference. Pixel bytes are stored in one of three POSIX shared
-memory slots and read through `bullet_msgs.shm.FrameReader`; the image bytes do
+memory slots and read through `bullet_image_transport.shm.FrameReader`; the image bytes do
 not travel in ZeroMQ. A frame is ready for the example only when its source
 matches the active stream and episode. The adapter tracks slots created by its
 owned Godot process and unlinks those slots during cleanup.

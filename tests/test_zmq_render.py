@@ -124,7 +124,7 @@ def test_real_tcp_periodic_config_pose_and_binding_cleanup(tmp_path):
                     continue
                 break
             assert topic == b'render/drone_1/config'
-            from bullet_msgs import schema_bytes
+            from bullet_simulation_protocol import schema_bytes
             validate(json.loads(payload), json.loads(schema_bytes('config.json')))
             assert json.loads(payload)['camera']['width_px'] == 640
             while subscriber.poll(0):

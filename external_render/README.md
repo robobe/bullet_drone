@@ -52,7 +52,7 @@ From the `bullet_drone` repository:
 uv run --locked python external_render/build.py
 ```
 
-Build requirements: the sibling `bullet_render`, `bullet_msgs` and `terrain`
+Build requirements: the sibling `bullet_render`, `bullet_simulation_protocol` and `terrain`
 checkouts, CMake/Ninja, a C++ compiler, libzmq development files, Godot 4.7.2 and
 its matching Linux export templates. The script uses the existing native CMake
 build; it never installs system tools or upgrades pinned dependencies.

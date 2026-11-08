@@ -3,7 +3,7 @@ import json
 import time
 
 import zmq
-from bullet_msgs.scenario import COLLISION_TOPIC
+from bullet_simulation_protocol.scenario import COLLISION_TOPIC
 from tools.zmq_render.scenario import ScenarioTermination
 
 

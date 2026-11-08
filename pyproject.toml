@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-render = ["pyzmq>=27,<28", "bullet-msgs"]
+render = ["pyzmq>=27,<28", "bullet-simulation-protocol", "bullet-image-transport"]
 sitl = ["msp-link"]
 mavlink = ["pymavlink>=2.4,<3"]
 
@@ -31,5 +31,6 @@ dev = [
 ]
 
 [tool.uv.sources]
-bullet-msgs = { workspace = true }
+bullet-simulation-protocol = { workspace = true }
+bullet-image-transport = { workspace = true }
 msp-link = { workspace = true }

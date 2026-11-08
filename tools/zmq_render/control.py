@@ -4,9 +4,9 @@ from uuid import uuid4
 
 import zmq
 from loguru import logger
-from bullet_msgs import load_transport
-from bullet_msgs.scenario import COLLISION_TOPIC, validate_collision
-from bullet_msgs.control import (COMMAND_TOPIC, HEARTBEAT_TOPIC, HEARTBEAT_TIMEOUT_S,
+from bullet_simulation_protocol import load_transport
+from bullet_simulation_protocol.scenario import COLLISION_TOPIC, validate_collision
+from bullet_simulation_protocol.control import (COMMAND_TOPIC, HEARTBEAT_TOPIC, HEARTBEAT_TIMEOUT_S,
     COMMAND_MAX_AGE_S, STATE_INTERVAL_S, MAX_CONTROL_BYTES, decode_json, validate_command)
 
 POLL_TIMEOUT_MS = 25
@@ -39,10 +39,10 @@ class SimulationControl:
             for topic in (COMMAND_TOPIC, HEARTBEAT_TOPIC):
                 self.socket.setsockopt(zmq.SUBSCRIBE, topic)
             if spawn is not None:
-                from bullet_msgs.spawn import REQUEST_TOPIC
+                from bullet_simulation_protocol.spawn import REQUEST_TOPIC
                 self.socket.setsockopt(zmq.SUBSCRIBE, REQUEST_TOPIC)
             if wind is not None:
-                from bullet_msgs.wind import REQUEST_TOPIC
+                from bullet_simulation_protocol.wind import REQUEST_TOPIC
                 self.socket.setsockopt(zmq.SUBSCRIBE, REQUEST_TOPIC)
             if scenario is not None:
                 self.socket.setsockopt(zmq.SUBSCRIBE, COLLISION_TOPIC)
@@ -81,7 +81,7 @@ class SimulationControl:
             except zmq.Again:
                 break
             if self.wind is not None:
-                from bullet_msgs.wind import REQUEST_TOPIC
+                from bullet_simulation_protocol.wind import REQUEST_TOPIC
                 if len(parts) == 2 and parts[0] == REQUEST_TOPIC:
                     try:
                         if self.wind.accept(decode_json(parts[1]), self):
@@ -90,7 +90,7 @@ class SimulationControl:
                         pass
                     continue
             if self.spawn is not None:
-                from bullet_msgs.spawn import REQUEST_TOPIC
+                from bullet_simulation_protocol.spawn import REQUEST_TOPIC
                 if len(parts) == 2 and parts[0] == REQUEST_TOPIC:
                     try:
                         if self.spawn.accept(decode_json(parts[1]), self):

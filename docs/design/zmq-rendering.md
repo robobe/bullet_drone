@@ -24,7 +24,7 @@ once a wall-clock second for late subscribers.
 Topics: render/drone_1/config and render/drone_1/pose. Pose v2 messages contain position,
 body-to-world XYZW orientation, world ground-truth `linear_velocity_m_s` ([vx, vy, vz]
 in m/s, Z up), drone/episode/stream identity, step, simulation time,
-sequence and publisher_drops. Shared schemas are packaged by sibling bullet_msgs; renderer/recorder
+sequence and publisher_drops. Shared schemas are packaged by local bullet_simulation_protocol; renderer/recorder
 profiles remain in sibling bullet_render. No physics dependencies leak into the native adapter.
 
 Godot requests are latest-only, never acknowledged back to physics. The existing
@@ -35,7 +35,7 @@ port 5556; image pixels use three nonblocking, flock-protected POSIX SHM slots
 from bullet_msgs. Scenery is visual only and does not alter Bullet contacts. See
 the sibling `bullet_render` README for its own viewer and consumer workflows.
 
-The image wire format replaces the old socket-pixel format. See ../bullet_msgs/README.md
+The image wire format replaces the old socket-pixel format. See ../../libs/README.md
 from the projects directory for the shared protocol. The video_viewer sibling uv
 project shows one live topic. Capture cadence and the config schema remain unchanged.
 Pose v2 requires velocity from the same immutable ground-truth state for both

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import click
 from loguru import logger
-from bullet_msgs import load_transport
+from bullet_simulation_protocol import load_transport
 from bullet_drone.config import ConfigurationError, DroneSettings, SimulationConfig, SimulationSettings, WindSettings, YamlConfigLoader
 from bullet_drone.pose import resolve_pose
 from bullet_drone.simulation import RcSimulation

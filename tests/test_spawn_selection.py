@@ -7,8 +7,8 @@ from unittest.mock import Mock
 import pytest
 import zmq
 
-from bullet_msgs.control import HEARTBEAT_TOPIC
-from bullet_msgs.spawn import REQUEST_TOPIC
+from bullet_simulation_protocol.control import HEARTBEAT_TOPIC
+from bullet_simulation_protocol.spawn import REQUEST_TOPIC
 from tools.zmq_render.control import SimulationControl
 from tools.zmq_render.spawn import SpawnSelection
 

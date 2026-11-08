@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bullet-image-transport"
+version = "0.1.0"
+requires-python = ">=3.12"
+description = "Wire-compatible Bullet image transport"
+dependencies = ["bullet-simulation-protocol"]
+
+[tool.uv.sources]
+bullet-simulation-protocol = { path = "../bullet_simulation_protocol", editable = true }

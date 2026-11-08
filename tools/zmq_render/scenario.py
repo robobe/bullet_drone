@@ -3,7 +3,7 @@ from collections import deque
 from copy import deepcopy
 import time
 
-from bullet_msgs.scenario import COLLISION_MAX_AGE_S, validate_collision, validate_end
+from bullet_simulation_protocol.scenario import COLLISION_MAX_AGE_S, validate_collision, validate_end
 
 
 HISTORY_CAPACITY = 241

@@ -8,7 +8,7 @@ from unittest.mock import Mock
 import pytest
 import zmq
 
-from bullet_msgs.control import COMMAND_TOPIC, HEARTBEAT_TOPIC
+from bullet_simulation_protocol.control import COMMAND_TOPIC, HEARTBEAT_TOPIC
 from tools.zmq_render.control import SimulationControl
 
 

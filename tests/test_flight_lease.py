@@ -4,7 +4,7 @@ import time
 import pytest
 import zmq
 from tools.zmq_render.flight import FlightLease, FlightReceiver
-from bullet_msgs.flight import RC_TOPIC
+from bullet_simulation_protocol.flight import RC_TOPIC
 
 
 def packet(**changes):

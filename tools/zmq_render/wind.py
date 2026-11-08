@@ -2,8 +2,8 @@
 from collections import OrderedDict
 from dataclasses import asdict
 
-from bullet_msgs.control import COMMAND_MAX_AGE_S, HEARTBEAT_TIMEOUT_S
-from bullet_msgs.wind import validate_request
+from bullet_simulation_protocol.control import COMMAND_MAX_AGE_S, HEARTBEAT_TIMEOUT_S
+from bullet_simulation_protocol.wind import validate_request
 
 MAX_REQUEST_HISTORY = 128
 

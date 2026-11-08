@@ -15,7 +15,7 @@ from examples.altitude_hold_external_render.demo_cli import CliParser, DemoOptio
 from examples.altitude_hold_external_render.mission import Phase
 from external_render.renderer import ExternalRenderer
 from external_render.build import bundle_dependencies
-from bullet_msgs.shm import SLOTS, slot_name
+from bullet_image_transport.shm import SLOTS, slot_name
 
 
 def observation():

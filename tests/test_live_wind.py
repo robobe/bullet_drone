@@ -16,8 +16,8 @@ from bullet_drone.simulation import RcSimulation
 from examples.position_square.demo import FLIGHT_CONTROL_SETTINGS
 from tools.zmq_render.control import SimulationControl
 from tools.zmq_render.wind import WindControl
-from bullet_msgs.wind import REQUEST_TOPIC, validate_state
-from bullet_msgs.control import HEARTBEAT_TOPIC
+from bullet_simulation_protocol.wind import REQUEST_TOPIC, validate_state
+from bullet_simulation_protocol.control import HEARTBEAT_TOPIC
 
 
 def test_live_edits_and_snapshot_reads_preserve_gust_history():

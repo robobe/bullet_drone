@@ -103,3 +103,5 @@
 - [0095: MAVLink terrain monitor](0095-mavlink-terrain.md) — Separate MSP Acro flight with MAVLink monitoring; implemented and verified with tests and headless/rendered flights, implementation commit Pending.
 
 - [0096: MAVLink terrain task](0096-mavlink-terrain-task.md) — Existing VS Code example picker option; implemented and verified, implementation commit Pending.
+
+- [0097: Separate protocol libraries](0097-remove-bullet-msgs.md) — Implemented and verified; 574 repository tests and 111 extracted contract tests passed; uncommitted; implementation commit Pending.

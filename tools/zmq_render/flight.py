@@ -2,7 +2,7 @@
 import time
 
 import zmq
-from bullet_msgs.flight import RC_TOPIC, MAX_FLIGHT_BYTES, decode, validate_rc
+from bullet_simulation_protocol.flight import RC_TOPIC, MAX_FLIGHT_BYTES, decode, validate_rc
 
 
 POLL_LIMIT = 64
