@@ -123,3 +123,7 @@
 - [0105: Wind flow diagram](0105-wind-flow-diagram.md) — Implemented and verified with Mermaid CLI; uncommitted; implementation commit Pending.
 
 - [0106: Viewer windsock](0106-viewer-windsock.md) — Implemented and verified; rebuilt viewer, Godot checks, 24 Python checks and live screenshot passed; uncommitted; implementation commit Pending.
+
+- [0107: Protocol topic reference](0107-simulation-protocol-readme.md) — Implemented and verified; uncommitted; implementation commit Pending.
+
+- [0108: Image transport reference](0108-image-transport-readme.md) — Implemented and verified; uncommitted; implementation commit Pending.
