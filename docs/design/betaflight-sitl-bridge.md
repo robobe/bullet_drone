@@ -236,9 +236,10 @@ processing sensors. None of these mechanisms is an acknowledgement/retry layer.
 
 Run `tools/setup_betaflight_sitl.sh` to fetch the pinned upstream release, verify
 its commit, clean old SITL build artifacts and compile without project patches or
-`SITL_SENSOR_ONLY`. The binary path stays
-`.sitl/betaflight-source/obj/main/betaflight_SITL.elf`, so the managed launcher uses
-the rebuilt firmware without a new backend option. Do not rebuild while a
+`SITL_SENSOR_ONLY`. Successful builds install an executable copy at
+`bin/betaflight_SITL.elf`; source and compiler outputs remain under `.sitl/`.
+The MAVLink setup script installs its distinct build at
+`bin/betaflight_mavlink_SITL.elf`. Failed builds retain the previous installed copy. Do not rebuild while a
 managed SITL session is running; start a new session afterward to import the
 updated profile.
 

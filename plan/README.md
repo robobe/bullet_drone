@@ -127,3 +127,5 @@
 - [0107: Protocol topic reference](0107-simulation-protocol-readme.md) — Implemented and verified; uncommitted; implementation commit Pending.
 
 - [0108: Image transport reference](0108-image-transport-readme.md) — Implemented and verified; uncommitted; implementation commit Pending.
+
+- [0109: SITL bin paths](0109-sitl-bin.md) — Implemented and verified; 51 passed, 3 skipped, real flight and MAVLink startup passed; uncommitted; implementation commit Pending.

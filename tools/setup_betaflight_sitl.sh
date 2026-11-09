@@ -38,4 +38,10 @@ if [[ ! -x "$binary" ]]; then
     echo "SITL build completed without $binary" >&2
     exit 1
 fi
-echo "SITL ready: $binary"
+mkdir -p "$repo_root/bin"
+installed_binary="$repo_root/bin/betaflight_SITL.elf"
+staged_binary="$(mktemp "$repo_root/bin/.sitl-install.XXXXXX")"
+trap 'rm -f "$staged_binary"' EXIT
+install -m 755 "$binary" "$staged_binary"
+mv -f "$staged_binary" "$installed_binary"
+echo "SITL ready: $installed_binary"

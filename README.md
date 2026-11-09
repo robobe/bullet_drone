@@ -80,6 +80,10 @@ sequence and state-flow diagrams, and verification.
 
 ## Betaflight SITL altitude hold example
 
+Setup installs runnable firmware at `bin/betaflight_SITL.elf`. The MAVLink
+variant uses `bin/betaflight_mavlink_SITL.elf`. Sources and compiler outputs
+remain under `.sitl/`; `--sitl-binary PATH` overrides the installed default.
+
 `altitde_hold_bt` independently flies the same 3 m takeoff, 10-second hold and
 landing mission with Betaflight stabilization/motor mixing and PyBullet physics.
 It owns the firmware process and uses no Godot or other example code.

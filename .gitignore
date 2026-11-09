@@ -19,3 +19,7 @@ htmlcov/
 .godot/
 
 .sitl/
+
+# Installed SITL firmware
+/bin/*.elf
+/bin/.sitl-install.*

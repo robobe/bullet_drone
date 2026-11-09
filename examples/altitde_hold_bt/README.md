@@ -27,7 +27,7 @@ Godot/ZeroMQ requirement. The normal `altitude_hold` example remains independent
 and uses the internal controller.
 
 The default executable is
-`.sitl/betaflight-source/obj/main/betaflight_SITL.elf`; override it with
+`bin/betaflight_SITL.elf`; override it with
 `--sitl-binary /path/to/betaflight_SITL.elf`. A missing binary fails with the build
 command rather than triggering an implicit firmware build. GUI mode requires a
 desktop display. **Both GUI and headless mode limit FDM sends to 240 Hz** for

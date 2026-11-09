@@ -8,7 +8,7 @@ import click
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SITL_BINARY = PROJECT_ROOT / '.sitl/betaflight-mavlink-source/obj/main/betaflight_SITL.elf'
+DEFAULT_SITL_BINARY = PROJECT_ROOT / 'bin/betaflight_mavlink_SITL.elf'
 DEFAULT_RENDER_CONFIG = PROJECT_ROOT / 'external_render/configs/physics.json'
 DEFAULT_RENDERER = PROJECT_ROOT / 'external_render/dist/linux-x86_64/render'
 

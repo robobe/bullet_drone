@@ -5,7 +5,7 @@ from pathlib import Path
 import click
 
 
-DEFAULT_SITL_BINARY = Path(__file__).resolve().parents[2] / '.sitl/betaflight-source/obj/main/betaflight_SITL.elf'
+DEFAULT_SITL_BINARY = Path(__file__).resolve().parents[2] / 'bin/betaflight_SITL.elf'
 
 
 @dataclass(frozen=True)
