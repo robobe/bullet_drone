@@ -37,7 +37,7 @@
       "command": "uv",
       "args": [
         "run",
-        "--locked",
+        "--frozen",
         "--extra",
         "render",
         "--extra",
@@ -105,6 +105,10 @@
         {
           "label": "Terrain following (MAVLink telemetry, MSP Acro)",
           "value": "examples.terrain_following_mavlink.main"
+        },
+        {
+          "label": "GPS point-to-point (400 m, MAVLink feedback, MSP Acro)",
+          "value": "examples.gps_point_to_point_mavlink.main"
         },
         {
           "label": "External RC (app-controlled)",

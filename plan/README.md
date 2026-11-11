@@ -132,4 +132,10 @@
 
 - [0110: simulated GPS](0110-simulated-gps.md) — Optional geographic GPS and independent barometer FDM, preserving local rendering; implemented and verified, 627 full-suite tests passed plus targeted and live SITL checks; uncommitted; implementation commit Pending.
 
-- [0111: GPS point-to-point](0111-gps-point-to-point.md) — Standalone MAVLink feedback flight; planned, implementation pending; implementation commit Pending.
+- [0111: GPS point-to-point](0111-gps-point-to-point.md) — Standalone 400 m MAVLink feedback flight; implemented and verified with 644 tests plus headless/rendered flights; implementation commit Pending.
+
+- [0112: GPS task option](0112-gps-task-option.md) — Add GPS flight to Run example picker; implemented and verified; implementation commit Pending.
+
+- [0113: Global GPS logging](0113-global-gps-logging.md) — Show geographic coordinates alongside ENU; implemented and verified; implementation commit Pending.
+
+- [0114: GPS distance and speed](0114-gps-distance-speed.md) — Destination distance logs and ramped 5 m/s cruise; implemented and verified with focused tests and full headless flight; implementation commit Pending.

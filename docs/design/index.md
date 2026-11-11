@@ -46,3 +46,5 @@ library interfaces rather than reconstructing those missing records.
 - [Rendered takeoff and SHM image viewer](../../examples/takeoff_image_viewer/README.md): separate camera process with bounded frame polling and owned lifecycle.
 
 - [Live wind UI example](../../examples/wind_control/README.md): example-owned wind editor, step-boundary application and renderer wind-state publication.
+
+- [GPS point-to-point MAVLink feedback](../../examples/gps_point_to_point_mavlink/README.md): standalone 400 m GPS line flight, terrain-map landing, firmware telemetry feedback and MSP Acro commands.

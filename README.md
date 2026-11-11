@@ -61,6 +61,7 @@ over ZeroMQ. Godot updates the drone and camera pose without importing Python.
 | [Acro position square](#acro-position-square-example) | Fly a square using position navigation and Betaflight Acro rate control. | Betaflight SITL |
 | [Terrain following](examples/terrain_following_bt/README.md) | Follow uneven ground at 3 m rangefinder clearance and return to home. | Betaflight SITL |
 | [Terrain following with MAVLink](examples/terrain_following_mavlink/README.md) | Monitor Betaflight MAVLink telemetry while commanding Acro flight over MSP. | Betaflight SITL |
+| [GPS point-to-point with MAVLink](examples/gps_point_to_point_mavlink/README.md) | Fly 400 m using firmware GPS/attitude feedback, then land on mapped terrain. | Betaflight SITL |
 | [External RC](docs/design/app-flight-channel.md) | Connect an external app that sends RC commands and receives flight feedback. | Betaflight SITL |
 
 ## Altitude hold example
