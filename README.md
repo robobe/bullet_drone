@@ -296,3 +296,9 @@ stepping, or live during flight. Start, Reset and spawn changes retain settings
 and restart gust history; restarting physics reloads YAML defaults. The spectator
 windsock shows actual mean-plus-gust velocity and is excluded from drone images.
 See [runtime wind behavior](docs/design/aerodynamics.md#runtime-wind-updates).
+
+GPS is opt-in through `sensors.gps` with a required geographic world origin.
+See [GPS configuration and measurement semantics](docs/design/sensors.md#opt-in-gps)
+and the [GPS-enabled Betaflight example](examples/altitde_hold_bt/README.md#optional-gps).
+The default GPS-disabled FDM behavior is unchanged; full GPS uses a separately
+built compatible firmware variant to preserve independent barometer pressure.

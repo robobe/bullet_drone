@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import click
+from bullet_drone.config import ConfigurationError, GpsSettings
 
 
 DEFAULT_SITL_BINARY = Path(__file__).resolve().parents[2] / 'bin/betaflight_SITL.elf'
@@ -12,6 +13,7 @@ DEFAULT_SITL_BINARY = Path(__file__).resolve().parents[2] / 'bin/betaflight_SITL
 class DemoOptions:
     headless: bool = False
     sitl_binary: Path = DEFAULT_SITL_BINARY
+    gps_settings: GpsSettings = GpsSettings()
 
 
 class CliParser:
@@ -20,7 +22,13 @@ class CliParser:
         @click.option('--headless', is_flag=True, help='Disable the PyBullet window; SITL remains paced.')
         @click.option('--sitl-binary', default=DEFAULT_SITL_BINARY,
                       type=click.Path(dir_okay=False, path_type=Path), help='Prebuilt Betaflight 2026.6.2 SITL executable.')
-        def command(headless, sitl_binary):
+        @click.option('--gps-origin', type=(float, float, float), default=None,
+                      help='Enable GPS: latitude deg, longitude deg, MSL altitude m of local world zero. Requires --gps firmware.')
+        def command(headless, sitl_binary, gps_origin):
             """Take off to 3 m, hold for 10 s and land using Betaflight SITL."""
-            return DemoOptions(headless, sitl_binary)
+            try:
+                gps = GpsSettings(True, *gps_origin) if gps_origin is not None else GpsSettings()
+            except ConfigurationError as error:
+                raise click.BadParameter(str(error), param_hint='--gps-origin') from error
+            return DemoOptions(headless, sitl_binary, gps)
         return command.main(args=argv, prog_name='altitde-hold-bt', standalone_mode=False)

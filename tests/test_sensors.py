@@ -6,7 +6,7 @@ import pytest
 import yaml
 
 from bullet_drone.commands import InvalidCommandError, RcInput
-from bullet_drone.config import (BarometerSettings, ConfigurationError, ImuSettings,
+from bullet_drone.config import (BarometerSettings, ConfigurationError, GpsSettings, ImuSettings,
                                  SensorsSettings, YamlConfigLoader)
 from bullet_drone.contracts import LifecycleError
 from bullet_drone.controllers import InternalControlSettings, PidSettings
@@ -208,7 +208,8 @@ def test_sensor_observations_and_noisy_physics_independence(config):
                                     BarometerSettings(pressure_stddev_pa=NOISE_STDDEV))
     disabled_settings = SensorsSettings(ImuSettings(enabled=False), BarometerSettings(enabled=False))
     results = []
-    for settings in (SensorsSettings(), noisy_settings, disabled_settings,
+    for settings in (SensorsSettings(), SensorsSettings(gps=GpsSettings(True, 32., 35., 100.)),
+                     noisy_settings, disabled_settings,
                      SensorsSettings(imu=ImuSettings(enabled=False)),
                      SensorsSettings(barometer=BarometerSettings(enabled=False)),
                      YamlConfigLoader().load('configs/basic.yaml').sensors):
@@ -225,6 +226,11 @@ def test_sensor_observations_and_noisy_physics_independence(config):
                         assert reading is None
                     else:
                         assert (reading.episode_id, reading.step_index, reading.simulation_time_s) == (source.episode_id, source.step_index, source.simulation_time_s)
+                gps = observation.sensors.gps
+                assert (gps is not None) == settings.gps.enabled
+                if gps is not None:
+                    assert gps.altitude_m == pytest.approx(settings.gps.origin_altitude_m + source.position_m[2])
+                    assert (gps.episode_id, gps.step_index, gps.simulation_time_s) == (source.episode_id, source.step_index, source.simulation_time_s)
                 rangefinder = observation.sensors.rangefinder
                 if rangefinder is not None:
                     assert (rangefinder.episode_id, rangefinder.step_index,

@@ -10,7 +10,7 @@ here it names the binary state/sensor packet, not a second physics engine.
 This reference describes the **upstream Gazebo-compatible target** at Betaflight
 2026.6.2, commit `e0b7bb01b17b21351057e9ead2d1ab39dd44fa16`, and the current
 Python encoder. It does not require Gazebo: Bullet supplies the same wire layout.
-The setup script builds **unmodified upstream firmware**, as recorded in
+By default the setup script builds **unmodified upstream firmware**, as recorded in
 [plan 0054](../../plan/0054-remove-sitl-patch.md). The former sensor-only patch and
 its build flag have been removed. Packet compatibility alone does not establish
 that flight works end to end; verification results are recorded below.
@@ -38,7 +38,7 @@ commands do not travel inside FDM, and FDM contains no arming or flight-mode fla
 
 ## Simulation sensors → FDM fields
 
-`pack_fdm(observation)` takes a `DroneObservation`: immutable ground truth plus
+`pack_fdm(observation, gps_enabled=False)` takes a `DroneObservation`: immutable ground truth plus
 sensor readings. IMU and barometer must both be present, with episode, step and
 simulation time matching ground truth. Noise, bias and configured filtering are
 already applied by the sensor classes; encoding does not add them again.
@@ -68,12 +68,12 @@ In the table, `state = observation.ground_truth`,
 | 8 | 64 | `imu_orientation_quat[1]` | `state.orientation_xyzw[0]` → `x` | dimensionless |
 | 9 | 72 | `imu_orientation_quat[2]` | `-state.orientation_xyzw[1]` → `-y` | dimensionless |
 | 10 | 80 | `imu_orientation_quat[3]` | `-state.orientation_xyzw[2]` → `-z` | dimensionless |
-| 11 | 88 | `velocity_xyz[0]` | `state.linear_velocity_m_s[0]` | m/s |
-| 12 | 96 | `velocity_xyz[1]` | `state.linear_velocity_m_s[1]` | m/s |
-| 13 | 104 | `velocity_xyz[2]` | `state.linear_velocity_m_s[2]` | m/s |
-| 14 | 112 | `position_xyz[0]` | `0.0` placeholder | — |
-| 15 | 120 | `position_xyz[1]` | `0.0` placeholder | — |
-| 16 | 128 | `position_xyz[2]` | `h_wire`, derived from `barometer.pressure_pa` below | m |
+| 11 | 88 | `velocity_xyz[0]` | Truth X, or GPS east velocity when enabled | m/s |
+| 12 | 96 | `velocity_xyz[1]` | Truth Y, or GPS north velocity when enabled | m/s |
+| 13 | 104 | `velocity_xyz[2]` | Truth Z, or GPS up velocity when enabled | m/s |
+| 14 | 112 | `position_xyz[0]` | `0.0`, or GPS longitude when enabled | degrees |
+| 15 | 120 | `position_xyz[1]` | `0.0`, or GPS latitude when enabled | degrees |
+| 16 | 128 | `position_xyz[2]` | `h_wire` from pressure, or GPS MSL altitude when enabled | m |
 | 17 | 136 | `pressure` | `barometer.pressure_pa` | Pa |
 
 ### IMU axes and firmware conversion
@@ -81,7 +81,8 @@ In the table, `state = observation.ground_truth`,
 Simulation body axes are **FLU: X forward, Y left, Z up**. The world is Z-up;
 vectors in `state.linear_velocity_m_s` stay in the simulation world frame.
 The Gazebo protocol interprets velocity as ENU when virtual GPS is enabled, but
-the bridge does not georeference the world or supply real longitude/latitude.
+the default GPS-disabled bridge supplies zero longitude/latitude placeholders.
+The opt-in GPS path defines X east, Y north and transmits geographic coordinates.
 
 The accelerometer measures specific force `Rᵀ(a_world − gravity_world)`, not
 world acceleration. The gyro measures body angular rate. The wire sign changes
@@ -100,8 +101,9 @@ virtual accelerometer receives approximately `(0, 0, +256)` counts. Free fall
 reports approximately zero specific force. Reset assumes zero world acceleration
 because there is no preceding velocity interval.
 
-The packet quaternion and velocity are **ground truth**, not noisy IMU estimates.
-Their presence does not mean the firmware always uses them. The upstream target
+The packet quaternion and default velocity are **ground truth**, not noisy IMU estimates.
+With GPS enabled, velocity comes from the ideal GPS reading.
+Their presence does not mean the firmware always uses them. The default upstream target
 is intended to keep the real IMU estimator, disable GPS/magnetometer feedback,
 and avoid direct-attitude injection. Build options still matter:
 
@@ -302,3 +304,52 @@ firmware identification and feedback. This standard-library-only helper preserve
 MSP framing, deadlines, reconnect and cleanup behavior. Serial transport is excluded.
 The core physics bridge remains independent of MSP. The `sitl` extra is retained
 as an empty compatibility extra; examples do not require the sibling msp-link package.
+
+## Opt-in GPS FDM
+
+Build the compatible variants explicitly:
+
+```bash
+tools/setup_betaflight_sitl.sh --gps
+tools/setup_betaflight_mavlink_sitl.sh --gps
+```
+
+The optional second argument selects an existing clean source checkout. Defaults
+use separate `.sitl/betaflight-gps-source` and `.sitl/betaflight-mavlink-gps-source`
+directories. Installed binaries are `bin/betaflight_gps_SITL.elf` and
+`bin/betaflight_mavlink_gps_SITL.elf`. The scripts temporarily apply
+`tools/patches/bullet-gps-fdm.patch`, build with `BULLET_GPS_FDM`, and reverse the
+patch on success or failure. Dirty sources are refused; installation is atomic
+and failed builds preserve the previously installed executable. The patch is
+pinned to the same upstream commit as the default build.
+
+The change keeps Gazebo IMU/attitude conventions, accepts GPS coordinates without
+horizontal mirroring, and takes barometer pressure from field 17 independently
+of GPS altitude. It does not change the 144-byte packet layout. The binary emits
+and contains `BULLET_GPS_FDM_V1` as its compatibility marker.
+
+Pair enabled GPS with `configs/betaflight-gps.config` or
+`configs/betaflight-mavlink-gps.config` (virtual receiver), the corresponding GPS
+binary, and `pack_fdm(observation, gps_enabled=True)`. `RcSimulation` selects the
+encoder flag from sensor configuration. Missing/stale GPS readings are rejected,
+as are accidental GPS readings passed to the default encoder. Managed example
+sessions check binary/profile/settings pairing before starting. Direct library
+users who own an external firmware process must call `validate_gps_firmware`
+from `bullet_drone.betaflight.firmware` before launching it; UDP FDM has no
+capability negotiation and cannot identify a separately launched binary.
+
+With GPS disabled, retain the default upstream binary and GPS-disabled profile:
+position X/Y are zero and Z encodes measured barometer pressure exactly as before.
+With GPS enabled, position is `[longitude_deg, latitude_deg, altitude_MSL_m]`,
+velocity is measured `[east, north, up]` m/s, and pressure remains independent.
+Physics and renderer positions remain local metres.
+
+In this pinned firmware, `VFR_HUD.alt` comes from the relative altitude estimator,
+whose GPS/barometer offsets reset on arming transitions. It therefore represents
+estimated height relative to the arming baseline, despite the MAVLink field's
+standard MSL description. Raw GPS altitude remains MSL. This example's outer
+altitude mission still uses ground-truth world Z, not VFR_HUD feedback.
+
+Run repeatable live coordinate, course, pressure independence and restart checks
+with `BULLET_TEST_GPS_SITL=1 uv run pytest tests/test_gps_sitl.py`. These checks
+require both GPS binaries built and the simulation ports free.

@@ -42,6 +42,15 @@ rc:
 
 # Measurement models; enabling these readings does not change physics ground truth.
 sensors:
+  gps:
+    # Optional GPS switch, defaults to false; existing firmware profile has GPS disabled.
+    enabled: false
+    # World-zero latitude degrees in [-85, 85]; null is allowed only while GPS is disabled.
+    origin_latitude_deg: null
+    # World-zero longitude degrees in [-180, 180]; null is allowed only while GPS is disabled.
+    origin_longitude_deg: null
+    # World-zero MSL altitude metres; null is allowed only while GPS is disabled.
+    origin_altitude_m: null
   # Accelerometer and gyroscope noise, bias, filtering and repeatable seed.
   imu:
     # Enable IMU readings; true is the default and false returns no IMU reading.

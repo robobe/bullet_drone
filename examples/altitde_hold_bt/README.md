@@ -168,3 +168,17 @@ the real upstream binary with and without repeated 40 ms observer stalls,
 measures the 10-second hover against ground truth and checks teardown of the
 firmware process, MSP worker and private working directory. A fake-clock test
 also verifies that blocked work never produces back-to-back catch-up FDM sends.
+
+## Optional GPS
+
+```bash
+tools/setup_betaflight_sitl.sh --gps
+uv run python -m examples.altitde_hold_bt.main --headless \
+  --sitl-binary bin/betaflight_gps_SITL.elf --gps-origin 32 35 100
+```
+
+`--gps-origin` supplies the latitude degrees, longitude degrees and MSL altitude
+metres of local world zero. Replace these example coordinates with your intended
+origin. The demo selects `configs/betaflight-gps.config` and rejects incompatible
+binaries. Spawn and the 3 m world-Z flight target stay local. GPS does not change
+the outer controller's feedback. See [GPS FDM compatibility](../../docs/design/betaflight-sitl-bridge.md#opt-in-gps-fdm).

@@ -6,6 +6,7 @@ import socket
 import subprocess
 import tempfile
 
+from bullet_drone.betaflight.firmware import validate_gps_firmware
 from loguru import logger
 from examples.common.msp import Client, FlightCommands, MspError, TcpTransport
 
@@ -23,10 +24,12 @@ LOG_TAIL_BYTES = 2000
 
 
 class SitlSession:
-    def __init__(self, binary):
+    def __init__(self, binary, *, profile_path=PROFILE_PATH, gps_enabled=False):
+        self.profile_path = profile_path
         self.binary = Path(binary).resolve()
         if not self.binary.is_file() or not os.access(self.binary, os.X_OK):
             raise ValueError('SITL binary missing or not executable. Run tools/setup_betaflight_sitl.sh first.')
+        validate_gps_firmware(self.binary, self.profile_path, gps_enabled=gps_enabled)
         self.process = self.client = self.work = self.log = None
         self.commands = None
 
@@ -43,8 +46,8 @@ class SitlSession:
             self.work = tempfile.TemporaryDirectory(prefix='altitde-hold-bt-')
             self.log = tempfile.TemporaryFile(mode='w+')
             logger.info('Starting SITL: binary={} profile={} workdir={}',
-                        self.binary, PROFILE_PATH, self.work.name)
-            subprocess.run([str(self.binary), '--config', str(PROFILE_PATH)], cwd=self.work.name,
+                        self.binary, self.profile_path, self.work.name)
+            subprocess.run([str(self.binary), '--config', str(self.profile_path)], cwd=self.work.name,
                            stdout=self.log, stderr=self.log, timeout=STARTUP_TIMEOUT_S, check=True)
             self.process = subprocess.Popen([str(self.binary), '--ip', HOST], cwd=self.work.name,
                                             stdout=self.log, stderr=self.log)

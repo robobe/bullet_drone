@@ -1,5 +1,7 @@
 """One RC request per physics step; the caller owns the execution loop."""
 
+from functools import partial
+
 from bullet_drone.attitude import AttitudeEstimator
 from bullet_drone.commands import HighLevelCommand, InvalidCommandError, RcInput, MotorAllocation
 from bullet_drone.composition import FlightCommandProvider, validate_control_backend
@@ -8,7 +10,7 @@ from bullet_drone.contracts import LifecycleError, MotorDynamics, PropellerModel
 from bullet_drone.controllers import IdealStateFeedback, InternalControlSettings, InternalFlightController
 from bullet_drone.environment import DroneEnvironment
 from bullet_drone.rc import RcCodec, SoftwareRc
-from bullet_drone.sensors import BarometerSensor, ImuSensor, RangefinderSensor
+from bullet_drone.sensors import BarometerSensor, GpsSensor, ImuSensor, RangefinderSensor
 from bullet_drone.mixer import MotorMixer
 from bullet_drone.models import DroneObservation
 from bullet_drone.physics import PyBulletPhysics
@@ -41,7 +43,9 @@ class RcSimulation:
             if config.rc != RcSettings() or stabilization is not None:
                 raise ConfigurationError('Betaflight requires the default RC mapping and firmware stabilization')
             self._rc = None
-            self._provider = BetaflightBackend(vehicle, UdpSitlBridge())
+            from bullet_drone.betaflight.fdm import pack_fdm
+            self._provider = BetaflightBackend(vehicle, UdpSitlBridge(),
+                encoder=partial(pack_fdm, gps_enabled=config.sensors.gps.enabled))
         else:
             self._rc = SoftwareRc(RcCodec(4 * vehicle.max_thrust_per_rotor_n,
                                            control_settings.max_rates_rad_s, config.rc))
@@ -57,6 +61,7 @@ class RcSimulation:
                        if config.sensors.barometer.enabled else None),
             rangefinder=(RangefinderSensor(self._physics, config.sensors.rangefinder)
                          if config.sensors.rangefinder.enabled else None),
+            gps=GpsSensor(config.sensors.gps) if config.sensors.gps.enabled else None,
             attitude_estimator=(AttitudeEstimator(config.simulation.gravity_m_s2, config.attitude_estimator)
                                 if config.pose_sources.attitude == 'imu' else None))
         self._observation: DroneObservation | None = None

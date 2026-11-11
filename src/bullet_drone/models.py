@@ -61,12 +61,26 @@ class RangefinderReading:
 
 
 @dataclass(frozen=True, slots=True)
+class GpsReading:
+    """Geographic position (MSL altitude) and east/north/up velocity in SI units."""
+
+    episode_id: str
+    step_index: int
+    simulation_time_s: float
+    latitude_deg: float
+    longitude_deg: float
+    altitude_m: float
+    velocity_enu_m_s: Vector3
+
+
+@dataclass(frozen=True, slots=True)
 class SensorReadings:
     """Completed measurements; None means the sensor is not configured."""
 
     imu: ImuReading | None = None
     barometer: BarometerReading | None = None
     rangefinder: RangefinderReading | None = None
+    gps: GpsReading | None = None
 
 
 @dataclass(frozen=True, slots=True)

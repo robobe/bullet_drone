@@ -34,6 +34,7 @@ DEFAULT_WAKE_MAXIMUM_SPEED_M_S = 20.0
 DEFAULT_WAKE_BODY_SAMPLE_OFFSET_M = (0.0, 0.0, -0.03)
 DEFAULT_WIND_CORRELATION_TIME_S = 1.0
 DEFAULT_WIND_SEED = 2
+MAX_GPS_ORIGIN_LATITUDE_DEG = 85.0
 DEFAULT_RANGEFINDER_MAX_RANGE_M = 50.0
 DEFAULT_RANGEFINDER_MOUNT_POSITION_M = (0.0, 0.0, 0.0)
 
@@ -231,12 +232,39 @@ class RangefinderSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class GpsSettings:
+    enabled: bool = False
+    origin_latitude_deg: float | None = None
+    origin_longitude_deg: float | None = None
+    origin_altitude_m: float | None = None
+
+    def __post_init__(self) -> None:
+        if type(self.enabled) is not bool:
+            raise ConfigurationError("sensors.gps.enabled must be a boolean")
+        for name in ('origin_latitude_deg', 'origin_longitude_deg', 'origin_altitude_m'):
+            value = getattr(self, name)
+            if value is None:
+                if self.enabled:
+                    raise ConfigurationError(f"sensors.gps.{name} is required when enabled")
+                continue
+            value = _number(value, f"sensors.gps.{name}")
+            if name == 'origin_latitude_deg' and abs(value) > MAX_GPS_ORIGIN_LATITUDE_DEG:
+                raise ConfigurationError("GPS origin latitude must be within +/-85 degrees")
+            if name == 'origin_longitude_deg' and abs(value) > 180:
+                raise ConfigurationError("GPS origin longitude must be within +/-180 degrees")
+            object.__setattr__(self, name, value)
+
+
+@dataclass(frozen=True, slots=True)
 class SensorsSettings:
     imu: ImuSettings = field(default_factory=ImuSettings)
     barometer: BarometerSettings = field(default_factory=BarometerSettings)
     rangefinder: RangefinderSettings = field(default_factory=RangefinderSettings)
+    gps: GpsSettings = field(default_factory=GpsSettings)
 
     def __post_init__(self) -> None:
+        if not isinstance(self.gps, GpsSettings):
+            raise ConfigurationError("sensors.gps requires GpsSettings")
         if not isinstance(self.imu, ImuSettings) or not isinstance(self.barometer, BarometerSettings) or not isinstance(self.rangefinder, RangefinderSettings):
             raise ConfigurationError("sensors requires ImuSettings, BarometerSettings and RangefinderSettings")
 
@@ -518,13 +546,15 @@ class YamlConfigLoader:
             drone["urdf"] = str(urdf_path.resolve())
         control = ControlSettings(**_mapping(root["control"], "control", set(), {"backend"})) if "control" in root else ControlSettings()
         rc = RcSettings(**_mapping(root['rc'], 'rc', set(), set(RcSettings.__dataclass_fields__))) if 'rc' in root else RcSettings()
-        sensors = _mapping(root.get("sensors", {}), "sensors", set(), {"imu", "barometer", "rangefinder"})
+        sensors = _mapping(root.get("sensors", {}), "sensors", set(), {"imu", "barometer", "rangefinder", "gps"})
         imu = ImuSettings(**_mapping(sensors.get("imu", {}), "sensors.imu", set(),
                                      set(ImuSettings.__dataclass_fields__)))
         barometer = BarometerSettings(**_mapping(sensors.get("barometer", {}), "sensors.barometer", set(),
                                                  set(BarometerSettings.__dataclass_fields__)))
         rangefinder = RangefinderSettings(**_mapping(sensors.get("rangefinder", {}), "sensors.rangefinder", set(),
                                                      set(RangefinderSettings.__dataclass_fields__)))
+        gps = GpsSettings(**_mapping(sensors.get("gps", {}), "sensors.gps", set(),
+                                    set(GpsSettings.__dataclass_fields__)))
         force_values = _mapping(root.get("forces", {}), "forces", set(), set(ForcesSettings.__dataclass_fields__))
         force_options = dict(force_values)
         for name, settings_type in _force_setting_types().items():
@@ -544,5 +574,5 @@ class YamlConfigLoader:
                 terrain_values["heightmap_path"] = str(Path(path).resolve().parent / terrain_path)
         terrain = TerrainSettings(**terrain_values)
         return SimulationConfig(SimulationSettings(**simulation), DroneSettings(**drone), control, rc,
-                                SensorsSettings(imu, barometer, rangefinder), forces, wind, pose_sources, estimator,
+                                SensorsSettings(imu, barometer, rangefinder, gps), forces, wind, pose_sources, estimator,
                                 terrain=terrain)

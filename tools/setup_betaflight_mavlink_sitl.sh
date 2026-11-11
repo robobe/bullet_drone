@@ -1,12 +1,29 @@
 #!/usr/bin/env bash
-# Build unmodified, source-pinned Betaflight SITL for the Gazebo FDM protocol.
+# Build pinned SITL. Optional --gps enables independent GPS and barometer FDM.
 set -euo pipefail
 
 readonly RELEASE_TAG="2026.6.2"
 readonly RELEASE_COMMIT="e0b7bb0"
 readonly REPOSITORY_URL="https://github.com/betaflight/betaflight.git"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source_dir="${1:-$repo_root/.sitl/betaflight-mavlink-source}"
+gps=false
+if [[ "${1:-}" == "--gps" ]]; then
+    gps=true
+    shift
+fi
+source_suffix=""
+$gps && source_suffix="-gps"
+source_dir="${1:-$repo_root/.sitl/betaflight-mavlink${source_suffix}-source}"
+patch="$repo_root/tools/patches/bullet-gps-fdm.patch"
+patched=false
+staged_binary=""
+cleanup() {
+    [[ -z "$staged_binary" ]] || rm -f "$staged_binary"
+    if $patched; then
+        git -C "$source_dir" apply --reverse "$patch"
+    fi
+}
+trap cleanup EXIT
 
 if ! command -v git >/dev/null || ! command -v make >/dev/null; then
     echo "Install git, make, and a C compiler before building Betaflight SITL." >&2
@@ -32,17 +49,27 @@ if [[ "$actual_commit" != "$RELEASE_COMMIT"* ]]; then
 fi
 
 git -C "$source_dir" submodule update --init --recursive
+options="USE_TELEMETRY USE_TELEMETRY_MAVLINK"
+if $gps; then
+    git -C "$source_dir" apply --check "$patch"
+    git -C "$source_dir" apply "$patch"
+    patched=true
+    options="$options BULLET_GPS_FDM"
+fi
 make -C "$source_dir" TARGET=SITL clean
-make -C "$source_dir" TARGET=SITL OPTIONS="USE_TELEMETRY USE_TELEMETRY_MAVLINK" -j"$(nproc)"
+make -C "$source_dir" TARGET=SITL OPTIONS="$options" -j"$(nproc)"
 binary="$source_dir/obj/main/betaflight_SITL.elf"
 if [[ ! -x "$binary" ]]; then
     echo "SITL build completed without $binary" >&2
     exit 1
 fi
+if $gps && ! LC_ALL=C grep -aq 'BULLET_GPS_FDM_V1' "$binary"; then
+    echo "GPS build is missing its compatibility marker" >&2
+    exit 1
+fi
 mkdir -p "$repo_root/bin"
-installed_binary="$repo_root/bin/betaflight_mavlink_SITL.elf"
+installed_binary="$repo_root/bin/betaflight_mavlink${source_suffix//-/_}_SITL.elf"
 staged_binary="$(mktemp "$repo_root/bin/.sitl-install.XXXXXX")"
-trap 'rm -f "$staged_binary"' EXIT
 install -m 755 "$binary" "$staged_binary"
 mv -f "$staged_binary" "$installed_binary"
 echo "SITL ready: $installed_binary"

@@ -1,16 +1,19 @@
 """Own the physics/FDM/MSP loop; no imports from another example."""
 from contextlib import ExitStack
 from dataclasses import dataclass
+from functools import partial
 from math import ceil
+from pathlib import Path
 import time
 
 from bullet_drone.betaflight.backend import BetaflightBackend
 from bullet_drone.betaflight.bridge import UdpSitlBridge
-from bullet_drone.config import ControlSettings, DroneSettings, SimulationConfig, SimulationSettings, _number
+from bullet_drone.betaflight.fdm import pack_fdm
+from bullet_drone.config import ControlSettings, DroneSettings, SimulationConfig, SimulationSettings, SensorsSettings, GpsSettings, _number
 from bullet_drone.environment import DroneEnvironment
 from bullet_drone.models import DroneObservation
 from bullet_drone.physics import PyBulletPhysics
-from bullet_drone.sensors import BarometerSensor, ImuSensor
+from bullet_drone.sensors import BarometerSensor, GpsSensor, ImuSensor
 from bullet_drone.vehicle import load_racer_parameters
 from examples.altitde_hold_bt.demo_cli import DEFAULT_SITL_BINARY
 from examples.altitde_hold_bt.diagnostics import REPORT_INTERVAL_S, arming_blockers, log_status, log_transition
@@ -27,6 +30,7 @@ MASS_KG = 1.0
 GRAVITY_M_S2 = 9.81
 GRAVITY_VECTOR_M_S2 = (0.0, 0.0, -GRAVITY_M_S2)
 INITIAL_POSITION_M = (0.0, 0.0, 0.015)
+GPS_PROFILE_PATH = Path(__file__).resolve().parents[2] / 'configs/betaflight-gps.config'
 CAMERA_DISTANCE_M = 5.0
 CAMERA_YAW_DEG = 45
 CAMERA_PITCH_DEG = -20
@@ -40,23 +44,29 @@ class DemoResult:
 
 
 def run_demo(*, gui=True, sitl_binary=DEFAULT_SITL_BINARY,
-             max_duration_s=DEFAULT_MAX_DURATION_S, on_observation=None):
+             max_duration_s=DEFAULT_MAX_DURATION_S, on_observation=None, gps_settings=GpsSettings()):
     duration = _number(max_duration_s, 'max_duration_s', positive=True)
     config = SimulationConfig(
         SimulationSettings(TIMESTEP_S, ceil(duration / TIMESTEP_S), GRAVITY_VECTOR_M_S2, gui=gui),
-        DroneSettings(MASS_KG, INITIAL_POSITION_M), control=ControlSettings('betaflight'))
+        DroneSettings(MASS_KG, INITIAL_POSITION_M), control=ControlSettings('betaflight'),
+        sensors=SensorsSettings(gps=gps_settings))
     vehicle = load_racer_parameters()
     mission = AltitudeHoldMission(MASS_KG, GRAVITY_M_S2,
                                   len(vehicle.rotor_positions_m) * vehicle.max_thrust_per_rotor_n)
-    session = SitlSession(sitl_binary)
+    if gps_settings.enabled:
+        session = SitlSession(sitl_binary, profile_path=GPS_PROFILE_PATH, gps_enabled=True)
+    else:
+        session = SitlSession(sitl_binary)
     with ExitStack() as resources:
         physics = PyBulletPhysics(config, vehicle)
         resources.callback(physics.close)
         environment = DroneEnvironment(physics,
             imu=ImuSensor(GRAVITY_VECTOR_M_S2, config.sensors.imu, sample_period_s=TIMESTEP_S),
-            barometer=BarometerSensor(config.sensors.barometer))
+            barometer=BarometerSensor(config.sensors.barometer),
+            gps=GpsSensor(gps_settings) if gps_settings.enabled else None)
         resources.callback(environment.close)
-        backend = BetaflightBackend(vehicle, UdpSitlBridge())
+        backend = BetaflightBackend(vehicle, UdpSitlBridge(),
+            encoder=partial(pack_fdm, gps_enabled=gps_settings.enabled))
         resources.callback(backend.close)
         # Last acquired, first released: disarm and stop SITL before closing physics.
         sitl = resources.enter_context(session)

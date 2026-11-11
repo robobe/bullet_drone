@@ -1,4 +1,4 @@
-# IMU and barometer sensors
+# Simulation sensors
 
 `RcSimulation.reset()` and `step()` return measurements in
 `DroneObservation.sensors.imu` and `.barometer`. Both sensors are enabled with
@@ -407,3 +407,38 @@ This is an effective sensor feed at the physics sampling rate (240 Hz in the
 demo), not a complete kHz firmware pipeline. Motor vibration, aliasing from
 unmodeled high-frequency motion, temperature effects, quantization, saturation
 and real hardware calibration/replay are outside this model.
+
+## Opt-in GPS
+
+`GpsSettings` under `sensors.gps` defaults to disabled. When enabled, all of
+`origin_latitude_deg`, `origin_longitude_deg`, and `origin_altitude_m` are required.
+They describe local world `[0, 0, 0]`, independently of `drone.initial_position_m`.
+Latitude accepts [-85, 85] degrees, longitude [-180, 180] degrees, altitude finite
+MSL metres. See [the commented GPS profile](../../configs/gps.yaml).
+
+`GpsSensor` implements the same reset/sample contract as other sensors and returns
+immutable `GpsReading` through `observation.sensors.gps`. Direct environments
+inject `gps=GpsSensor(settings)` explicitly; `RcSimulation` constructs it when
+enabled. Readings carry episode, step and simulation time, geographic position,
+and `velocity_enu_m_s`. Disabled GPS returns `None`. GPS never changes ground truth.
+
+World X is east, Y north, Z up. Conversion uses WGS84 meridional and prime-vertical
+curvature radii at the fixed origin: latitude adds north/radius, longitude adds
+east/(radius*cos(latitude)), and MSL altitude adds world Z. Longitude wraps across
+the dateline. This is a first-order tangent approximation, restricted to positions
+within 1 km horizontally of the origin; larger worlds require geodesy. Accuracy
+falls toward high latitudes. No geoid or terrain-altitude conversion is performed.
+Reset and spawn replacement preserve the configured origin.
+
+This first milestone is ideal: no noise, delay, dropout, drift, or antenna offset.
+The sensor samples every physics step. The pinned firmware virtual receiver
+consumes the latest sample at 10 Hz with 12 satellites, a valid fix after firmware
+startup, fixed hAcc/vAcc 500 and sAcc 400 in the firmware fields, and PDOP 10.
+Those fixed receiver metadata are not a calibrated model of GPS accuracy.
+
+Rendering continues to consume local metre poses with existing altitude/attitude
+selection. There is no GPS render source or geographic round trip. Raw GPS is
+available in observations and Betaflight GPS telemetry; the existing application
+feedback protocol has no geographic sensor topic, so it is unchanged.
+
+Full GPS FDM requires the [opt-in compatible firmware](betaflight-sitl-bridge.md#opt-in-gps-fdm).

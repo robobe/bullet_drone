@@ -1,0 +1,28 @@
+# Opt-in GPS profile with a synthetic equatorial origin. Set your intended origin.
+simulation:
+  # Positive physics-step duration in seconds (240 Hz).
+  timestep_s: 0.004166666666666667
+  # Positive caller-owned step budget; 1200 steps is 5 seconds.
+  max_steps: 1200
+  # Finite world XYZ gravity in m/s^2; Z points up.
+  gravity_m_s2: [0.0, 0.0, -9.81]
+  # Boolean GUI switch, defaults to false.
+  gui: false
+drone:
+  # Positive total vehicle mass in kg.
+  mass_kg: 1.0
+  # Local east/north/up spawn in metres, independent of the geographic origin.
+  initial_position_m: [0.0, 0.0, 1.0]
+control:
+  # internal or betaflight; Betaflight GPS requires a compatible external firmware process.
+  backend: betaflight
+sensors:
+  gps:
+    # Opt-in ideal GPS, defaults to false; IMU and barometer retain their defaults.
+    enabled: true
+    # Latitude of world zero in degrees, within [-85, 85]; required when enabled.
+    origin_latitude_deg: 0.0
+    # Longitude of world zero in degrees, within [-180, 180]; required when enabled.
+    origin_longitude_deg: 0.0
+    # MSL altitude of world zero in metres, finite; required when enabled.
+    origin_altitude_m: 100.0

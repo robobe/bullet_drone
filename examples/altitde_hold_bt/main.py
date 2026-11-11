@@ -27,7 +27,8 @@ def main(argv=None):
                format='<green>{time:HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | {message}')
     try:
         from examples.altitde_hold_bt.demo import run_demo
-        result = run_demo(gui=not options.headless, sitl_binary=options.sitl_binary)
+        result = run_demo(gui=not options.headless, sitl_binary=options.sitl_binary,
+                          gps_settings=options.gps_settings)
         logger.info('Completed Betaflight altitude hold in {:.3f} s; final altitude {:.4f} m',
                     result.observation.ground_truth.simulation_time_s,
                     result.observation.ground_truth.position_m[2])

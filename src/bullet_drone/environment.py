@@ -3,18 +3,20 @@
 from bullet_drone.attitude import AttitudeEstimator
 from bullet_drone.commands import InvalidCommandError, RotorCommand
 from bullet_drone.contracts import LifecycleError, PhysicsBackend, Sensor
-from bullet_drone.models import BarometerReading, DroneObservation, DroneState, ImuReading, RangefinderReading, SensorReadings
+from bullet_drone.models import BarometerReading, DroneObservation, DroneState, ImuReading, GpsReading, RangefinderReading, SensorReadings
 
 
 class DroneEnvironment:
     def __init__(self, physics: PhysicsBackend, *, imu: Sensor[ImuReading] | None = None,
                  barometer: Sensor[BarometerReading] | None = None,
                  rangefinder: Sensor[RangefinderReading] | None = None,
+                 gps: Sensor[GpsReading] | None = None,
                  attitude_estimator: AttitudeEstimator | None = None) -> None:
         self._physics = physics
         self._imu = imu
         self._barometer = barometer
         self._rangefinder = rangefinder
+        self._gps = gps
         self._attitude_estimator = attitude_estimator
         self._ready = False
         self._closed = False
@@ -72,11 +74,12 @@ class DroneEnvironment:
                      if self._barometer else None)
         rangefinder = ((self._rangefinder.reset(state) if reset else self._rangefinder.sample(state))
                        if self._rangefinder else None)
+        gps = (self._gps.reset(state) if reset else self._gps.sample(state)) if self._gps else None
         estimate = None
         if self._attitude_estimator is not None:
             estimate = (self._attitude_estimator.reset(imu, state.orientation_xyzw) if reset
                         else self._attitude_estimator.update(imu))
-        return DroneObservation(state, SensorReadings(imu, barometer, rangefinder), estimate)
+        return DroneObservation(state, SensorReadings(imu, barometer, rangefinder, gps), estimate)
 
     def close(self) -> None:
         self._ready = False

@@ -6,7 +6,7 @@
   local wakes, collision-surface queries and ideal-mode compatibility.
 - [Shared frame math](frame-math.md): quaternion conventions, validation,
   source-state diagnostics and controller error translation.
-- [IMU and barometer sensors](sensors.md): measurement frames, noise configuration,
+- [IMU, barometer and GPS sensors](sensors.md): measurement frames, noise configuration,
   reset/step lifecycle and observation interfaces.
 - [Simulation ↔ Betaflight SITL bridge](betaflight-sitl-bridge.md): upstream-target
   FDM sensor fields, UDP ports, motor order, timing and implementation status,

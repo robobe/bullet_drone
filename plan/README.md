@@ -129,3 +129,7 @@
 - [0108: Image transport reference](0108-image-transport-readme.md) — Implemented and verified; uncommitted; implementation commit Pending.
 
 - [0109: SITL bin paths](0109-sitl-bin.md) — Implemented and verified; 51 passed, 3 skipped, real flight and MAVLink startup passed; uncommitted; implementation commit Pending.
+
+- [0110: simulated GPS](0110-simulated-gps.md) — Optional geographic GPS and independent barometer FDM, preserving local rendering; implemented and verified, 627 full-suite tests passed plus targeted and live SITL checks; uncommitted; implementation commit Pending.
+
+- [0111: GPS point-to-point](0111-gps-point-to-point.md) — Standalone MAVLink feedback flight; planned, implementation pending; implementation commit Pending.

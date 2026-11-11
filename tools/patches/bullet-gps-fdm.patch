@@ -1,0 +1,32 @@
+--- a/src/platform/SIMULATOR/sitl.c
++++ b/src/platform/SIMULATOR/sitl.c
+@@ -311,7 +311,7 @@
+     y = constrain(gyroPitch * GYRO_SCALE * RAD2DEG, -32767, 32767);
+     z = constrain(gyroYaw   * GYRO_SCALE * RAD2DEG, -32767, 32767);
+     virtualGyroSet(virtualGyroDev, x, y, z);
+-#if ENABLE_GAZEBO_BRIDGE
++#if ENABLE_GAZEBO_BRIDGE && !defined(BULLET_GPS_FDM)
+     // Gazebo plugin doesn't fill pkt->pressure; derive from altitude using the
+     // standard atmosphere model: P = 101325 * (1 - 2.25577e-5 * h)^5.25588
+     const double altMeters = pkt->position_xyz[2];
+@@ -408,12 +408,19 @@
+ #endif
+ 
+ #if defined(USE_VIRTUAL_GPS)
++#ifdef BULLET_GPS_FDM
++    static bool bulletGpsAnnounced = false;
++    if (!bulletGpsAnnounced) {
++        puts("BULLET_GPS_FDM_V1");
++        bulletGpsAnnounced = true;
++    }
++#endif
+     const double longitude = pkt->position_xyz[0];
+     const double latitude = pkt->position_xyz[1];
+     const double altitude = pkt->position_xyz[2];
+ 
+ 
+-#if ENABLE_GAZEBO_BRIDGE
++#if ENABLE_GAZEBO_BRIDGE && !defined(BULLET_GPS_FDM)
+     // Gazebo Harmonic's SphericalFromLocalPosition inverts horizontal position
+     // deltas: moving East in the ENU world frame produces DECREASING longitude,
+     // and moving North produces DECREASING latitude. Mirror the GPS position

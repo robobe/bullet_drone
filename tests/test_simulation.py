@@ -86,17 +86,24 @@ def test_hold_advances_stationary_imu_observations(config):
     assert held.sensors.imu.specific_force_m_s2 == pytest.approx((0, 0, 9.81))
 
 
-def test_betaflight_hold_feeds_stationary_observations(config, monkeypatch):
+@pytest.mark.parametrize("gps_enabled", [False, True])
+def test_betaflight_hold_feeds_stationary_observations(config, monkeypatch, gps_enabled):
     from examples.position_square.demo import FLIGHT_CONTROL_SETTINGS
     from bullet_drone.simulation import RcSimulation
+    from bullet_drone.config import GpsSettings
+    import struct
 
     class Bridge:
         def open(self): pass
-        def send_fdm(self, packet): pass
+        def send_fdm(self, packet):
+            values = struct.unpack("<18d", packet)
+            assert values[14:16] == ((35., 32.) if gps_enabled else (0., 0.))
         def receive_motor_packets(self): return []
         def close(self): pass
 
     monkeypatch.setattr('bullet_drone.betaflight.bridge.UdpSitlBridge', Bridge)
+    config = replace(config, sensors=replace(config.sensors,
+        gps=GpsSettings(gps_enabled, 32., 35., 100.)))
     simulation = RcSimulation(replace(config, control=ControlSettings('betaflight')),
                               FLIGHT_CONTROL_SETTINGS)
     try:
