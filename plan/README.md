@@ -139,3 +139,5 @@
 - [0113: Global GPS logging](0113-global-gps-logging.md) — Show geographic coordinates alongside ENU; implemented and verified; implementation commit Pending.
 
 - [0114: GPS distance and speed](0114-gps-distance-speed.md) — Destination distance logs and ramped 5 m/s cruise; implemented and verified with focused tests and full headless flight; implementation commit Pending.
+
+- [0115: GPS control theory](0115-gps-control-theory.md) — README tutorial and control-loop diagram; implemented and verified; implementation commit Pending.
