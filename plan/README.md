@@ -2,6 +2,8 @@
 
 | Plan | Description | Status | Implementation commit |
 | --- | --- | --- | --- |
+| [0117: merge Iris example task](0117-merge-iris-example-task.md) | Move PX4 Iris into the shared example picker. | Implemented and verified; uncommitted | Pending |
+| [0116: example task color](0116-example-task-color.md) | Add a green play icon to Bullet: Run example. | Implemented and verified; uncommitted | Pending |
 | [0003: control diagram SVG](0003-control-diagram-svg.md) | Replace obsolete PNG with current RC/internal-control diagram. | Implemented and verified; uncommitted | Pending |
 | [0004: named constants guidance](0004-named-constants-guidance.md) | Require descriptive constants grouped after module imports. | Implemented and verified; uncommitted | Pending |
 | [0005: altitude hold constants](0005-altitude-hold-constants.md) | Replace example magic numbers with named module constants. | Implemented and verified; uncommitted | Pending |
