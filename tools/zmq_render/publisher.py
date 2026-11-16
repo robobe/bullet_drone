@@ -21,7 +21,8 @@ RENDER_DRONE_ID = 'drone_1'
 QUEUE_CAPACITY = 1
 START_TIMEOUT_S = 15
 STOP_TIMEOUT_S = 5
-DEFAULT_PUBLISH_RATES_HZ = dict(camera_info=1., profile=1., state=1.)
+DEFAULT_PUBLISH_RATES_HZ = dict(camera_info=1., profile=1.)
+IDLE_POSE_REFRESH_HZ = 1.
 SCHEDULE_TOLERANCE_S = 1e-12
 WORKER_POLL_S = 0.002
 
@@ -92,11 +93,11 @@ class RenderPublisher:
             self.close()
             raise RuntimeError(self.error)
 
-    def set_state(self, state):
-        from bullet_simulation_protocol.control import validate_state
-        validate_state(state)
+    def set_running(self, running):
+        if type(running) is not bool:
+            raise ValueError('running must be boolean')
         with self.snapshot_lock:
-            self.control_state = dict(state)
+            self.control_state = {'state': 'running' if running else 'stopped'}
 
     def consume(self, observation, *, source=None):
         if self.thread is None or self.stop.is_set():
@@ -138,7 +139,6 @@ class RenderPublisher:
             with ZmqIo(publish_endpoint=transport['telemetry_endpoint']) as io:
                 config = CameraInfoMessage(self.stream, self.config['fps'], CameraInfo.from_config(self.config['camera']))
                 next_config = 0.0
-                next_state = 0.0
                 next_profile = 0.0
                 next_idle_pose = 0.0
                 wire_sequence = 0
@@ -154,7 +154,6 @@ class RenderPublisher:
                     if time.monotonic() >= next_profile:
                         io.publish(b'render/drone_1/profile', self.profile)
                         next_profile = time.monotonic() + 1 / self.rates['profile']
-                    from bullet_simulation_protocol.control import STATE_TOPIC
                     with self.snapshot_lock:
                         control_state = self.control_state
                         latest = self.latest_pose
@@ -166,17 +165,14 @@ class RenderPublisher:
                         feedback_sequence = observation_sequence
                     now = time.monotonic()
                     changed = control_state != previous_state
-                    if control_state is not None and (changed or now >= next_state):
-                        io.publish(STATE_TOPIC, control_state)
-                        next_state = now + 1 / self.rates['state']
-                        previous_state = control_state
+                    previous_state = control_state
                     try:
                         _, state, source = self.queue.get(timeout=WORKER_POLL_S)
                     except Empty:
                         if control_state is None or control_state['state'] == 'running' or latest is None or (not changed and now < next_idle_pose):
                             continue
                         state = latest
-                        next_idle_pose = now + 1 / self.rates['state']
+                        next_idle_pose = now + 1 / IDLE_POSE_REFRESH_HZ
                     sequence = wire_sequence
                     wire_sequence += 1
                     packet = {'schema_version': POSE_SCHEMA_VERSION, 'stream_id': self.stream,

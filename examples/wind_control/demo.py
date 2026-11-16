@@ -90,7 +90,7 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
             viewer.ensure_running()
             observation = service.update(simulation, observation, replace_spawn=replace_spawn,
                 reset_simulation=reset_simulation, start_mission=start_mission) or observation
-            viewer.set_state(observation, 'running' if service.running else 'stopped', service.reason)
+            viewer.set_running(service.running)
             if not service.running:
                 viewer.consume(observation)
                 time.sleep(SETUP_POLL_INTERVAL_S)

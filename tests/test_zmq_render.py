@@ -90,11 +90,11 @@ def test_render_cli_automatically_starts_and_closes(monkeypatch, failure):
     expected = 130 if isinstance(failure, KeyboardInterrupt) else 1 if failure else 0
     assert main.main([]) == expected
     viewer.wait_ready.assert_called_once_with(initial)
-    viewer.set_state.assert_any_call(initial, 'running', 'automatic_start')
+    viewer.set_running.assert_any_call(True)
     viewer.consume.assert_any_call(airborne)
     viewer.__exit__.assert_called_once()
     if failure is None:
-        viewer.set_state.assert_any_call(result.observation, 'stopped', 'completed')
+        viewer.set_running.assert_any_call(False)
 
 
 def test_real_tcp_periodic_config_pose_and_binding_cleanup(tmp_path):
@@ -151,8 +151,7 @@ def test_real_tcp_periodic_config_pose_and_binding_cleanup(tmp_path):
             assert packet['sequence'] == 0 and packet['position_m'] == [0, 0, 3]
             assert packet['schema_version'] == 2
             assert packet['linear_velocity_m_s'] == [1.25, -2.5, 0.75]
-            output.set_state(dict(schema_version=1, physics_id='physics', controller_id=None,
-                episode_id=state.episode_id, state='stopped', reason='stopped', simulation_time_s=0))
+            output.set_running(False)
             deadline = time.monotonic() + 3
             while True:
                 assert time.monotonic() < deadline, 'held pose did not arrive'
@@ -220,9 +219,7 @@ def test_sensor_pose_and_stopped_republication_keep_measurements(tmp_path, confi
             source = dict(physics_id='physics', episode_id=expected.episode_id, stream_id=output.stream,
                           step_index=expected.step_index, simulation_time_s=expected.simulation_time_s,
                           measurement_us=time.monotonic_ns() // 1000)
-            output.set_state(dict(schema_version=1, physics_id='physics', controller_id=None,
-                                  episode_id=expected.episode_id, state='stopped', reason='test',
-                                  simulation_time_s=expected.simulation_time_s))
+            output.set_running(False)
             output.consume(observation, source=source)
             poses = []
             deadline = time.monotonic() + 4
@@ -252,10 +249,10 @@ def test_camera_info_publication_rates_are_configurable(tmp_path):
     output = publisher(tmp_path)
     path = tmp_path/'render.json'
     value = json.loads(path.read_text())
-    value['publish_rates_hz'] = {'camera_info': 5, 'profile': 2, 'state': 3}
+    value['publish_rates_hz'] = {'camera_info': 5, 'profile': 2}
     path.write_text(json.dumps(value))
     configured = RenderPublisher(path)
-    assert configured.rates == {'camera_info': 5, 'profile': 2, 'state': 3}
+    assert configured.rates == {'camera_info': 5, 'profile': 2}
     assert configured.config['fps'] == 30
     for rates in ({'camera_info':0}, {'unknown':1}, {'camera_info':float('nan')}):
         value['publish_rates_hz'] = rates

@@ -4,7 +4,7 @@ import time
 import pytest
 from jsonschema import validate
 from bullet_simulation_protocol import schema_bytes
-from bullet_simulation_protocol.control import validate_command, validate_state, decode_json
+from bullet_simulation_protocol.control import validate_command, decode_json
 
 
 def command(**changes):
@@ -19,10 +19,8 @@ def test_command_and_state_contracts():
     assert SimulationCommand.from_dict(value).to_dict() == value
     with pytest.raises(ValueError):
         schema_bytes('command.json')
-    state = dict(schema_version=1, physics_id='physics', controller_id=None,
-                 episode_id='episode', state='stopped', reason='startup', simulation_time_s=0)
-    assert validate_state(state) == state
-    validate(state, json.loads(schema_bytes('state.json')))
+    with pytest.raises(ValueError):
+        schema_bytes('state.json')
 
 
 @pytest.mark.parametrize('changes', [dict(schema_version=True), dict(sequence=0), dict(issued_ms=True),

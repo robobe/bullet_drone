@@ -8,7 +8,6 @@
   "fps": 30,
   "publish_rates_hz": {
     "camera_info": 1,
-    "profile": 1,
-    "state": 1
+    "profile": 1
   }
 }

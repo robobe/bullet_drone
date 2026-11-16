@@ -54,7 +54,7 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
         observation = simulation.reset()
         viewer.wait_ready(observation)
         mission.reset(observation)
-        viewer.set_state(observation, 'running', 'automatic_start')
+        viewer.set_running(True)
         started = time.monotonic()
         if on_observation is not None:
             on_observation(observation)
@@ -66,7 +66,7 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
                 logger.info('External-render altitude hold: {} at {:.3f} s',
                             mission.phase, observation.ground_truth.simulation_time_s)
             if mission.phase == Phase.COMPLETE:
-                viewer.set_state(observation, 'stopped', 'completed')
+                viewer.set_running(False)
                 return DemoResult(observation, tuple(mission.transitions))
             if observation.ground_truth.simulation_time_s + TIMESTEP_S > duration:
                 raise TimeoutError(f'Altitude hold timed out in {mission.phase} after {duration:g} s')

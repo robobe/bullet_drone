@@ -226,6 +226,8 @@ uv run --locked --all-extras python -m examples.position_square.main --profile c
 This selects the Iris vehicle profile for the internal Angle square example;
 it does not run PX4 firmware. The same choice appears in the VS Code picker.
 
+Renderer lifecycle queries and the legacy state schema/topic are removed. Controls send commands using fresh wind/spawn identities, with simulation-side validation and per-command feedback.
+
 ## Configuration
 
 ### Aerodynamics and wind
@@ -378,4 +380,5 @@ A project-wide license is not specified in `pyproject.toml`, and no root LICENSE
 file is present. The racer asset is adapted from MIT-licensed gym-pybullet-drones;
 see its [asset notes](src/bullet_drone/assets/racer/README.md) and
 [upstream license](src/bullet_drone/assets/racer/LICENSE.upstream).
+
 

@@ -88,12 +88,8 @@ class ExternalRenderer:
                 detail = self.log.read()[-ERROR_LOG_CHARACTERS:]
             raise RuntimeError(f'External renderer exited before mission completion.\n{detail}')
 
-    def set_state(self, observation, state, reason):
-        source = observation.ground_truth
-        self.publisher.set_state(dict(
-            schema_version=1, physics_id=self.physics_id, controller_id=None,
-            episode_id=source.episode_id, state=state, reason=reason,
-            simulation_time_s=source.simulation_time_s))
+    def set_running(self, running):
+        self.publisher.set_running(running)
 
     def consume(self, observation):
         self.ensure_running()
@@ -106,7 +102,7 @@ class ExternalRenderer:
         self.publisher.consume(observation, source=source)
 
     def wait_ready(self, observation, *, timeout_s=STARTUP_TIMEOUT_S):
-        self.set_state(observation, 'stopped', 'renderer_startup')
+        self.set_running(False)
         self.consume(observation)
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:

@@ -42,7 +42,6 @@ rate keys are rejected. Omitting keys uses these defaults:
 | --- | ---: | --- |
 | `publish_rates_hz.camera_info` | 1 Hz | Immediate startup and periodic calibration |
 | `publish_rates_hz.profile` | 1 Hz | Render profile metadata |
-| `publish_rates_hz.state` | 1 Hz | State refresh and stopped pose refresh; transitions still publish promptly |
 | `fps` | 30 in bundled profile | Pose/image capture scheduling in simulation time, existing maximum 240 Hz |
 
 Periodic metadata uses monotonic wall time and continues while physics is paused.
@@ -93,3 +92,5 @@ query is enabled by the simulation examples.
 - [Render scheduling](../../tools/zmq_render/publisher.py)
 - [Bundled configuration](../../external_render/configs/physics.json)
 - [ROS CameraInfo definition](https://github.com/ros2/common_interfaces/blob/rolling/sensor_msgs/msg/CameraInfo.msg)
+
+Stopped pose refresh is local-only at 1 Hz via set_running(bool). No lifecycle state topic is published.

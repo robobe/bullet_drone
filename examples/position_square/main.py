@@ -51,13 +51,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if viewer is not None:
                     if not ready:
                         viewer.wait_ready(observation)
-                        viewer.set_state(observation, 'running', 'automatic_start')
+                        viewer.set_running(True)
                         ready = True
                     viewer.consume(observation)
             result = run_demo(gui=False, pace=viewer is not None, profile=options.profile,
                               on_observation=consume if viewer is not None else None)
             if viewer is not None:
-                viewer.set_state(result.observation, 'stopped', 'completed')
+                viewer.set_running(False)
             state = result.observation.ground_truth
             logger.info('Completed square in {:.3f} s; final position {} m', state.simulation_time_s, state.position_m)
             return EXIT_SUCCESS

@@ -59,3 +59,5 @@ library interfaces rather than reconstructing those missing records.
 - [Complete simulation feedback](simulation-feedback.md): ground truth and sensor dataclasses with simulation timestamps and frames.
 
 - [Simulation command request/reply](command-request-reply.md): Start/Stop/Reset on the shared wind/spawn service.
+
+- Renderer controls use command replies and wind/spawn identities without lifecycle polling.

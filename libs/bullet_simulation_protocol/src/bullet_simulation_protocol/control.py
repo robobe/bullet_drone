@@ -6,11 +6,7 @@ from dataclasses import dataclass, fields
 from .wind import DictionaryMessage
 
 
-STATE_TOPIC = b'simulation/state'
-HEARTBEAT_INTERVAL_S = 0.5
-HEARTBEAT_TIMEOUT_S = 3.0
 COMMAND_MAX_AGE_S = 1.0
-STATE_INTERVAL_S = 1.0
 MAX_CONTROL_BYTES = 4096
 MAX_SEQUENCE = 2**53 - 1
 ACTIONS = ('start', 'stop', 'reset')
@@ -102,21 +98,4 @@ def validate_command(value):
     SimulationCommand.from_dict(value)
     return value
 
-
-def validate_state(value):
-    fields = {'schema_version', 'physics_id', 'controller_id', 'episode_id', 'state', 'reason', 'simulation_time_s'}
-    if not isinstance(value, dict) or set(value) != fields:
-        raise ValueError('invalid simulation state fields')
-    if type(value['schema_version']) is not int or value['schema_version'] != 1 or not identity(value['physics_id']):
-        raise ValueError('invalid state version or physics identity')
-    if value['controller_id'] is not None and not identity(value['controller_id']):
-        raise ValueError('invalid state controller identity')
-    if not identity(value['episode_id']) or value['state'] not in ('running', 'stopped', 'error'):
-        raise ValueError('invalid episode or state')
-    if not isinstance(value['reason'], str) or not 0 < len(value['reason']) <= 256:
-        raise ValueError('invalid state reason')
-    elapsed = value['simulation_time_s']
-    if type(elapsed) not in (int, float) or not 0 <= elapsed <= 1e12:
-        raise ValueError('invalid simulation time')
-    return value
 

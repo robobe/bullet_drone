@@ -3,7 +3,7 @@ from importlib.resources import files
 import json
 import re
 
-SCHEMAS = ('pose.json', 'state.json', 'collision.json')
+SCHEMAS = ('pose.json', 'collision.json')
 
 def schema_bytes(name):
     if name not in SCHEMAS:

@@ -13,7 +13,7 @@ flowchart LR
     Image["Image consumer"]
     Shm["POSIX shared memory pixels"]
     Sitl["Betaflight SITL"]
-    Sim -->|"TCP 5555: camera/front/camera_info, render/drone_1/profile,<br/>render/drone_1/pose, simulation/state"| Render
+    Sim -->|"TCP 5555: camera/front/camera_info, render/drone_1/profile,<br/>render/drone_1/pose"| Render
     Render -->|"Optional REQ get_wind/set_wind, TCP 5560"| Sim
     Sim -->|"REP: current/applied/rejected and snapshot"| Render
     Render -->|"TCP 5556: camera/front/image descriptors"| Image
@@ -58,7 +58,6 @@ PUB/SUB endpoints carry UTF-8 topic and JSON payload as two frames. Wind REQ/REP
 | 5555 | `camera/front/camera_info` | Stream identity, capture fps and ROS-shaped pinhole calibration | Every 1 s |
 | 5555 | `render/drone_1/profile` | Backend, model and profile identity | Every 1 s |
 | 5555 | `render/drone_1/pose` | World position/velocity and XYZW attitude, sample identity | Configured capture fps; stopped refresh 1 Hz |
-| 5555 | `simulation/state` | Running/stopped and episode/terminal status | Change and 1 Hz refresh |
 | 5555 | `flight/drone_1/feedback` | Complete ground truth, all configured sensors and optional estimated attitude | Every observation offered, latest value under load |
 | 5556 | `camera/front/image` | SHM descriptor, dimensions and capture/source metadata | Rendered captures |
 
@@ -72,7 +71,7 @@ inventory; see the owning subsystem's configuration for those interfaces.
 
 Automatic rendered examples own viewer startup and shutdown. Image readiness
 requires the expected stream and episode. Poses use a bounded latest-only queue;
-PUB/SUB delivery is not acknowledged. Configuration/state refresh lets late
+PUB/SUB delivery is not acknowledged. Configuration refresh lets late
 subscribers recover current values. Camera pixels remain separate from descriptors.
 
 The optional source metadata and validators remain available to image consumers.
@@ -102,3 +101,5 @@ Wind now uses request/reply only in the wind example. See [wind protocol](../des
 Feedback uses [dataclasses and explicit measurement headers](../design/simulation-feedback.md), with no JSON Schema or lifecycle fields.
 
 Start/Stop/Reset and `get_simulation_state` use the shared TCP 5560 REQ/REP service in the wind example. Command and heartbeat PUB/SUB are removed, while collision transport stays on TCP 5557. See [command lifecycle](../design/command-request-reply.md).
+
+Legacy state.json and simulation/state publication are removed. The renderer sends no lifecycle state query. Command buttons use fresh wind/spawn identities, display correlated results, and let simulation reject invalid transitions. A timeout reports Outcome unknown without automatic retry or reconciliation queries.

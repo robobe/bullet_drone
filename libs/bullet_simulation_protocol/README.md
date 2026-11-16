@@ -17,7 +17,6 @@ spawn, collision or app RC receiver.
 | `camera/front/camera_info` | Camera dimensions, field of view and capture rate | Simulation → renderer | 5555 | Validated CameraInfo dataclasses, no JSON Schema |
 | `render/drone_1/profile` | Profile name, backend and drone model | Simulation → renderer | 5555 | No packaged schema; built by RenderPublisher |
 | `render/drone_1/pose` | Position, attitude quaternion, velocity and sample identity | Simulation → renderer | 5555 | [pose.json](src/bullet_simulation_protocol/schemas/pose.json) |
-| `simulation/state` | Lifecycle, episode and reason | Simulation → clients | 5555 | [state.json](src/bullet_simulation_protocol/schemas/state.json) |
 | `flight/drone_1/feedback` | Complete ground truth, sensors and optional attitude estimate | Simulation → external consumers | 5555 | [Validated telemetry dataclasses](src/bullet_simulation_protocol/feedback.py) |
 | `render/drone_1/collision` | Collision proposal tied to a known simulation sample | Renderer → simulation | 5557 | [collision.json](src/bullet_simulation_protocol/schemas/collision.json) |
 
@@ -60,7 +59,7 @@ The RC command contract and `flight_command_endpoint` are removed. Other retaine
 contracts support existing consumers, but are not all published by current examples.
 
 Scenario end messages and embedded lifecycle terminal results are removed.
-Simulation lifecycle state uses schema version 1. Collision proposals remain a
+Simulation lifecycle status is retained only in command/query dataclasses. Collision proposals remain a
 retained contract, without a local receiver.
 
 The former flight configuration topic/schema/validator are removed. Renderer
@@ -77,3 +76,5 @@ Spawn uses `get_spawn` and `set_spawn` on the wind example’s shared REQ/REP en
 Feedback offers every observation independently of camera capture, using bounded latest-value buffering. See [message fields and timing](../../docs/design/simulation-feedback.md).
 
 Start/Stop/Reset use [command dataclasses](src/bullet_simulation_protocol/control.py) over the shared wind/spawn REQ/REP endpoint, default TCP 5560. See [command lifecycle](../../docs/design/command-request-reply.md).
+
+Legacy state.json and simulation/state publication are removed. The renderer sends no lifecycle state query. Command buttons use fresh wind/spawn identities, display correlated results, and let simulation reject invalid transitions. A timeout reports Outcome unknown without automatic retry or reconciliation queries.

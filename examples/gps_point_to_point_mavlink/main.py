@@ -62,7 +62,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     return
                 if not ready:
                     viewer.wait_ready(observation)
-                    viewer.set_state(observation, 'running', 'automatic_start')
+                    viewer.set_running(True)
                     ready = True
                 viewer.consume(observation)
 
@@ -70,7 +70,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                               terrain_path=TERRAIN_PATH, sitl_binary=options.sitl_binary,
                               on_observation=render if viewer is not None else None)
             if viewer is not None:
-                viewer.set_state(result.observation, 'stopped', 'completed')
+                viewer.set_running(False)
             state = result.observation.ground_truth
             logger.info('Completed GPS point-to-point flight in {:.3f} s; final position {} m',
                         state.simulation_time_s, state.position_m)
