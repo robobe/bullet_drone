@@ -1,12 +1,12 @@
-"""Stopped-episode spawn selection in Bullet metres (Z up)."""
-from typing import TypedDict
+"""Stopped-episode spawn request/reply dataclasses in Bullet metres (Z up)."""
+from dataclasses import dataclass
 
 from .control import identity
 from .flight import _shape, _integer, _number
 
-REQUEST_TOPIC = b'simulation/spawn_request'
-STATE_TOPIC = b'simulation/spawn_state'
-SPAWN_INTERVAL_S = 0.1
+from .wind import DictionaryMessage
+
+SPAWN_ACTION = 'set_spawn'
 HORIZONTAL_LIMIT_M = 250.0
 MIN_ALTITUDE_M = 0.015
 MAX_ALTITUDE_M = 500.0
@@ -15,7 +15,8 @@ MIN_TAKEOFF_HEIGHT_M = 0.1
 MAX_TAKEOFF_HEIGHT_M = 100.0
 
 
-class SpawnRequest(TypedDict):
+@dataclass(frozen=True)
+class SpawnRequest(DictionaryMessage):
     schema_version: int
     controller_id: str
     physics_id: str
@@ -23,21 +24,69 @@ class SpawnRequest(TypedDict):
     request_id: str
     issued_ms: int
     scenario_name: str
-    position_m: list[float]
+    position_m: tuple[float, float, float]
     takeoff_height_m: float
+    action: str = SPAWN_ACTION
+
+    @classmethod
+    def from_dict(cls, value):
+        if not isinstance(value, dict) or set(value) != set(cls.__dataclass_fields__):
+            raise ValueError('invalid spawn request fields')
+        try:
+            return cls(**dict(value, position_m=tuple(value['position_m'])))
+        except (TypeError, ValueError) as error:
+            raise ValueError('invalid spawn request') from error
+
+    def __post_init__(self):
+        if self.action != SPAWN_ACTION:
+            raise ValueError('invalid spawn action')
+        for key in ('controller_id', 'physics_id', 'episode_id', 'request_id'):
+            if not identity(getattr(self, key)):
+                raise ValueError('invalid spawn identity')
+        _integer(self.issued_ms)
+        _name(self.scenario_name)
+        validate_position(self.position_m)
+        validate_takeoff_height(self.takeoff_height_m)
 
 
-class SpawnState(TypedDict):
+@dataclass(frozen=True)
+class SpawnState(DictionaryMessage):
     schema_version: int
     physics_id: str
     controller_id: str | None
     episode_id: str
     scenario_name: str
-    position_m: list[float]
+    position_m: tuple[float, float, float]
     takeoff_height_m: float
     request_id: str | None
     result: str
     reason: str
+
+    @classmethod
+    def from_dict(cls, value):
+        if not isinstance(value, dict) or set(value) != set(cls.__dataclass_fields__):
+            raise ValueError('invalid spawn state fields')
+        try:
+            return cls(**dict(value, position_m=tuple(value['position_m'])))
+        except (TypeError, ValueError) as error:
+            raise ValueError('invalid spawn state') from error
+
+    def __post_init__(self):
+        _integer(self.schema_version, 2, 2)
+        for key in ('physics_id', 'episode_id'):
+            if not identity(getattr(self, key)):
+                raise ValueError('invalid spawn identity')
+        for key in ('controller_id', 'request_id'):
+            value = getattr(self, key)
+            if value is not None and not identity(value):
+                raise ValueError('invalid optional spawn identity')
+        _name(self.scenario_name)
+        validate_position(self.position_m)
+        validate_takeoff_height(self.takeoff_height_m)
+        if self.result not in ('idle', 'applied', 'rejected') or not isinstance(self.reason, str) or not 0 < len(self.reason) <= 256:
+            raise ValueError('invalid spawn outcome')
+        if (self.request_id is None) != (self.result == 'idle'):
+            raise ValueError('spawn outcome requires request identity')
 
 
 def validate_position(position):
