@@ -41,7 +41,7 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
         resources.callback(simulation.close)
         observation = simulation.reset()
         viewer.wait_ready(observation)
-        service = resources.enter_context(SimulationService(viewer.transport, viewer.physics_id))
+        service = resources.enter_context(SimulationService(viewer.transport))
         def replace_spawn(request):
             nonlocal simulation, config
             candidate_config = replace(config, drone=replace(config.drone,
@@ -64,9 +64,7 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
         started = None
 
         def prepare_mission(current):
-            height = (service.spawn_state.takeoff_height_m if service.spawn_state is not None
-                      else DEFAULT_SETUP_TAKEOFF_HEIGHT_M)
-            mission.target_altitude_m = config.drone.initial_position_m[2] + height
+            mission.target_altitude_m = config.drone.initial_position_m[2] + DEFAULT_SETUP_TAKEOFF_HEIGHT_M
             mission.reset(current)
 
         def start_mission(current):
@@ -75,13 +73,8 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
             started = time.monotonic() - current.ground_truth.simulation_time_s
 
         def reset_simulation():
-            from bullet_simulation_protocol.spawn import SpawnRequest
-            state = service.spawn_state
-            request = SpawnRequest(2, 'application', viewer.physics_id,
-                observation.ground_truth.episode_id, 'reset', 0,
-                state.scenario_name if state else 'Default', config.drone.initial_position_m,
-                state.takeoff_height_m if state else DEFAULT_SETUP_TAKEOFF_HEIGHT_M)
-            current = replace_spawn(request)
+            from bullet_simulation_protocol.requests import SpawnPayload
+            current = replace_spawn(SpawnPayload(config.drone.initial_position_m))
             prepare_mission(current)
             return current
 

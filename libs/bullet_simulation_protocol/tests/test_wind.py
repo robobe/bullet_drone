@@ -1,24 +1,35 @@
-from dataclasses import replace
 import pytest
-from bullet_simulation_protocol.wind import WindSettingsMessage, GetWindRequest, SetWindRequest, WindReadback, WindReply
-from bullet_simulation_protocol import schema_bytes
+from bullet_simulation_protocol.requests import (
+    SpawnPayload, SpawnRequest, WindRequest, CommandRequest, CommandPayload,
+    OperationReply, parse_request,
+)
+from bullet_simulation_protocol.wind import WindSettingsMessage
 
 
-def settings():
-    return WindSettingsMessage(True,'gusts',(1.,2.,0.),(.1,.2,0.),2.,7)
+def test_three_topic_roundtrips():
+    calls = [SpawnRequest('drone_1', SpawnPayload((0., 0., 3.))),
+             CommandRequest('drone_1', CommandPayload('start')),
+             WindRequest('drone_1', WindSettingsMessage(True, 'constant', (1., 0., 0.), (0., 0., 0.), 1., 1))]
+    for call in calls:
+        assert parse_request(call.to_dict()) == call
+        assert set(call.to_dict()) == {'topic', 'drone_id', 'payload'}
+    assert OperationReply(True).to_dict() == {'success': True}
+    failed = OperationReply(False, 'spawn_requires_stopped')
+    assert OperationReply.from_dict(failed.to_dict()) == failed
 
 
-def test_wind_dataclass_round_trips():
-    values=[settings(),GetWindRequest(),SetWindRequest('physics','episode',1000,settings()),
-            WindReadback('physics','episode',1,.1,settings(),(1.,2.,0.))]
-    values.append(WindReply('current','readback',values[-1]))
-    for value in values:
-        assert type(value).from_dict(value.to_dict())==value
-    for old in ('wind_request.json','wind_state.json'):
-        with pytest.raises(ValueError):schema_bytes(old)
+@pytest.mark.parametrize('value', [
+    {'topic':'get_wind','drone_id':'drone_1','payload':{}},
+    {'topic':'command','drone_id':'drone_1','payload':{'action':'get_simulation_state'}},
+    {'topic':'spawn','drone_id':'drone_1','payload':{'position_m':[0,0,3]},'request_id':'removed'},
+    {'topic':'spawn','drone_id':'drone_1','payload':{'position_m':[0,0,float('nan')]}},
+])
+def test_obsolete_or_invalid_requests_rejected(value):
+    with pytest.raises(ValueError):
+        parse_request(value)
 
 
-@pytest.mark.parametrize('key,value',[('enabled',1),('behavior','dryden'),('gust_stddev_m_s',(-1,0,0)),
-    ('velocity_world_m_s',(0,float('nan'),0)),('correlation_time_s',0),('seed',True),('seed',.5)])
-def test_bad_wind_settings(key,value):
-    with pytest.raises(ValueError):replace(settings(),**{key:value})
+@pytest.mark.parametrize('reply', [{'success':True,'reason':'extra'}, {'success':False}, {'success':1}])
+def test_reply_shape_is_strict(reply):
+    with pytest.raises(ValueError):
+        OperationReply.from_dict(reply)

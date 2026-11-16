@@ -41,16 +41,16 @@ def test_request_reply_and_timeout_recovery():
     with ZmqIo(reply_endpoint=address) as server,ZmqIo(request_endpoint=address) as client:
         future=client.request({'action':'test'})
         request=wait(server.poll_request)
-        server.reply(request['request_id'],{'applied':True})
-        assert future.result(TIMEOUT_S)['payload']=={'applied':True}
+        server.reply(request['token'],{'applied':True})
+        assert future.result(TIMEOUT_S)=={'applied':True}
         future=client.request({'action':'slow'},timeout_s=.05)
         request=wait(server.poll_request)
         with pytest.raises(TimeoutError):future.result(TIMEOUT_S)
-        server.reply(request['request_id'],{})
+        server.reply(request['token'],{})
         future=client.request({'action':'again'})
         request=wait(server.poll_request)
-        server.reply(request['request_id'],{'ok':True})
-        assert future.result(TIMEOUT_S)['payload']['ok']
+        server.reply(request['token'],{'ok':True})
+        assert future.result(TIMEOUT_S)['ok']
 
 
 def test_malformed_request_gets_error_and_server_recovers():
@@ -59,10 +59,10 @@ def test_malformed_request_gets_error_and_server_recovers():
         req.connect(address)
         req.send(b'not json')
         assert req.poll(3000)
-        assert req.recv_json()['status']=='error'
+        assert req.recv_json()['success'] is False
         req.send(b'[' * 2000 + b']' * 2000)
         assert req.poll(3000)
-        assert req.recv_json()['status']=='error'
+        assert req.recv_json()['success'] is False
 
 
 def test_bind_failure_closes_thread():

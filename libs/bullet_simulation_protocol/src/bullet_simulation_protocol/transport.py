@@ -89,10 +89,10 @@ class ZmqIo:
     def poll_request(self):
         return self._take(self.requests)
 
-    def reply(self, request_id, result):
+    def reply(self, token, result):
         if not self.endpoints[3]:
             raise RuntimeError('reply endpoint is not configured')
-        self.replies.put_nowait((request_id, deepcopy(result)))
+        self.replies.put_nowait((token, deepcopy(result)))
 
     def request(self, value, timeout_s=1.):
         if not self.endpoints[2]:
@@ -166,11 +166,11 @@ class ZmqIo:
                             item = self._take(self.clients)
                             if item:
                                 value, timeout, future = item
-                                request_id = uuid4().hex
+                                client_token = uuid4().hex
                                 req = socket(zmq.REQ, req_ep, False, transient=True)
-                                req.send(encode(dict(request_id=request_id, payload=value)), zmq.DONTWAIT)
+                                req.send(encode(value), zmq.DONTWAIT)
                                 poller.register(req, zmq.POLLIN)
-                                active = request_id, time.monotonic()+timeout, future
+                                active = client_token, time.monotonic()+timeout, future
                         events = dict(poller.poll(POLL_MS))
                         if sub in events:
                             parts = sub.recv_multipart()
@@ -185,32 +185,34 @@ class ZmqIo:
                         if rep in events and pending is None:
                             try:
                                 parts = rep.recv_multipart()
-                                message = decode(parts[0]) if len(parts) == 1 else {}
-                                if set(message) != {'request_id', 'payload'} or not isinstance(message['request_id'], str) or not isinstance(message['payload'], dict):
-                                    raise ValueError('invalid request envelope')
-                                self.requests.put_nowait(message)
-                                pending = message['request_id']
+                                if len(parts) != 1:
+                                    raise ValueError('expected one request frame')
+                                message = decode(parts[0])
+                                token = uuid4().hex
+                                self.requests.put_nowait(dict(token=token, received_at=time.monotonic(), payload=message))
+                                pending = token
                             except (ValueError, UnicodeError, RecursionError, Full):
-                                rep.send(encode(dict(request_id=None, status='error', error='invalid or busy request')))
+                                rep.send(encode(dict(success=False, reason='invalid_or_busy_request')))
                         if pending is not None:
                             result = self._take(self.replies)
                             if result and result[0] == pending:
-                                rep.send(encode(dict(request_id=pending, status='ok', payload=result[1])))
+                                rep.send(encode(result[1]))
                                 pending = None
                         if active is not None:
-                            request_id, deadline, future = active
+                            client_token, deadline, future = active
                             finished = False
                             if req in events:
                                 try:
                                     response = decode(req.recv())
-                                    if response.get('request_id') != request_id:
-                                        raise ValueError('mismatched reply')
-                                    future.set_result(response)
+                                    if not future.done():
+                                        future.set_result(response)
                                 except (ValueError, UnicodeError, RecursionError) as error:
-                                    future.set_exception(error)
+                                    if not future.done():
+                                        future.set_exception(error)
                                 finished = True
                             elif time.monotonic() >= deadline:
-                                future.set_exception(TimeoutError('request outcome unknown'))
+                                if not future.done():
+                                    future.set_exception(TimeoutError('request outcome unknown'))
                                 finished = True
                             if finished:
                                 poller.unregister(req)

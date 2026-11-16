@@ -230,6 +230,8 @@ Renderer lifecycle queries and the legacy state schema/topic are removed. Contro
 
 Camera pose uses a [minimal dataclass](docs/design/minimal-camera-pose.md); rendered image metadata carries its simulation-step header unchanged.
 
+Current simulation-control protocol: one request_endpoint (default TCP 5560), with topic spawn/wind/command, drone_id and payload. Replies contain success, plus reason only on failure. Public IDs, client timestamps, getters, polling, state snapshots and automatic retries are removed. The renderer is a request client; future state/wind subscriptions and display behavior are deferred.
+
 ## Configuration
 
 ### Aerodynamics and wind
@@ -382,5 +384,6 @@ A project-wide license is not specified in `pyproject.toml`, and no root LICENSE
 file is present. The racer asset is adapted from MIT-licensed gym-pybullet-drones;
 see its [asset notes](src/bullet_drone/assets/racer/README.md) and
 [upstream license](src/bullet_drone/assets/racer/LICENSE.upstream).
+
 
 

@@ -12,7 +12,7 @@ def shape(value, cls):
 
 
 def number(value, nonnegative=False):
-    if type(value) not in (int, float) or not isfinite(value) or abs(value) > MAX_WIND_VALUE or (nonnegative and value < 0):
+    if type(value) not in (int, float) or abs(value) > MAX_WIND_VALUE or not isfinite(value) or (nonnegative and value < 0):
         raise ValueError("invalid wind number")
 
 
@@ -33,6 +33,7 @@ class DictionaryMessage:
 
 
 @dataclass(frozen=True)
+
 class WindSettingsMessage(DictionaryMessage):
     enabled: bool
     behavior: str
@@ -64,79 +65,3 @@ class WindSettingsMessage(DictionaryMessage):
         except TypeError as error:
             raise ValueError("invalid wind settings") from error
 
-
-@dataclass(frozen=True)
-class GetWindRequest(DictionaryMessage):
-    action: str = 'get_wind'
-
-    def __post_init__(self):
-        if self.action != 'get_wind':
-            raise ValueError("invalid wind action")
-
-    @classmethod
-    def from_dict(cls, value):
-        shape(value, cls)
-        return cls(**value)
-
-
-@dataclass(frozen=True)
-class SetWindRequest(DictionaryMessage):
-    physics_id: str
-    episode_id: str
-    issued_ms: int
-    settings: WindSettingsMessage
-    action: str = 'set_wind'
-
-    def __post_init__(self):
-        identity(self.physics_id)
-        identity(self.episode_id)
-        if self.action != 'set_wind' or type(self.issued_ms) is not int or not 0 <= self.issued_ms <= MAX_WIRE_INTEGER or not isinstance(self.settings, WindSettingsMessage):
-            raise ValueError("invalid wind request")
-
-    @classmethod
-    def from_dict(cls, value):
-        shape(value, cls)
-        return cls(**dict(value, settings=WindSettingsMessage.from_dict(value['settings'])))
-
-
-@dataclass(frozen=True)
-class WindReadback(DictionaryMessage):
-    physics_id: str
-    episode_id: str
-    step_index: int
-    simulation_time_s: float
-    settings: WindSettingsMessage
-    velocity_world_m_s: tuple[float, float, float]
-
-    def __post_init__(self):
-        identity(self.physics_id)
-        identity(self.episode_id)
-        if type(self.step_index) is not int or not 0 <= self.step_index <= MAX_WIRE_INTEGER or not isinstance(self.settings, WindSettingsMessage):
-            raise ValueError("invalid wind snapshot")
-        number(self.simulation_time_s, True)
-        if not isinstance(self.velocity_world_m_s, tuple) or len(self.velocity_world_m_s) != 3:
-            raise ValueError("invalid actual wind")
-        for value in self.velocity_world_m_s:
-            number(value)
-
-    @classmethod
-    def from_dict(cls, value):
-        shape(value, cls)
-        return cls(**dict(value, settings=WindSettingsMessage.from_dict(value['settings']),
-                          velocity_world_m_s=tuple(value['velocity_world_m_s'])))
-
-
-@dataclass(frozen=True)
-class WindReply(DictionaryMessage):
-    status: str
-    reason: str
-    state: WindReadback
-
-    def __post_init__(self):
-        if self.status not in ('current', 'applied', 'rejected') or not isinstance(self.reason, str) or not 0 < len(self.reason) <= 256 or not isinstance(self.state, WindReadback):
-            raise ValueError("invalid wind reply")
-
-    @classmethod
-    def from_dict(cls, value):
-        shape(value, cls)
-        return cls(**dict(value, state=WindReadback.from_dict(value['state'])))

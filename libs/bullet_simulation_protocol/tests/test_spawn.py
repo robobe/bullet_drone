@@ -1,49 +1,35 @@
-import json
-
 import pytest
-
-from bullet_simulation_protocol.spawn import SpawnRequest, SpawnState, validate_request, validate_state
-
-
-def request():
-    return dict(schema_version=2, physics_id='physics', episode_id='episode', controller_id='godot',
-                action='set_spawn', takeoff_height_m=7.5, request_id='apply1', issued_ms=1000, scenario_name='Hill', position_m=[12, -34, 25.125])
+from bullet_simulation_protocol.requests import (
+    SpawnPayload, SpawnRequest, WindRequest, CommandRequest, CommandPayload,
+    OperationReply, parse_request,
+)
+from bullet_simulation_protocol.wind import WindSettingsMessage
 
 
-def state():
-    return dict(schema_version=2, physics_id='physics', episode_id='episode', controller_id=None,
-                takeoff_height_m=7.5, request_id=None, result='idle', reason='startup', scenario_name='Default', position_m=[0, 0, .015])
+def test_three_topic_roundtrips():
+    calls = [SpawnRequest('drone_1', SpawnPayload((0., 0., 3.))),
+             CommandRequest('drone_1', CommandPayload('start')),
+             WindRequest('drone_1', WindSettingsMessage(True, 'constant', (1., 0., 0.), (0., 0., 0.), 1., 1))]
+    for call in calls:
+        assert parse_request(call.to_dict()) == call
+        assert set(call.to_dict()) == {'topic', 'drone_id', 'payload'}
+    assert OperationReply(True).to_dict() == {'success': True}
+    failed = OperationReply(False, 'spawn_requires_stopped')
+    assert OperationReply.from_dict(failed.to_dict()) == failed
 
 
-def test_shared_spawn_dataclasses():
-    for packet, cls in ((request(), SpawnRequest), (state(), SpawnState)):
-        assert cls.from_dict(packet).to_dict() == packet
-
-
-@pytest.mark.parametrize('change', [dict(schema_version=True), dict(issued_ms=True), dict(request_id='a/b'),
-    dict(scenario_name=' '), dict(scenario_name=' bad'), dict(scenario_name='a\nb'), dict(position_m=[0, 0, float('nan')]),
-    dict(position_m=[251, 0, 1]), dict(position_m=[0, -251, 1]), dict(position_m=[0, 0, 0]),
-    dict(position_m=[0, 0, 501]), dict(position_m=[0, True, 10]), dict(extra=1)])
-def test_bad_spawn_requests(change):
+@pytest.mark.parametrize('value', [
+    {'topic':'get_wind','drone_id':'drone_1','payload':{}},
+    {'topic':'command','drone_id':'drone_1','payload':{'action':'get_simulation_state'}},
+    {'topic':'spawn','drone_id':'drone_1','payload':{'position_m':[0,0,3]},'request_id':'removed'},
+    {'topic':'spawn','drone_id':'drone_1','payload':{'position_m':[0,0,float('nan')]}},
+])
+def test_obsolete_or_invalid_requests_rejected(value):
     with pytest.raises(ValueError):
-        validate_request(dict(request(), **change))
+        parse_request(value)
 
 
-@pytest.mark.parametrize('change', [dict(result='applied'), dict(result='other'), dict(request_id='request'),
-    dict(controller_id='bad/id'), dict(reason=''), dict(position_m=[0, 0, float('inf')])])
-def test_bad_spawn_state(change):
+@pytest.mark.parametrize('reply', [{'success':True,'reason':'extra'}, {'success':False}, {'success':1}])
+def test_reply_shape_is_strict(reply):
     with pytest.raises(ValueError):
-        validate_state(dict(state(), **change))
-
-
-@pytest.mark.parametrize('factory,validator,name', [(request, validate_request, 'spawn_request.json'),
-                                                   (state, validate_state, 'spawn_state.json')])
-def test_spawn_v2_takeoff(factory, validator, name):
-    packet = dict(factory(), schema_version=2, takeoff_height_m=7.5)
-    validator(packet)
-    for value in (0, -1, 100.1, True, float('nan'), float('inf'), '6'):
-        with pytest.raises(ValueError):
-            validator(dict(packet, takeoff_height_m=value))
-    packet.pop('takeoff_height_m')
-    with pytest.raises(ValueError):
-        validator(packet)
+        OperationReply.from_dict(reply)

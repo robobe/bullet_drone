@@ -1,46 +1,35 @@
-import json
-import time
-
 import pytest
-from jsonschema import validate
-from bullet_simulation_protocol import schema_bytes
-from bullet_simulation_protocol.control import validate_command, decode_json
+from bullet_simulation_protocol.requests import (
+    SpawnPayload, SpawnRequest, WindRequest, CommandRequest, CommandPayload,
+    OperationReply, parse_request,
+)
+from bullet_simulation_protocol.wind import WindSettingsMessage
 
 
-def command(**changes):
-    return dict(physics_id='physics', episode_id='episode',
-                action='start', issued_ms=int(time.monotonic()*1000), **changes)
+def test_three_topic_roundtrips():
+    calls = [SpawnRequest('drone_1', SpawnPayload((0., 0., 3.))),
+             CommandRequest('drone_1', CommandPayload('start')),
+             WindRequest('drone_1', WindSettingsMessage(True, 'constant', (1., 0., 0.), (0., 0., 0.), 1., 1))]
+    for call in calls:
+        assert parse_request(call.to_dict()) == call
+        assert set(call.to_dict()) == {'topic', 'drone_id', 'payload'}
+    assert OperationReply(True).to_dict() == {'success': True}
+    failed = OperationReply(False, 'spawn_requires_stopped')
+    assert OperationReply.from_dict(failed.to_dict()) == failed
 
 
-def test_command_and_state_contracts():
-    value = command()
-    assert validate_command(value) == value
-    from bullet_simulation_protocol.control import SimulationCommand
-    assert SimulationCommand.from_dict(value).to_dict() == value
+@pytest.mark.parametrize('value', [
+    {'topic':'get_wind','drone_id':'drone_1','payload':{}},
+    {'topic':'command','drone_id':'drone_1','payload':{'action':'get_simulation_state'}},
+    {'topic':'spawn','drone_id':'drone_1','payload':{'position_m':[0,0,3]},'request_id':'removed'},
+    {'topic':'spawn','drone_id':'drone_1','payload':{'position_m':[0,0,float('nan')]}},
+])
+def test_obsolete_or_invalid_requests_rejected(value):
     with pytest.raises(ValueError):
-        schema_bytes('command.json')
+        parse_request(value)
+
+
+@pytest.mark.parametrize('reply', [{'success':True,'reason':'extra'}, {'success':False}, {'success':1}])
+def test_reply_shape_is_strict(reply):
     with pytest.raises(ValueError):
-        schema_bytes('state.json')
-
-
-@pytest.mark.parametrize('changes', [dict(schema_version=True), dict(sequence=0), dict(issued_ms=True),
-    dict(action='pause'), dict(issued_ms=-1), dict(physics_id='bad/id'), dict(extra=1)])
-def test_bad_command(changes):
-    value = command()
-    value.update(changes)
-    with pytest.raises(ValueError):
-        validate_command(value)
-
-
-@pytest.mark.parametrize('payload', [b'', b'{}'*3000, b'\xff', b'{"value":NaN}'])
-def test_bad_json(payload):
-    with pytest.raises((ValueError, UnicodeError)):
-        decode_json(payload)
-
-
-def test_command_reply_roundtrip():
-    from bullet_simulation_protocol.control import CommandReply, SimulationStatus, GetSimulationState
-    state = SimulationStatus('physics', 'episode', 'stopped', 'reset', 0., True)
-    reply = CommandReply('applied', 'reset', state)
-    assert CommandReply.from_dict(reply.to_dict()) == reply
-    assert GetSimulationState.from_dict({'action': 'get_simulation_state'}) == GetSimulationState()
+        OperationReply.from_dict(reply)

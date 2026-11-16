@@ -186,3 +186,7 @@
 - [0138: Remove renderer state polling](0138-remove-render-state-query.md) — Implemented, runtime verification pending; remove legacy schema/topic and renderer lifecycle queries; implementation commit Pending.
 
 - [0139: Minimal pose/header](0139-minimal-pose-header.md) — Implemented, manual verification pending; camera pose dataclass with image header propagation; implementation commit Pending.
+
+- [0140: Three request topics](0140-three-request-topics.md) — Implemented, runtime verification pending; mutation-only spawn/wind/command interfaces; implementation commit Pending.
+
+- [0141: Godot request boolean types](0141-godot-request-bool-types.md) — Implemented; source-reviewed parser fix, manual rebuild pending; implementation commit Pending.

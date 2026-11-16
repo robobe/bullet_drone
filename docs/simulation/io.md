@@ -14,8 +14,8 @@ flowchart LR
     Shm["POSIX shared memory pixels"]
     Sitl["Betaflight SITL"]
     Sim -->|"TCP 5555: camera/front/camera_info, render/drone_1/profile,<br/>render/drone_1/pose"| Render
-    Render -->|"Optional REQ get_wind/set_wind, TCP 5560"| Sim
-    Sim -->|"REP: current/applied/rejected and snapshot"| Render
+    Render -->|"Optional REQ spawn/wind/command, TCP 5560"| Sim
+    Sim -->|"REP: success, failure reason"| Render
     Render -->|"TCP 5556: camera/front/image descriptors"| Image
     Render -->|"Write pixels"| Shm
     Shm -->|"Read referenced slot"| Image
@@ -35,7 +35,7 @@ open another listening port. PUB/SUB traffic is multipart topic plus JSON.
 | --- | --- | --- | --- |
 | ZeroMQ TCP 5555 | Simulation RenderPublisher, PUB | Godot, app and optional consumers, SUB | Scene and feedback; `telemetry_endpoint` |
 | ZeroMQ TCP 5556 | Godot image publisher, PUB | Image readers, SUB | Image descriptors; `image_endpoint` |
-| ZeroMQ TCP 5560, wind example only | Simulation wind service, REP | Godot wind client, REQ | Get/set wind, one JSON request and correlated reply; `wind_endpoint` |
+| ZeroMQ TCP 5560, wind example only | Simulation wind service, REP | Godot wind client, REQ | Get/set wind, one JSON request and correlated reply; `request_endpoint` |
 | UDP 9003 | SITL state listener | Simulation UdpSitlBridge | Binary FDM input |
 | UDP 9002 | Simulation UdpSitlBridge | SITL | Binary motor output; simulation also sends FDM from this bound socket |
 | TCP 5761 | SITL virtual UART1 | Application MSP client | RC, configuration and estimator queries |
@@ -103,3 +103,5 @@ Feedback uses [dataclasses and explicit measurement headers](../design/simulatio
 Start/Stop/Reset and `get_simulation_state` use the shared TCP 5560 REQ/REP service in the wind example. Command and heartbeat PUB/SUB are removed, while collision transport stays on TCP 5557. See [command lifecycle](../design/command-request-reply.md).
 
 Legacy state.json and simulation/state publication are removed. The renderer sends no lifecycle state query. Command buttons use fresh wind/spawn identities, display correlated results, and let simulation reject invalid transitions. A timeout reports Outcome unknown without automatic retry or reconciliation queries.
+
+The shared endpoint now accepts mutation-only spawn/wind/command topics. No getters or renderer polling remain. See [three-topic protocol](../design/three-request-topics.md).
