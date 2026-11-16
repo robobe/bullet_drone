@@ -23,6 +23,29 @@
         "clear": true
       },
       "detail": "Automatic examples start immediately. External-render choices open packaged Godot; Betaflight examples need built SITL. External RC needs the app."
+    },
+    {
+      "label": "Bullet: Build Godot renderer",
+      "icon": {
+        "id": "tools",
+        "color": "terminal.ansiBlue"
+      },
+      "type": "shell",
+      "command": "uv run --locked python external_render/build.py",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "detail": "Build the packaged Linux Godot renderer. Requires Godot export templates, native build tools and sibling renderer/terrain sources."
     }
   ],
   "inputs": [

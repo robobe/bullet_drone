@@ -159,3 +159,5 @@
 - [0124: Motor diagram math](0124-motor-diagram-math.md) — Implemented and verified; horizontal Mermaid with rendered KaTeX; implementation commit Pending.
 
 - [0125: README refactor](0125-readme-refactor.md) — Implemented and verified; headings, links, Mermaid and CLI help checked; implementation commit Pending.
+
+- [0126: Godot build task](0126-godot-build-task.md) — Implemented and verified; task JSON and README links checked; implementation commit Pending.

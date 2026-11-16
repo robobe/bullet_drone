@@ -187,6 +187,12 @@ Build firmware first with `tools/setup_betaflight_sitl.sh`. See
 
 ### VS Code tasks
 
+Press **Ctrl+Shift+B** or choose **Tasks: Run Build Task → Bullet: Build Godot
+renderer** to build the packaged viewer. The task has a blue tools icon and runs
+`uv run --locked python external_render/build.py` from the project folder, with
+output in a dedicated terminal. It does not launch a flight. Install the
+[renderer build prerequisites](external_render/README.md#build) first.
+
 Open **Tasks: Run Task → Bullet: Run example** and select a mission from the
 picker. Choices include internal and rendered altitude hold, camera viewer,
 wind control, Betaflight altitude hold, Angle/Iris/Acro squares, terrain following,
