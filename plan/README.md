@@ -143,3 +143,19 @@
 - [0114: GPS distance and speed](0114-gps-distance-speed.md) — Destination distance logs and ramped 5 m/s cruise; implemented and verified with focused tests and full headless flight; implementation commit Pending.
 
 - [0115: GPS control theory](0115-gps-control-theory.md) — README tutorial and control-loop diagram; implemented and verified; implementation commit Pending.
+
+- [0118: Betaflight FDM reference](0118-betaflight-fdm-reference.md) — Implemented and verified; packet offsets and five pinned source links checked; implementation commit Pending.
+
+- [0119: SITL Mermaid diagram](0119-sitl-mermaid-diagram.md) — Implemented and verified with Mermaid CLI; diagram omits legacy ports; implementation commit Pending.
+
+- [0120: SITL motor normalization](0120-sitl-motor-normalization.md) — Implemented and verified; source and arithmetic checked; implementation commit Pending.
+
+- [0121: FDM reference formatting](0121-fdm-reference-formatting.md) — Implemented and verified; bold terms and separate list items; implementation commit Pending.
+
+- [0122: GPS altitude and pressure warning](0122-gps-pressure-warning.md) — Implemented and verified; document coupled Gazebo inputs; implementation commit Pending.
+
+- [0123: SITL motor force chain](0123-sitl-motor-force-chain.md) — Implemented and verified; Mermaid rendered and 12 backend tests passed; implementation commit Pending.
+
+- [0124: Motor diagram math](0124-motor-diagram-math.md) — Implemented and verified; horizontal Mermaid with rendered KaTeX; implementation commit Pending.
+
+- [0125: README refactor](0125-readme-refactor.md) — Implemented and verified; headings, links, Mermaid and CLI help checked; implementation commit Pending.
