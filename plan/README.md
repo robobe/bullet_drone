@@ -169,3 +169,5 @@
 - [0129: Remove external RC](0129-remove-external-rc.md) — Implemented and verified; 620 project tests passed, 8 skipped and 85 focused checks passed; implementation commit Pending.
 
 - [0130: Remove scenario end](0130-remove-scenario-ended.md) — Implemented and verified; 97 protocol/render checks passed; implementation commit Pending.
+
+- [0131: Remove flight config](0131-remove-flight-config.md) — Implemented and verified; 96 protocol/render tests passed; implementation commit Pending.

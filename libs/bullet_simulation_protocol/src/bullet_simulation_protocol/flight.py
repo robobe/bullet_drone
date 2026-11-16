@@ -6,14 +6,9 @@ from .control import MAX_SEQUENCE, identity
 
 
 FEEDBACK_TOPIC = b'flight/drone_1/feedback'
-CONFIG_TOPIC = b'flight/drone_1/config'
 MISSION_TOPIC = b'app/drone_1/mission'
 MAX_FLIGHT_BYTES = 8192
-CHANNEL_COUNT = 18
 SOURCE_FIELDS = {'physics_id', 'episode_id', 'stream_id', 'step_index', 'simulation_time_s', 'measurement_us'}
-CONFIG_FIELDS = {'schema_version', 'physics_id', 'stream_id', 'mass_kg', 'gravity_m_s2', 'max_thrust_n',
-                 'rc_angle_scale_rad', 'rc_yaw_rate_scale_rad_s', 'aetr_channels', 'arm_channel', 'mode_channel',
-                 'camera', 'attitude_model', 'physics_hz', 'feedback_hz', 'command_hz'}
 FEEDBACK_FIELDS = {'schema_version', 'source', 'barometer_altitude_m', 'orientation_xyzw', 'armed', 'mode',
                    'last_applied_sequence', 'owner_id', 'state', 'reason'}
 RANGEFINDER_FIELDS = {'distance_cm', 'valid'}
@@ -52,40 +47,6 @@ def validate_source(value):
     _number(value['simulation_time_s'])
     if value['simulation_time_s'] < 0:
         raise ValueError('negative simulation time')
-    return value
-
-
-def validate_config(value):
-    version = value.get('schema_version') if isinstance(value, dict) else None
-    _shape(value, CONFIG_FIELDS | {'backend'} if version == 2 else CONFIG_FIELDS)
-    _integer(version, 1, 2)
-    if version == 2 and value['backend'] not in ('internal', 'betaflight'):
-        raise ValueError('unsupported backend')
-    _id(value['physics_id'])
-    _id(value['stream_id'])
-    for key in ('mass_kg', 'gravity_m_s2', 'max_thrust_n', 'rc_angle_scale_rad', 'rc_yaw_rate_scale_rad_s',
-                'physics_hz', 'feedback_hz', 'command_hz'):
-        _number(value[key])
-        if value[key] <= 0:
-            raise ValueError('nonpositive platform value')
-    if value['max_thrust_n'] <= value['mass_kg'] * value['gravity_m_s2']:
-        raise ValueError('insufficient hover thrust')
-    mapping = value['aetr_channels']
-    if not isinstance(mapping, (list, tuple)) or len(mapping) != 4:
-        raise ValueError('invalid AETR mapping')
-    for channel in (*mapping, value['arm_channel'], value['mode_channel']):
-        _integer(channel, 1, CHANNEL_COUNT)
-    if len(set((*mapping, value['arm_channel'], value['mode_channel']))) != 6:
-        raise ValueError('overlapping RC mapping')
-    if value['attitude_model'] not in ('ideal', 'imu_complementary', 'betaflight_imu'):
-        raise ValueError('unsupported attitude model')
-    camera = value['camera']
-    _shape(camera, {'width_px', 'height_px', 'fov_x_deg'})
-    for key in ('width_px', 'height_px'):
-        _integer(camera[key], 1, 8192)
-    _number(camera['fov_x_deg'])
-    if not 0 < camera['fov_x_deg'] < 180:
-        raise ValueError('invalid FOV')
     return value
 
 

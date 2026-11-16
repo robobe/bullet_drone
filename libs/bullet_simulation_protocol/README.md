@@ -20,7 +20,6 @@ spawn, collision or app RC receiver.
 | `simulation/command` | Start, stop or reset request | Renderer/controller → simulation | 5557 | [command.json](src/bullet_simulation_protocol/schemas/command.json) |
 | `simulation/heartbeat` | Controller liveness, command payload with heartbeat action | Renderer/controller → simulation | 5557 | [command.json](src/bullet_simulation_protocol/schemas/command.json) |
 | `simulation/state` | Lifecycle, episode and reason | Simulation → clients | 5555 | [state.json](src/bullet_simulation_protocol/schemas/state.json) |
-| `flight/drone_1/config` | Vehicle parameters, RC mapping, camera and timing | Simulation → external app | 5555 | [flight_config.json](src/bullet_simulation_protocol/schemas/flight_config.json) |
 | `flight/drone_1/feedback` | Sensor feedback, attitude, applied RC and armed/mode state | Simulation → external app | 5555 | [flight_feedback.json](src/bullet_simulation_protocol/schemas/flight_feedback.json) |
 | `simulation/spawn_request` | Initial position and takeoff-height request | Renderer/controller → simulation | 5557 | [spawn_request.json](src/bullet_simulation_protocol/schemas/spawn_request.json) |
 | `simulation/spawn_state` | Applied spawn settings and request outcome | Simulation → renderer | 5555 | [spawn_state.json](src/bullet_simulation_protocol/schemas/spawn_state.json) |
@@ -70,3 +69,7 @@ contracts support existing consumers, but are not all published by current examp
 Scenario end messages and embedded lifecycle terminal results are removed.
 Simulation lifecycle state uses schema version 1. Collision proposals remain a
 retained contract, without a local receiver.
+
+The former flight configuration topic/schema/validator are removed. Renderer
+configuration and flight feedback contracts remain. External consumers importing
+the removed flight-config contract must migrate separately.
