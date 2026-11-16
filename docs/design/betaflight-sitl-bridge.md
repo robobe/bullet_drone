@@ -227,8 +227,7 @@ motor packet has no timestamp with which to establish sensor-to-motor latency.
 | Pre-arm hold | `RcSimulation.hold()` continues feeding FDM and sampling stationary observations while discarding returned motor commands for physics motion. |
 | Close | Caller closes the backend/transport and environment; launcher separately owns firmware termination. |
 
-FDM is sent once per backend command plus reset. The external-RC default loop is
-240 Hz, but YAML timestep and caller pacing determine the actual rate. This is
+Caller timestep and pacing determine the actual rate. This is
 not a separate fixed-rate sensor network. Upstream uses FDM timestamps in its
 scheduling, drops packets with decreasing simulation time, and has a 500 ms
 host-time resynchronization branch that can return a cached motor update without
@@ -287,7 +286,6 @@ process, waits for the first matching image, and then starts one automatic missi
 | Geometry and speed limits | [Vehicle loader](../../src/bullet_drone/vehicle.py), [racer URDF](../../src/bullet_drone/assets/racer/racer.urdf), [heavy-quad URDF](../../src/bullet_drone/assets/heavy_quad/heavy_quad.urdf) |
 | Caller-owned stepping and observations | [Simulation](../../src/bullet_drone/simulation.py), [environment](../../src/bullet_drone/environment.py) |
 | Clean upstream build and sensor configuration | [Setup script](../../tools/setup_betaflight_sitl.sh), [firmware profile](../../configs/betaflight.config) |
-| Managed firmware lifecycle, context only | [Sibling SITL supervisor](../../../bullet_render/tools/sitl_supervisor.py), [external-RC example](../../examples/external_rc/main.py) |
 | Pinned upstream structs and build options | [Betaflight target.h at e0b7bb0](https://github.com/betaflight/betaflight/blob/e0b7bb01b17b21351057e9ead2d1ab39dd44fa16/src/platform/SIMULATOR/target/SITL/target.h) |
 | Pinned upstream field consumers, ports and motor output | [Betaflight sitl.c at e0b7bb0](https://github.com/betaflight/betaflight/blob/e0b7bb01b17b21351057e9ead2d1ab39dd44fa16/src/platform/SIMULATOR/sitl.c) |
 | Pinned upstream UDP bind/send behavior | [Betaflight udplink.c at e0b7bb0](https://github.com/betaflight/betaflight/blob/e0b7bb01b17b21351057e9ead2d1ab39dd44fa16/src/platform/SIMULATOR/udplink.c) |

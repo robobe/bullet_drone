@@ -7,6 +7,11 @@ Python dataclass names; current callers use dictionaries and validators.
 
 ## Topics and messages
 
+This table lists retained contracts, including legacy contracts for external
+consumers. Current simulation examples publish render config/profile/pose,
+simulation state and optional wind state only. There is no local lifecycle,
+spawn, collision or app RC receiver.
+
 | Topic | Message / purpose | Direction | Default TCP port | JSON schema |
 | --- | --- | --- | --- | --- |
 | `render/drone_1/config` | Camera dimensions, field of view and capture rate | Simulation → renderer | 5555 | [config.json](src/bullet_simulation_protocol/schemas/config.json) |
@@ -15,7 +20,6 @@ Python dataclass names; current callers use dictionaries and validators.
 | `simulation/command` | Start, stop or reset request | Renderer/controller → simulation | 5557 | [command.json](src/bullet_simulation_protocol/schemas/command.json) |
 | `simulation/heartbeat` | Controller liveness, command payload with heartbeat action | Renderer/controller → simulation | 5557 | [command.json](src/bullet_simulation_protocol/schemas/command.json) |
 | `simulation/state` | Lifecycle, episode, reason and optional terminal result | Simulation → clients | 5555 | [state.json](src/bullet_simulation_protocol/schemas/state.json) |
-| `flight/drone_1/rc` | 18 RC channels, app identity, sequence and expiry | External app → simulation | 5559 | [flight_rc.json](src/bullet_simulation_protocol/schemas/flight_rc.json) |
 | `flight/drone_1/config` | Vehicle parameters, RC mapping, camera and timing | Simulation → external app | 5555 | [flight_config.json](src/bullet_simulation_protocol/schemas/flight_config.json) |
 | `flight/drone_1/feedback` | Sensor feedback, attitude, applied RC and armed/mode state | Simulation → external app | 5555 | [flight_feedback.json](src/bullet_simulation_protocol/schemas/flight_feedback.json) |
 | `simulation/spawn_request` | Initial position and takeoff-height request | Renderer/controller → simulation | 5557 | [spawn_request.json](src/bullet_simulation_protocol/schemas/spawn_request.json) |
@@ -33,8 +37,8 @@ published by bullet_drone's simulation publisher.
 
 Simulation messages use two ZeroMQ multipart frames: UTF-8 topic, then UTF-8 JSON.
 Default endpoints use `tcp://127.0.0.1:<port>`. Simulation binds its publisher on
-5555; Godot binds the control publisher on 5557; the external app binds its RC
-publisher on 5559. Consumers connect and subscribe. Endpoints are configurable;
+5555. The renderer reserves control port 5557, but the local command receiver
+has been removed. Consumers connect and subscribe. Endpoints are configurable;
 not every example enables every message. `drone_1` is the existing fixed wire slot.
 
 World position is in metres, velocity in metres per second, simulation time in
@@ -60,3 +64,6 @@ pose_schema = json.loads(schema_bytes('pose.json'))
 
 Schemas are included in the wheel. Runtime validation uses the focused Python
 validators; `jsonschema` is used by development tests.
+
+The RC command contract and `flight_command_endpoint` are removed. Other retained
+contracts support existing consumers, but are not all published by current examples.

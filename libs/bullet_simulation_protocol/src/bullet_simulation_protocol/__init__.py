@@ -3,7 +3,7 @@ from importlib.resources import files
 import json
 import re
 
-SCHEMAS = ('config.json', 'pose.json', 'command.json', 'state.json', 'flight_rc.json', 'flight_config.json', 'flight_feedback.json', 'collision.json', 'scenario_end.json', 'spawn_request.json', 'spawn_state.json', 'wind_request.json', 'wind_state.json')
+SCHEMAS = ('config.json', 'pose.json', 'command.json', 'state.json', 'flight_config.json', 'flight_feedback.json', 'collision.json', 'scenario_end.json', 'spawn_request.json', 'spawn_state.json', 'wind_request.json', 'wind_state.json')
 
 def schema_bytes(name):
     if name not in SCHEMAS:
@@ -20,7 +20,7 @@ def validate_endpoint(endpoint):
 
 def validate_transport(profile):
     required = {"telemetry_endpoint", "image_endpoint", "control_endpoint"}
-    if not isinstance(profile, dict) or not required <= set(profile) or set(profile) - required - {"flight_command_endpoint"}:
+    if not isinstance(profile, dict) or not required <= set(profile) or set(profile) - required:
         raise ValueError("expected telemetry_endpoint, image_endpoint and control_endpoint")
     for endpoint in profile.values():
         validate_endpoint(endpoint)

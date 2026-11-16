@@ -101,7 +101,6 @@ viewer. The example owns its loop and cleanup; Ctrl+C releases resources.
 | [Terrain following](examples/terrain_following_bt/README.md) | Follow uneven ground at 3 m rangefinder clearance and return to home. | Betaflight SITL |
 | [Terrain following with MAVLink](examples/terrain_following_mavlink/README.md) | Monitor Betaflight MAVLink telemetry while commanding Acro flight over MSP. | Betaflight SITL |
 | [GPS point-to-point with MAVLink](examples/gps_point_to_point_mavlink/README.md) | Fly 400 m using firmware GPS/attitude feedback, then land on mapped terrain. | Betaflight SITL |
-| [External RC](docs/design/app-flight-channel.md) | Connect an external app that sends RC commands and receives flight feedback. | Betaflight SITL |
 
 ### Altitude hold example
 
@@ -196,7 +195,7 @@ output in a dedicated terminal. It does not launch a flight. Install the
 Open **Tasks: Run Task → Bullet: Run example** and select a mission from the
 picker. Choices include internal and rendered altitude hold, camera viewer,
 wind control, Betaflight altitude hold, Angle/Iris/Acro squares, terrain following,
-MAVLink/GPS missions and external RC. In the multi-folder workspace, the task
+MAVLink/GPS missions. In the multi-folder workspace, the task
 appears under `bullet_drone`.
 
 The task runs the selected module through `uv run --frozen` with its existing display defaults
@@ -214,7 +213,7 @@ external-render choice opens the packaged Godot viewer with PyBullet headless.
 The Betaflight choice requires a built SITL binary and uses its fixed UDP/MSP
 ports; the internal choice uses no transport ports. Both square choices start
 their packaged viewers and flights automatically; Acro square also requires the
-built SITL binary. External RC requires the app. The shared task
+built SITL binary. The shared task
 includes rendering/SITL dependencies for the other choices, but the internal altitude-hold
 CLI does not require the render extra. Run only one transport-based example at a time.
 
@@ -235,52 +234,16 @@ New aerodynamic effects default to enabled, with calm ambient wind. Configure
 independent drag, damping, inflow, flapping, gyroscopic, ground-effect and local
 propwash settings through Python or the commented `configs/basic.yaml` loader.
 Wind supports a world velocity vector and repeatable smooth gusts. Configuration loading is example-specific: the position-square CLI accepts
-`--profile`, while external RC accepts `--config`; other examples use their own defaults. For exact ideal-rotor
+`--profile`; other examples use their own defaults. For exact ideal-rotor
 experiments, select `ForcesSettings.ideal()` and disable ambient wind.
 See [models, defaults and compatibility](docs/design/aerodynamics.md).
 
-### Sensor pose for Godot and app feedback
+### Sensor pose and live wind
 
-Run the external-RC example with `--config configs/basic.yaml` to load physics
-sensor noise and pose settings. Set `pose_sources.altitude: barometer` and
-`pose_sources.attitude: imu` to use measured render height and an IMU complementary
-filter for both camera and app attitude. Existing launches retain their defaults.
-See [configuration, noise and estimator limits](docs/design/sensors.md#sensor-pose-selection-and-attitude-estimation).
-
-The external-RC runner prints a `bullet_drone loaded configuration` banner to
-stdout once at startup. Its indented JSON contains the effective simulation
-settings (including defaults and the headless override), flight control, vehicle,
-render, transport and advertised platform configuration, plus configuration paths.
-`physics_config_path: null` means the built-in defaults were used. Diagnostics
-continue on stderr; the banner precedes physics initialization.
-
-The barometer in `configs/basic.yaml` uses `filter_enabled: true` and
-`filter_time_constant_s: 0.1` under `sensors.barometer`. It smooths pressure before
-altitude conversion for rendering and app feedback. Set `filter_enabled: false`
-for direct noisy readings. Omitted flags default to false in the library.
-
-The IMU demo now uses an ICM-42688-P density profile with sensor filtering:
-`sensors.imu.noise_model: density`, `filter_enabled: true`, acceleration cutoff
-30 Hz and gyro cutoff 60 Hz. Fixed bias and residual bias drift remain zero as a
-calibrated baseline. See [IMU fields, units and model limits](docs/design/sensors.md#icm-42688-p-density-based-imu-profile).
-Omitted options preserve the legacy per-sample noise model and disable filtering.
-
-### Live wind in Godot
-
-With the external-RC/LOS workflow, click **Wind** beside **Scenario**, edit world
-XYZ mean velocity (m/s), gust standard deviations (m/s), correlation time (s)
-and seed, then **Apply wind**. +Z points up; the vector points toward air travel.
-Opening/closing the panel does not change wind. Apply works while stopped without
-stepping, or live during flight. Start, Reset and spawn changes retain settings
-and restart gust history; restarting physics reloads YAML defaults. The spectator
-windsock shows actual mean-plus-gust velocity and is excluded from drone images.
-See [runtime wind behavior](docs/design/aerodynamics.md#runtime-wind-updates).
-
-GPS is opt-in through `sensors.gps` with a required geographic world origin.
-See [GPS configuration and measurement semantics](docs/design/sensors.md#opt-in-gps)
-and the [GPS-enabled Betaflight example](examples/altitde_hold_bt/README.md#optional-gps).
-The default GPS-disabled FDM behavior is unchanged; full GPS uses a separately
-built compatible firmware variant to preserve independent barometer pressure.
+Programmatic rendering adapters accept sensor-derived pose selection. See
+[sensor pose settings](docs/design/sensors.md#sensor-pose-selection-and-attitude-estimation).
+The [wind-control example](examples/wind_control/README.md) provides local wind editing.
+GPS remains opt-in; see [GPS configuration](docs/design/sensors.md#opt-in-gps).
 
 ## Project Structure
 
@@ -332,8 +295,7 @@ The bridge encodes measured barometer pressure into FDM `position_xyz[2]` so
 upstream Gazebo mode reconstructs that pressure. The firmware profile selects MSP
 RC and disables GPS and magnetometer use. Existing patched/modified firmware
 checkouts must be preserved and moved aside before setup can create a clean one.
-Then launch it through `bullet_render/tools/run_flight.py --physics-config configs/basic.yaml`
-with `control.backend: betaflight` in the selected physics YAML.
+Use the standalone Betaflight examples listed above.
 See the [bridge reference](docs/design/betaflight-sitl-bridge.md) for ports,
 packet fields, sensor mappings and motor order.
 
@@ -365,6 +327,8 @@ filtering and lifecycle while keeping measured data separate from ground truth.
 Implementation records are in [the plan menu](plan/README.md).
 
 ## Documentation
+
+- [Simulation I/O: connections, topics and ports](docs/simulation/io.md)
 
 - [Design menu](docs/design/index.md)
 - [Simulation and Betaflight bridge](docs/design/betaflight-sitl-bridge.md)

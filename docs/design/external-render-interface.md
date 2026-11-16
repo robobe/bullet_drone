@@ -29,9 +29,9 @@ flowchart LR
 
 The telemetry publisher binds the `telemetry_endpoint`. Godot subscribes to
 that endpoint and binds `image_endpoint`; the Python adapter subscribes to the
-image endpoint. Godot also binds `control_endpoint` for simulation control
-messages when the external-RC application uses that interface. The bundled
-transport profile uses loopback TCP ports 5555, 5556, and 5557 respectively;
+image endpoint. The transport profile reserves control port 5557 for renderer
+compatibility, but there is no local command receiver. The bundled profile uses
+loopback TCP ports 5555, 5556, and 5557;
 endpoints are configurable in `external_render/configs/transport.json`.
 
 ## Startup configuration
@@ -51,7 +51,6 @@ transport file path. Startup readiness requires an image whose `stream_id` and
 | `fps` | Number, frames/s, at most 240 | Pose capture schedule in simulation time. |
 | `telemetry_endpoint` | ZeroMQ endpoint | Publisher binds; Godot subscribes for scene/control state. |
 | `image_endpoint` | ZeroMQ endpoint | Godot binds; Python subscribes for image descriptors. |
-| `control_endpoint` | ZeroMQ endpoint | Godot binds; external-RC control receiver subscribes. |
 
 ## Telemetry messages
 
@@ -66,11 +65,7 @@ on the telemetry endpoint. Topic contracts shared with the renderer live in
 | `render/drone_1/profile` | Once per second | `schema_version`, `stream_id`, `profile_name`, `backend`, `drone_model`. |
 | `render/drone_1/pose` | Capture schedule; stopped pose repeats at 1 Hz | `schema_version`, `stream_id`, `sequence`, `publisher_drops`, fixed render `drone_id`, `episode_id`, `step_index`, `simulation_time_s`, `position_m`, `orientation_xyzw`, `linear_velocity_m_s`. Sensor pose selection may add a `source` object with physics/stream/episode IDs, step/time, and monotonic measurement timestamp. |
 | `simulation/state` | On change and once per second | External-RC state, episode identity, and terminal status. |
-| `flight/drone_1/config` | On change | Vehicle mass/thrust, RC channel mapping, camera and control timing settings. |
-| `flight/drone_1/feedback` | Up to 120 Hz | Sensor feedback, orientation, armed/mode state, and applied RC sequence. |
-| `simulation/spawn_state` | On change and every 0.1 s | Current spawn selection and position. |
 | `simulation/wind_state` | Periodic refresh | Current wind configuration and state. |
-| `scenario/ended` | Every 0.1 s while terminal | Terminal result for the active scenario. |
 
 Pose position and velocity use world coordinates in metres and metres per
 second. The orientation is body-to-world quaternion in XYZW order. World Z points
@@ -97,8 +92,4 @@ are logged and stop rendering updates without advancing or mutating physics;
 Godot exit during an active rendered mission is an error. `--headless` skips the
 renderer process and its transport resources.
 
-The external-render interface is distinct from the simulation command channel:
-render pose/config messages describe the scene, while `simulation/command` and
-`simulation/heartbeat` control the external-RC mission through
-`control_endpoint`. See [Godot / ZeroMQ camera](zmq-rendering.md) for behavior
-notes and [App flight channel](app-flight-channel.md) for the command protocol.
+See [Simulation I/O](../simulation/io.md) for the current direct interfaces.

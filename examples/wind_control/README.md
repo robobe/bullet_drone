@@ -60,7 +60,6 @@ world velocity, episode identity and the application result. The renderer alread
 subscribes to that topic. Drone movement independently arrives in pose messages.
 No wind force is applied by the renderer.
 
-Godot's built-in editable wind panel requires external-RC controller ownership.
 This automatic example uses its own Tk panel and publishes with no controller
 owner. The windsock updates its direction and speed label in viewer-only mode,
 while the Godot wind editor remains disabled.

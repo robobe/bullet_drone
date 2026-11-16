@@ -163,3 +163,7 @@
 - [0126: Godot build task](0126-godot-build-task.md) — Implemented and verified; task JSON and README links checked; implementation commit Pending.
 
 - [0127: Local terrain migration](0127-local-terrain-migration.md) — Implemented and verified; 25 focused tests, post-removal terrain checks and renderer build passed; implementation commit Pending.
+
+- [0128: Simulation I/O](0128-simulation-io.md) — Implemented and verified; rendered Mermaid, checked topics and links; implementation commit Pending.
+
+- [0129: Remove external RC](0129-remove-external-rc.md) — Implemented and verified; 620 project tests passed, 8 skipped and 85 focused checks passed; implementation commit Pending.

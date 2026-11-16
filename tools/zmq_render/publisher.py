@@ -20,9 +20,7 @@ START_TIMEOUT_S = 15
 STOP_TIMEOUT_S = 5
 CONFIG_INTERVAL_S = 1
 SCHEDULE_TOLERANCE_S = 1e-12
-FLIGHT_FEEDBACK_HZ = 120
 WORKER_POLL_S = 0.002
-TERMINAL_INTERVAL_S = 0.1
 
 
 class RenderPublisher:
@@ -64,9 +62,8 @@ class RenderPublisher:
         self.snapshot_lock = Lock()
         self.latest_pose = None
         self.control_state = None
-        self.spawn_state = None
         self.wind_state = None
-        self.flight_config = self.feedback = self.latest_source = None
+        self.latest_source = None
         self.sequence = 0
         self.dropped = 0
 
@@ -88,24 +85,11 @@ class RenderPublisher:
         with self.snapshot_lock:
             self.control_state = dict(state)
 
-    def set_spawn(self, state):
-        from bullet_simulation_protocol.spawn import validate_state
-        validate_state(state)
-        with self.snapshot_lock:
-            self.spawn_state = state
-
     def set_wind(self, state):
         from bullet_simulation_protocol.wind import validate_state
         validate_state(state)
         with self.snapshot_lock:
             self.wind_state = state
-
-    def set_flight(self, config, feedback):
-        from bullet_simulation_protocol.flight import validate_config, validate_feedback
-        validate_config(config)
-        validate_feedback(feedback)
-        with self.snapshot_lock:
-            self.flight_config, self.feedback = config, feedback
 
     def consume(self, observation, *, source=None):
         if self.thread is None or self.stop.is_set():
@@ -151,11 +135,7 @@ class RenderPublisher:
                           'camera': self.config['camera'], 'fps': self.config['fps']}
                 next_config = 0.0
                 next_state = 0.0
-                next_spawn = 0.0
                 next_wind = 0.0
-                previous_spawn = None
-                next_end = 0.0
-                next_feedback = time.monotonic()
                 next_idle_pose = 0.0
                 wire_sequence = 0
                 previous_state = None
@@ -164,41 +144,18 @@ class RenderPublisher:
                     if time.monotonic() >= next_config:
                         socket.send_multipart([b'render/drone_1/config', json.dumps(config).encode()], flags=zmq.DONTWAIT)
                         socket.send_multipart([b'render/drone_1/profile', json.dumps(self.profile).encode()], flags=zmq.DONTWAIT)
-                        with self.snapshot_lock:
-                            platform = self.flight_config
-                        if platform is not None:
-                            from bullet_simulation_protocol.flight import CONFIG_TOPIC
-                            socket.send_multipart([CONFIG_TOPIC, json.dumps(platform).encode()], flags=zmq.DONTWAIT)
                         next_config = time.monotonic() + CONFIG_INTERVAL_S
                     from bullet_simulation_protocol.control import STATE_TOPIC
                     with self.snapshot_lock:
                         control_state = self.control_state
                         latest = self.latest_pose
                         source = self.latest_source
-                        feedback = self.feedback
-                        spawn_state = self.spawn_state
                         wind_state = self.wind_state
                     now = time.monotonic()
-                    if spawn_state is not None and (spawn_state != previous_spawn or now >= next_spawn):
-                        from bullet_simulation_protocol.spawn import STATE_TOPIC as SPAWN_TOPIC, SPAWN_INTERVAL_S
-                        socket.send_multipart([SPAWN_TOPIC, json.dumps(spawn_state).encode()], flags=zmq.DONTWAIT)
-                        previous_spawn = spawn_state
-                        next_spawn = now + SPAWN_INTERVAL_S
                     if wind_state is not None and now >= next_wind:
                         from bullet_simulation_protocol.wind import STATE_TOPIC as WIND_TOPIC, WIND_INTERVAL_S
                         socket.send_multipart([WIND_TOPIC, json.dumps(wind_state, allow_nan=False).encode()], flags=zmq.DONTWAIT)
                         next_wind = now + WIND_INTERVAL_S
-                    if feedback is not None and now >= next_feedback:
-                        from bullet_simulation_protocol.flight import FEEDBACK_TOPIC
-                        socket.send_multipart([FEEDBACK_TOPIC, json.dumps(feedback).encode()], flags=zmq.DONTWAIT)
-                        next_feedback += 1 / FLIGHT_FEEDBACK_HZ
-                        if next_feedback < now:
-                            next_feedback = now + 1 / FLIGHT_FEEDBACK_HZ
-                    terminal = None if control_state is None else control_state.get('terminal_result')
-                    if terminal is not None and now >= next_end:
-                        from bullet_simulation_protocol.scenario import END_TOPIC
-                        socket.send_multipart([END_TOPIC, json.dumps(terminal).encode()], flags=zmq.DONTWAIT)
-                        next_end = now + TERMINAL_INTERVAL_S
                     changed = control_state != previous_state
                     if control_state is not None and (changed or now >= next_state):
                         socket.send_multipart([STATE_TOPIC, json.dumps(control_state).encode()], flags=zmq.DONTWAIT)

@@ -58,29 +58,10 @@ another example. It uses the same packaged viewer/readiness protocol, advertises
 `backend=betaflight`, starts automatically, and closes the viewer with its owned
 SITL session. Its `--headless` path starts no rendering or ZeroMQ resources.
 
-## Command-driven external-RC flow
-
-A main-thread SimulationControl SUB receives exact simulation/command and
-simulation/heartbeat messages from Godot PUB on TCP 5557. Physics/mission reset and
-stepping remain inside each example's loop; no receiver thread mutates physics.
-Start resets all episode state and pacing. Stop freezes the final observation;
-Reset restores initial state at time zero without stepping. Completion/errors
-keep the process available. Godot loss for three seconds ends the active run.
-Malformed, stale, duplicate and retired-controller messages are ignored.
-
-Commands have no acknowledgments or barrier. Physics publishes simulation/state
-on port 5555 at transitions and every second. Godot shows this actual state and
-requires a fresh heartbeat relationship before enabling controls. RenderPublisher
-holds immutable observations and repeats stopped poses at 1 Hz for late viewers,
-without advancing simulation time; active capture scheduling remains unchanged.
-
 ## Sensor-derived camera pose
 
-The external-RC example accepts `--config configs/basic.yaml` for physics YAML.
-Set `pose_sources.altitude: barometer` and `pose_sources.attitude: imu` to render
-measured altitude and complementary-filter attitude. The same attitude is sent
-to the navigation app. Ground-truth defaults, true XY/velocity and all capture
-source stamps are preserved. Held packets use the cached resolved pose.
+Programmatic adapters can select barometer altitude and complementary-filter
+attitude through pose-source settings. Held packets use the cached resolved pose.
 
 Noise is generated only by the physics sensors, with per-sample standard
 deviations, fixed biases and seeds in YAML. The filter runs at physics frequency

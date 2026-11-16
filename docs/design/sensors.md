@@ -224,17 +224,8 @@ enabled/noisy/disabled. Run `uv run --locked pytest -q tests/test_sensors.py`.
 
 ## Sensor pose selection and attitude estimation
 
-The external-RC runner accepts the existing physics YAML:
-
-```sh
-uv run --locked --extra render python -m examples.external_rc.main --config configs/basic.yaml
-```
-
-It uses the loaded sensor, mass, timestep, spawn, force and wind settings. Godot
-remains the viewer, so this runner forces `simulation.gui` off. App configuration
-must still match advertised mass, gravity, RC scales and rates; the bundled app
-profile expects 240 Hz physics. `simulation.max_steps` remains a caller budget,
-not an automatic limit in this externally controlled loop.
+Programmatic render adapters can select sensor-derived pose through `PoseSources`.
+The following YAML illustrates the corresponding configuration fields.
 
 In that YAML, opt in and choose noise levels (these are illustrative, not calibrated):
 

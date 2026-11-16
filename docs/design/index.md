@@ -36,8 +36,7 @@ library interfaces rather than reconstructing those missing records.
 
 - [External renderer interface](external-render-interface.md): process ownership, configuration, ZeroMQ topics, pose/image data, readiness, and cleanup.
 - [Godot / ZeroMQ camera](zmq-rendering.md): Godot Start/Stop/Reset, physics-paced poses, TCP signaling and local SHM images.
-- [App flight channel](app-flight-channel.md): external RC lease, readiness,
-  sensor-only feedback, expiry watchdog and exact capture-source timestamps.
+
 
 - [MAVLink terrain monitor](../../examples/terrain_following_mavlink/README.md): separate MAVLink telemetry connection with shared MSP Acro mission. The terrain runner accepts an optional SITL session factory; the base session accepts a profile path and additional reserved TCP ports.
 
@@ -48,3 +47,5 @@ library interfaces rather than reconstructing those missing records.
 - [Live wind UI example](../../examples/wind_control/README.md): example-owned wind editor, step-boundary application and renderer wind-state publication.
 
 - [GPS point-to-point MAVLink feedback](../../examples/gps_point_to_point_mavlink/README.md): standalone 400 m GPS line flight, terrain-map landing, firmware telemetry feedback and MSP Acro commands.
+
+- [Simulation I/O](../simulation/io.md): direct subsystem connections, topics, ports and endpoint ownership.

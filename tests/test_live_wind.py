@@ -14,10 +14,6 @@ from bullet_drone.forces.wind import WindModel
 from bullet_drone.commands import RcInput
 from bullet_drone.simulation import RcSimulation
 from examples.position_square.demo import FLIGHT_CONTROL_SETTINGS
-from tools.zmq_render.control import SimulationControl
-from tools.zmq_render.wind import WindControl
-from bullet_simulation_protocol.wind import REQUEST_TOPIC, validate_state
-from bullet_simulation_protocol.control import HEARTBEAT_TOPIC
 
 
 def test_live_edits_and_snapshot_reads_preserve_gust_history():
@@ -73,47 +69,3 @@ def test_public_update_moves_body_without_applying_a_second_force(config):
         assert simulation.wind.settings == settings
     finally:
         simulation.close()
-
-
-def test_real_tcp_live_requests_retry_and_stale_ownership(tmp_path):
-    with zmq.Context() as context, context.socket(zmq.XPUB) as publisher:
-        publisher.setsockopt(zmq.LINGER,0)
-        publisher.bind_to_random_port('tcp://127.0.0.1')
-        path=tmp_path/'transport.json'
-        path.write_text(json.dumps(dict(control_endpoint=publisher.getsockopt_string(zmq.LAST_ENDPOINT),telemetry_endpoint='tcp://127.0.0.1:5555',image_endpoint='tcp://127.0.0.1:5556')))
-        clock=[time.monotonic()]
-        wind=WindControl()
-        control=SimulationControl(path,Mock(),clock=lambda:clock[0],wind=wind)
-        try:
-            control.episode_id='episode'
-            for _ in range(3):
-                assert publisher.poll(2000)
-                publisher.recv()
-            def send(value,topic=REQUEST_TOPIC):
-                publisher.send_multipart([topic,json.dumps(value).encode()])
-                assert control.socket.poll(2000)
-                return control.poll()
-            heartbeat=dict(schema_version=1,controller_id='godot',sequence=1,action='heartbeat',issued_ms=int(clock[0]*1000))
-            assert send(heartbeat,HEARTBEAT_TOPIC) is None
-            packet=dict(schema_version=1,physics_id=control.physics_id,episode_id='episode',controller_id='godot',request_id='wind1',issued_ms=int(clock[0]*1000),settings=asdict(WindSettings(velocity_world_m_s=(3.,0.,0.))))
-            assert send(packet,REQUEST_TOPIC+b'/suffix') is None
-            for changes in [dict(physics_id='other'),dict(controller_id='other'),dict(issued_ms=0),dict(settings={'bad':True})]:
-                assert send(dict(packet,**changes)) is None
-                assert wind.pending is None
-            control.state='running'
-            assert send(packet)=='wind'
-            wind.finish(True,'wind_applied')
-            assert send(packet) is None and wind.result=='applied'
-            assert send(dict(packet,settings=asdict(WindSettings()))) is None
-            assert send(dict(packet,request_id='old',episode_id='old')) is None
-            assert wind.reason=='stale_episode'
-            control.state='stopped'
-            assert send(dict(packet,request_id='stopped'))=='wind'
-            wind.finish(True,'wind_applied')
-            snapshot=WindModel(WindSettings()).snapshot
-            state=wind.packet(control,SimpleNamespace(ground_truth=SimpleNamespace(episode_id='episode')),snapshot)
-            validate_state(state)
-            clock[0]+=4
-            assert send(dict(packet,request_id='expired',issued_ms=int(clock[0]*1000))) is None
-        finally:
-            control.close()

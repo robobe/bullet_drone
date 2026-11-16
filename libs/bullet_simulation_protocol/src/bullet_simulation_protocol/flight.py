@@ -5,15 +5,12 @@ import math
 from .control import MAX_SEQUENCE, identity
 
 
-RC_TOPIC = b'flight/drone_1/rc'
 FEEDBACK_TOPIC = b'flight/drone_1/feedback'
 CONFIG_TOPIC = b'flight/drone_1/config'
 MISSION_TOPIC = b'app/drone_1/mission'
 MAX_FLIGHT_BYTES = 8192
-COMMAND_LIFETIME_US = 100_000
 CHANNEL_COUNT = 18
 SOURCE_FIELDS = {'physics_id', 'episode_id', 'stream_id', 'step_index', 'simulation_time_s', 'measurement_us'}
-RC_FIELDS = {'schema_version', 'physics_id', 'episode_id', 'app_id', 'sequence', 'issued_us', 'valid_until_us', 'active', 'channels'}
 CONFIG_FIELDS = {'schema_version', 'physics_id', 'stream_id', 'mass_kg', 'gravity_m_s2', 'max_thrust_n',
                  'rc_angle_scale_rad', 'rc_yaw_rate_scale_rad_s', 'aetr_channels', 'arm_channel', 'mode_channel',
                  'camera', 'attitude_model', 'physics_hz', 'feedback_hz', 'command_hz'}
@@ -55,22 +52,6 @@ def validate_source(value):
     _number(value['simulation_time_s'])
     if value['simulation_time_s'] < 0:
         raise ValueError('negative simulation time')
-    return value
-
-
-def validate_rc(value):
-    _shape(value, RC_FIELDS)
-    _version(value['schema_version'])
-    for name in ('physics_id', 'episode_id', 'app_id'):
-        _id(value[name])
-    for name in ('sequence', 'issued_us', 'valid_until_us'):
-        _integer(value[name], 1 if name == 'sequence' else 0)
-    if not 0 < value['valid_until_us'] - value['issued_us'] <= COMMAND_LIFETIME_US:
-        raise ValueError('invalid RC lifetime')
-    if type(value['active']) is not bool or not isinstance(value['channels'], (list, tuple)) or len(value['channels']) != CHANNEL_COUNT:
-        raise ValueError('invalid RC active/channels')
-    for channel in value['channels']:
-        _integer(channel, 1000, 2000)
     return value
 
 

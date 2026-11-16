@@ -22,7 +22,7 @@
         "panel": "dedicated",
         "clear": true
       },
-      "detail": "Automatic examples start immediately. External-render choices open packaged Godot; Betaflight examples need built SITL. External RC needs the app."
+      "detail": "Automatic examples start immediately. External-render choices open packaged Godot; Betaflight examples need built SITL."
     },
     {
       "label": "Bullet: Build Godot renderer",
@@ -97,10 +97,6 @@
         {
           "label": "GPS point-to-point (400 m, MAVLink feedback, MSP Acro)",
           "value": "examples.gps_point_to_point_mavlink.main"
-        },
-        {
-          "label": "External RC (app-controlled)",
-          "value": "examples.external_rc.main"
         }
       ],
       "default": "examples.altitude_hold.main"

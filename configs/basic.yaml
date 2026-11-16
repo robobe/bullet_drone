@@ -110,7 +110,6 @@ sensors:
     mount_position_body_m: [0.0, 0.0, 0.0]
 
 # Optional published-pose sources. Omitted fields preserve ground-truth rendering.
-# Used by external_rc --config; app altitude feedback always uses the barometer.
 pose_sources:
   # Render Z: ground_truth (default) or barometer; X/Y always remain ground truth.
   altitude: barometer #  ground_truth

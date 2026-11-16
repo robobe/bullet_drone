@@ -1,4 +1,4 @@
-"""Optional application-side renderer and simulation control adapters."""
+"""Optional application-side renderer adapters."""
 from pathlib import Path
 
-DEFAULT_RENDER_CONFIG = Path(__file__).resolve().parents[3] / 'bullet_render/configs/physics.json'
+DEFAULT_RENDER_CONFIG = Path(__file__).resolve().parents[2] / 'external_render/configs/physics.json'
