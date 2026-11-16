@@ -178,3 +178,5 @@
 
 - [0134: Wind request/reply](0134-wind-request-reply.md) — Implemented and verified, uncommitted; dataclasses and Godot REQ/REP wind editor; implementation commit Pending.
 - [0135: Spawn request/reply](0135-spawn-request-reply.md) — Implemented, manual verification pending; migrate spawn to dataclasses and route through shared wind REQ/REP endpoint; implementation commit Pending.
+
+- [0136: Complete simulation feedback](0136-full-simulation-feedback.md) — Implemented, manual verification pending; dataclass ground truth and all sensor telemetry; implementation commit Pending.

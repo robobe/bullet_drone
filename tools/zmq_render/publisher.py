@@ -11,6 +11,8 @@ from uuid import uuid4
 from loguru import logger
 from bullet_drone.config import ConfigurationError, PoseSources
 from bullet_drone.pose import resolve_pose
+from bullet_simulation_protocol.flight import FEEDBACK_TOPIC
+from tools.zmq_render.feedback import from_observation
 from bullet_drone.rendering.config import CameraSettings, number
 
 
@@ -71,6 +73,8 @@ class RenderPublisher:
         self.next_capture = 0.0
         self.snapshot_lock = Lock()
         self.latest_pose = None
+        self.latest_observation = None
+        self.observation_sequence = 0
         self.control_state = None
         self.latest_source = None
         self.sequence = 0
@@ -101,6 +105,8 @@ class RenderPublisher:
             return  # Failure is logged by the worker; physics keeps running.
         state = resolve_pose(observation, self.pose_sources)
         with self.snapshot_lock:
+            self.latest_observation = observation
+            self.observation_sequence += 1
             self.latest_pose = state
             self.latest_source = source
         if state.episode_id != self.episode:
@@ -137,6 +143,7 @@ class RenderPublisher:
                 next_idle_pose = 0.0
                 wire_sequence = 0
                 previous_state = None
+                feedback_sequence = -1
                 self.ready.set()
                 while not self.stop.is_set():
                     if io.error:
@@ -152,6 +159,11 @@ class RenderPublisher:
                         control_state = self.control_state
                         latest = self.latest_pose
                         source = self.latest_source
+                        observation = self.latest_observation
+                        observation_sequence = self.observation_sequence
+                    if observation is not None and observation_sequence != feedback_sequence:
+                        io.publish(FEEDBACK_TOPIC, from_observation(observation))
+                        feedback_sequence = observation_sequence
                     now = time.monotonic()
                     changed = control_state != previous_state
                     if control_state is not None and (changed or now >= next_state):

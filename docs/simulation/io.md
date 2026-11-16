@@ -59,6 +59,7 @@ PUB/SUB endpoints carry UTF-8 topic and JSON payload as two frames. Wind REQ/REP
 | 5555 | `render/drone_1/profile` | Backend, model and profile identity | Every 1 s |
 | 5555 | `render/drone_1/pose` | World position/velocity and XYZW attitude, sample identity | Configured capture fps; stopped refresh 1 Hz |
 | 5555 | `simulation/state` | Running/stopped and episode/terminal status | Change and 1 Hz refresh |
+| 5555 | `flight/drone_1/feedback` | Complete ground truth, all configured sensors and optional estimated attitude | Every observation offered, latest value under load |
 | 5556 | `camera/front/image` | SHM descriptor, dimensions and capture/source metadata | Rendered captures |
 
 The optional UDP renderer, MSP, MAVLink and FDM have their own framing and do not
@@ -97,3 +98,5 @@ endpoint key are rejected. This change does not add replacement external control
   [FDM and motor mapping](sitl_fd.md)
 
 Wind now uses request/reply only in the wind example. See [wind protocol](../design/wind-request-reply.md).
+
+Feedback uses [dataclasses and explicit measurement headers](../design/simulation-feedback.md), with no JSON Schema or lifecycle fields.

@@ -55,3 +55,5 @@ library interfaces rather than reconstructing those missing records.
 - [Wind request/reply](wind-request-reply.md): validated dataclasses and optional Godot wind service.
 
 - [Spawn request/reply](spawn-request-reply.md): stopped wind-example setup on the shared service.
+
+- [Complete simulation feedback](simulation-feedback.md): ground truth and sensor dataclasses with simulation timestamps and frames.

@@ -37,36 +37,64 @@ def test_stamped_descriptor_preserves_source_and_binary_header():
         writer.close()
 
 
-def test_feedback_v2_carries_selected_takeoff_and_v1_stays_valid():
+def feedback_packet():
+    from bullet_simulation_protocol.feedback import FlightFeedback, Header, TimeStamp, GroundTruth, Sensors
+    header = Header('world', TimeStamp(2, 500000000))
+    return FlightFeedback(header, 'drone_1', GroundTruth(header, (1., 2., 3.),
+        (0., 0., 0., 1.), 3., (4., 5., 6.), (0., 0., 0.), (10., 20., 30., 40.)),
+        Sensors(None, None, None, None), None).to_dict()
+
+
+def test_feedback_roundtrip_and_removed_schema():
+    from bullet_simulation_protocol.feedback import FlightFeedback
     from bullet_simulation_protocol.flight import validate_feedback
-    base = dict(schema_version=1, source=SOURCE, barometer_altitude_m=30,
-                orientation_xyzw=[0, 0, 0, 1], armed=False, mode='angle',
-                last_applied_sequence=0, owner_id=None, state='stopped', reason='spawn_applied')
-    schema = Draft202012Validator(json.loads(schema_bytes('flight_feedback.json')))
-    for packet in (base, dict(base, schema_version=2, takeoff_height_m=6.5)):
-        validate_feedback(packet)
-        schema.validate(packet)
-    for value in (0, -.1, 100.1, True, float('nan'), float('inf'), None):
+    packet = feedback_packet()
+    assert FlightFeedback.from_dict(packet).to_dict() == packet
+    assert decode(encode(packet, validate_feedback), validate_feedback) == packet
+    for name in ('source', 'schema_version', 'armed', 'mode', 'last_applied_sequence',
+                 'owner_id', 'state', 'reason', 'takeoff_height_m'):
         with pytest.raises(ValueError):
-            validate_feedback(dict(base, schema_version=2, takeoff_height_m=value))
+            validate_feedback(dict(packet, **{name: None}))
     with pytest.raises(ValueError):
-        validate_feedback(dict(base, schema_version=2))
-    with pytest.raises(ValueError):
-        validate_feedback(dict(base, takeoff_height_m=6.5))
+        schema_bytes('flight_feedback.json')
 
 
-def test_feedback_rangefinder_is_optional_but_strict():
-    from bullet_simulation_protocol.flight import validate_feedback
-    base = dict(schema_version=2, source=SOURCE, takeoff_height_m=6.5,
-                barometer_altitude_m=3., orientation_xyzw=[0., 0., 0., 1.],
-                armed=False, mode='angle', last_applied_sequence=0, owner_id=None,
-                state='running', reason='test')
-    packet = dict(base, rangefinder=dict(distance_cm=275., valid=True))
-    validate_feedback(packet)
-    Draft202012Validator(json.loads(schema_bytes('flight_feedback.json'))).validate(packet)
-    validate_feedback(base)
+@pytest.mark.parametrize('timestamp', [dict(sec=-1, nanosec=0), dict(sec=True, nanosec=0),
+                                      dict(sec=0, nanosec=1000000000)])
+def test_invalid_feedback_timestamps(timestamp):
+    from bullet_simulation_protocol.feedback import FlightFeedback
+    packet = feedback_packet()
+    packet['header']['time_stamp'] = timestamp
     with pytest.raises(ValueError):
-        validate_feedback(dict(packet, rangefinder=dict(distance_cm=1., valid=True, extra=1)))
+        FlightFeedback.from_dict(packet)
+
+
+def test_feedback_sensor_frames_and_measurement_time():
+    from bullet_simulation_protocol.feedback import FlightFeedback
+    packet = feedback_packet()
+    body = dict(frame_id='drone_1/base_link', time_stamp=dict(sec=1, nanosec=0))
+    packet['sensors']['imu'] = dict(header=body, specific_force_m_s2=[0., 0., 9.81],
+                                   angular_velocity_rad_s=[0., 0., 0.])
+    packet['sensors']['barometer'] = dict(header=packet['header'], pressure_pa=101325., altitude_m=2.9)
+    packet['sensors']['rangefinder'] = dict(header=body, distance_cm=None, valid=False)
+    packet['sensors']['gps'] = dict(header=dict(frame_id='earth', time_stamp=body['time_stamp']),
+        latitude_deg=32., longitude_deg=34., altitude_m=100., velocity_enu_m_s=[1., 2., 3.])
+    packet['attitude_estimate'] = dict(header=packet['header'], orientation_xyzw=[0., 0., 0., 1.])
+    assert FlightFeedback.from_dict(packet).to_dict() == packet
+    packet['sensors']['rangefinder']['valid'] = True
+    with pytest.raises(ValueError):
+        FlightFeedback.from_dict(packet)
+
+
+@pytest.mark.parametrize('field,value', [('altitude_m', 5.), ('position_m', [0., float('nan'), 3.]),
+    ('orientation_xyzw', [0., 0., 0., 0.]), ('rotor_speeds_rad_s', [0., 0., 0., -1.])])
+def test_invalid_ground_truth(field, value):
+    from bullet_simulation_protocol.feedback import FlightFeedback
+    packet = feedback_packet()
+    packet['ground_truth'][field] = value
+    with pytest.raises(ValueError):
+        FlightFeedback.from_dict(packet)
+
 
 def test_removed_flight_config_schema_is_unavailable():
     with pytest.raises(ValueError, match="unknown simulation schema"):

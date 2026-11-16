@@ -281,6 +281,8 @@ Configure Gaussian noise, fixed biases and seeds through Python or YAML; disable
 each sensor independently. Direct `DroneEnvironment` callers inject sensors
 explicitly. Read `observation.sensors.imu` and `observation.sensors.barometer`.
 Sensor noise never modifies ground truth or current controller feedback.
+
+Complete simulation observations are published on `flight/drone_1/feedback` by the external-render publisher, independently of camera capture. The [telemetry dataclasses](docs/design/simulation-feedback.md) contain ground truth and all configured sensors with simulation timestamps.
 See [sensor configuration and measurement semantics](docs/design/sensors.md).
 
 `create_flight_command_provider()` connects a caller-supplied high-level command
@@ -376,3 +378,4 @@ A project-wide license is not specified in `pyproject.toml`, and no root LICENSE
 file is present. The racer asset is adapted from MIT-licensed gym-pybullet-drones;
 see its [asset notes](src/bullet_drone/assets/racer/README.md) and
 [upstream license](src/bullet_drone/assets/racer/LICENSE.upstream).
+

@@ -1,4 +1,4 @@
-"""Local expiring RC intent, sensor feedback and capture-source contracts."""
+"""Capture-source helpers and complete simulation feedback validation."""
 import json
 import math
 
@@ -9,9 +9,6 @@ FEEDBACK_TOPIC = b'flight/drone_1/feedback'
 MISSION_TOPIC = b'app/drone_1/mission'
 MAX_FLIGHT_BYTES = 8192
 SOURCE_FIELDS = {'physics_id', 'episode_id', 'stream_id', 'step_index', 'simulation_time_s', 'measurement_us'}
-FEEDBACK_FIELDS = {'schema_version', 'source', 'barometer_altitude_m', 'orientation_xyzw', 'armed', 'mode',
-                   'last_applied_sequence', 'owner_id', 'state', 'reason'}
-RANGEFINDER_FIELDS = {'distance_cm', 'valid'}
 
 
 def _shape(value, fields):
@@ -51,41 +48,8 @@ def validate_source(value):
 
 
 def validate_feedback(value):
-    version = value.get('schema_version') if isinstance(value, dict) else None
-    allowed = FEEDBACK_FIELDS | ({'takeoff_height_m'} if version == 2 else set())
-    if isinstance(value, dict) and 'rangefinder' in value:
-        allowed.add('rangefinder')
-    _shape(value, allowed)
-    _integer(version, 1, 2)
-    if version == 2:
-        from .spawn import validate_takeoff_height
-        validate_takeoff_height(value['takeoff_height_m'])
-    validate_source(value['source'])
-    if value['barometer_altitude_m'] is not None:
-        _number(value['barometer_altitude_m'])
-    if 'rangefinder' in value and value['rangefinder'] is not None:
-        rangefinder = value['rangefinder']
-        _shape(rangefinder, RANGEFINDER_FIELDS)
-        if type(rangefinder['valid']) is not bool:
-            raise ValueError('invalid rangefinder validity')
-        if rangefinder['distance_cm'] is not None:
-            _number(rangefinder['distance_cm'])
-            if rangefinder['distance_cm'] < 0:
-                raise ValueError('negative rangefinder distance')
-    q = value['orientation_xyzw']
-    if not isinstance(q, (list, tuple)) or len(q) != 4:
-        raise ValueError('invalid attitude')
-    for component in q:
-        _number(component)
-    if abs(sum(v * v for v in q) - 1) > 0.002:
-        raise ValueError('attitude is not a unit quaternion')
-    if type(value['armed']) is not bool or value['mode'] not in ('angle', 'acro'):
-        raise ValueError('invalid applied arm/mode')
-    _integer(value['last_applied_sequence'])
-    if value['owner_id'] is not None:
-        _id(value['owner_id'])
-    if value['state'] not in ('stopped', 'running', 'error') or not isinstance(value['reason'], str) or not 0 < len(value['reason']) <= 256:
-        raise ValueError('invalid flight state')
+    from .feedback import FlightFeedback
+    FlightFeedback.from_dict(value)
     return value
 
 

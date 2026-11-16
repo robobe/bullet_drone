@@ -20,7 +20,7 @@ spawn, collision or app RC receiver.
 | `simulation/command` | Start, stop or reset request | Renderer/controller → simulation | 5557 | [command.json](src/bullet_simulation_protocol/schemas/command.json) |
 | `simulation/heartbeat` | Controller liveness, command payload with heartbeat action | Renderer/controller → simulation | 5557 | [command.json](src/bullet_simulation_protocol/schemas/command.json) |
 | `simulation/state` | Lifecycle, episode and reason | Simulation → clients | 5555 | [state.json](src/bullet_simulation_protocol/schemas/state.json) |
-| `flight/drone_1/feedback` | Sensor feedback, attitude, applied RC and armed/mode state | Simulation → external app | 5555 | [flight_feedback.json](src/bullet_simulation_protocol/schemas/flight_feedback.json) |
+| `flight/drone_1/feedback` | Complete ground truth, sensors and optional attitude estimate | Simulation → external consumers | 5555 | [Validated telemetry dataclasses](src/bullet_simulation_protocol/feedback.py) |
 | `render/drone_1/collision` | Collision proposal tied to a known simulation sample | Renderer → simulation | 5557 | [collision.json](src/bullet_simulation_protocol/schemas/collision.json) |
 
 `flight.py` also retains the `MISSION_TOPIC` constant (`app/drone_1/mission`).
@@ -69,9 +69,11 @@ The former flight configuration topic/schema/validator are removed. Renderer
 configuration and flight feedback contracts remain. External consumers importing
 the removed flight-config contract must migrate separately.
 
-Camera info uses validated frozen dataclasses with dictionary export; other
+Camera info and complete simulation feedback use validated frozen dataclasses with dictionary export; remaining
 contracts retain their schemas. See [the migration guide](../../docs/design/camera-info-zmq.md).
 
 Wind now uses request/reply only in the wind example. See [wind protocol](../../docs/design/wind-request-reply.md).
 
 Spawn uses `get_spawn` and `set_spawn` on the wind example’s shared REQ/REP endpoint (TCP 5560). Frozen dataclasses in `spawn.py` replace its JSON Schemas. See [spawn service](../../docs/design/spawn-request-reply.md).
+
+Feedback offers every observation independently of camera capture, using bounded latest-value buffering. See [message fields and timing](../../docs/design/simulation-feedback.md).
