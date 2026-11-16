@@ -13,7 +13,7 @@ The default render profile is `external_render/configs/wind.json`, selecting
 or Python GUI dependency is used. The example starts stopped: use Scenario to apply a spawn and relative climb height, then press Start. The drone takes off, holds and lands;
 the Wind button lets you apply settings during that mission. Viewer closure or
 Ctrl+C closes transport, renderer and physics resources. After landing the
-application exits; Start begins the mission, with spawn changes restricted to the stopped setup phase.
+application remains stopped for Reset and another run; Start begins a prepared mission, Stop ends it, and Reset prepares a fresh stopped episode. Spawn changes are stopped-only.
 
 ## Request/reply flow
 
@@ -50,3 +50,5 @@ unknown: the UI reconciles with get_wind and never automatically resends Apply.
 See [wind protocol and timing](../../docs/design/wind-request-reply.md).
 
 See [spawn request/reply](../../docs/design/spawn-request-reply.md).
+
+Start/Stop/Reset use the same endpoint and correlated replies. Start after Stop or completion requires Reset. See [command lifecycle](../../docs/design/command-request-reply.md).

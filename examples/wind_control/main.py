@@ -29,10 +29,7 @@ def main(argv=None):
     logger.add(sys.stderr, level='INFO', format='{level}: {message}', diagnose=False)
     try:
         from examples.wind_control.demo import run_demo
-        result = run_demo(options.renderer, options.render_config)
-        state = result.observation.ground_truth
-        logger.info('Completed wind-control flight in {:.3f} s; final altitude {:.4f} m',
-                    state.simulation_time_s, state.position_m[WORLD_Z_AXIS])
+        run_demo(options.renderer, options.render_config)
         return EXIT_SUCCESS
     except ConfigurationError as error:
         click.UsageError(str(error)).show()

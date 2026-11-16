@@ -1,13 +1,11 @@
-"""Best-effort simulation commands, heartbeats and authoritative physics state."""
+"""Request/reply simulation commands and legacy lifecycle publication validation."""
 import json
 import re
-import time
-from uuid import uuid4
+from dataclasses import dataclass, fields
 
-from .transport import ZmqIo
+from .wind import DictionaryMessage
 
-COMMAND_TOPIC = b'simulation/command'
-HEARTBEAT_TOPIC = b'simulation/heartbeat'
+
 STATE_TOPIC = b'simulation/state'
 HEARTBEAT_INTERVAL_S = 0.5
 HEARTBEAT_TIMEOUT_S = 3.0
@@ -15,7 +13,7 @@ COMMAND_MAX_AGE_S = 1.0
 STATE_INTERVAL_S = 1.0
 MAX_CONTROL_BYTES = 4096
 MAX_SEQUENCE = 2**53 - 1
-ACTIONS = ('start', 'stop', 'reset', 'heartbeat')
+ACTIONS = ('start', 'stop', 'reset')
 
 
 def identity(value):
@@ -30,16 +28,78 @@ def decode_json(payload):
     return json.loads(payload.decode('utf-8'), parse_constant=invalid)
 
 
+class CommandMessage(DictionaryMessage):
+    @classmethod
+    def from_dict(cls, value):
+        if not isinstance(value, dict) or set(value) != {f.name for f in fields(cls)}:
+            raise ValueError('invalid command message fields')
+        return cls(**value)
+
+
+@dataclass(frozen=True)
+class SimulationCommand(CommandMessage):
+    action: str
+    physics_id: str
+    episode_id: str
+    issued_ms: int
+
+    def __post_init__(self):
+        if self.action not in ACTIONS or not identity(self.physics_id) or not identity(self.episode_id):
+            raise ValueError('invalid command action or simulation identity')
+        if type(self.issued_ms) is not int or not 0 <= self.issued_ms <= MAX_SEQUENCE:
+            raise ValueError('invalid command issue time')
+
+
+@dataclass(frozen=True)
+class GetSimulationState(CommandMessage):
+    action: str = 'get_simulation_state'
+
+    def __post_init__(self):
+        if self.action != 'get_simulation_state':
+            raise ValueError('invalid state query')
+
+
+@dataclass(frozen=True)
+class SimulationStatus(CommandMessage):
+    physics_id: str
+    episode_id: str
+    state: str
+    reason: str
+    simulation_time_s: float
+    ready_to_start: bool
+
+    def __post_init__(self):
+        if not identity(self.physics_id) or not identity(self.episode_id) or self.state not in ('running', 'stopped', 'error'):
+            raise ValueError('invalid simulation status')
+        if not isinstance(self.reason, str) or not 0 < len(self.reason) <= 256:
+            raise ValueError('invalid status reason')
+        if type(self.simulation_time_s) not in (int, float) or not 0 <= self.simulation_time_s <= 1e12:
+            raise ValueError('invalid status time')
+        if type(self.ready_to_start) is not bool or self.ready_to_start and self.state != 'stopped':
+            raise ValueError('invalid start readiness')
+
+
+@dataclass(frozen=True)
+class CommandReply(CommandMessage):
+    status: str
+    reason: str
+    state: SimulationStatus
+
+    def __post_init__(self):
+        if self.status not in ('applied', 'current', 'rejected') or not isinstance(self.state, SimulationStatus):
+            raise ValueError('invalid command reply')
+        if not isinstance(self.reason, str) or not 0 < len(self.reason) <= 256:
+            raise ValueError('invalid command reason')
+
+    @classmethod
+    def from_dict(cls, value):
+        if not isinstance(value, dict) or set(value) != {'status', 'reason', 'state'}:
+            raise ValueError('invalid command reply fields')
+        return cls(value['status'], value['reason'], SimulationStatus.from_dict(value['state']))
+
+
 def validate_command(value):
-    if not isinstance(value, dict) or set(value) != {'schema_version', 'controller_id', 'sequence', 'action', 'issued_ms'}:
-        raise ValueError('invalid command fields')
-    if type(value['schema_version']) is not int or value['schema_version'] != 1 or not identity(value['controller_id']):
-        raise ValueError('invalid command version or controller identity')
-    for field in ('sequence', 'issued_ms'):
-        if type(value[field]) is not int or not 0 <= value[field] <= MAX_SEQUENCE:
-            raise ValueError(f'invalid command {field}')
-    if value['sequence'] == 0 or value['action'] not in ACTIONS:
-        raise ValueError('invalid command action or sequence')
+    SimulationCommand.from_dict(value)
     return value
 
 
@@ -60,31 +120,3 @@ def validate_state(value):
         raise ValueError('invalid simulation time')
     return value
 
-
-class ControlPublisher:
-    """Python publisher for application-side checks; caller schedules heartbeats."""
-    def __init__(self, endpoint):
-        self.controller_id = uuid4().hex
-        self.sequence = 0
-        self.io = ZmqIo(publish_endpoint=endpoint).start()
-
-    def send(self, action):
-        self.sequence += 1
-        value = dict(schema_version=1, controller_id=self.controller_id, sequence=self.sequence,
-                     action=action, issued_ms=int(time.monotonic() * 1000))
-        validate_command(value)
-        topic = HEARTBEAT_TOPIC if action == 'heartbeat' else COMMAND_TOPIC
-        self.io.publish(topic, value)
-        return value
-
-    def heartbeat(self):
-        return self.send('heartbeat')
-
-    def close(self):
-        self.io.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        self.close()

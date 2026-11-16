@@ -17,9 +17,9 @@ from external_render.renderer import ExternalRenderer
 
 from examples.altitude_hold_external_render.demo import (
     MAX_DURATION_S, TIMESTEP_S, GRAVITY_M_S2, WORLD_GRAVITY_M_S2, MASS_KG, INITIAL_POSITION_M,
-    CONTROL_SETTINGS, ALTITUDE_PID, VERTICAL_SPEED_PID, BODY_RATE_LIMITS_RAD_S, DemoResult,
+    CONTROL_SETTINGS, ALTITUDE_PID, VERTICAL_SPEED_PID, BODY_RATE_LIMITS_RAD_S,
 )
-from examples.wind_control.service import WindService
+from examples.wind_control.service import SimulationService, DEFAULT_SETUP_TAKEOFF_HEIGHT_M
 
 SETUP_POLL_INTERVAL_S = 0.01
 SPAWN_CLEARANCE_M = 0.20
@@ -41,7 +41,7 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
         resources.callback(simulation.close)
         observation = simulation.reset()
         viewer.wait_ready(observation)
-        service = resources.enter_context(WindService(viewer.transport, viewer.physics_id))
+        service = resources.enter_context(SimulationService(viewer.transport, viewer.physics_id))
         def replace_spawn(request):
             nonlocal simulation, config
             candidate_config = replace(config, drone=replace(config.drone,
@@ -61,34 +61,53 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
             old.close()
             return candidate_observation
 
+        started = None
+
+        def prepare_mission(current):
+            height = (service.spawn_state.takeoff_height_m if service.spawn_state is not None
+                      else DEFAULT_SETUP_TAKEOFF_HEIGHT_M)
+            mission.target_altitude_m = config.drone.initial_position_m[2] + height
+            mission.reset(current)
+
+        def start_mission(current):
+            nonlocal started
+            prepare_mission(current)
+            started = time.monotonic() - current.ground_truth.simulation_time_s
+
+        def reset_simulation():
+            from bullet_simulation_protocol.spawn import SpawnRequest
+            state = service.spawn_state
+            request = SpawnRequest(2, 'application', viewer.physics_id,
+                observation.ground_truth.episode_id, 'reset', 0,
+                state.scenario_name if state else 'Default', config.drone.initial_position_m,
+                state.takeoff_height_m if state else DEFAULT_SETUP_TAKEOFF_HEIGHT_M)
+            current = replace_spawn(request)
+            prepare_mission(current)
+            return current
+
         logger.info('Stopped setup: select a spawn in Godot, then press Start')
-        while not service.start_requested:
-            viewer.ensure_running()
-            observation = service.update(simulation, observation, stopped=True,
-                replace_spawn=replace_spawn) or observation
-            viewer.set_state(observation, 'stopped', 'spawn_setup')
-            viewer.consume(observation)
-            time.sleep(SETUP_POLL_INTERVAL_S)
-        if service.spawn_state is not None:
-            mission.target_altitude_m = config.drone.initial_position_m[2] + service.spawn_state.takeoff_height_m
-        mission.reset(observation)
-        viewer.set_state(observation, 'running', 'automatic_start')
-        started = time.monotonic()
-        if on_observation is not None:
-            on_observation(observation)
         while True:
             viewer.ensure_running()
-            service.update(simulation, observation)
+            observation = service.update(simulation, observation, replace_spawn=replace_spawn,
+                reset_simulation=reset_simulation, start_mission=start_mission) or observation
+            viewer.set_state(observation, 'running' if service.running else 'stopped', service.reason)
+            if not service.running:
+                viewer.consume(observation)
+                time.sleep(SETUP_POLL_INTERVAL_S)
+                continue
             previous_phase = mission.phase
             command = mission.command(observation, TIMESTEP_S)
             if mission.phase != previous_phase:
                 logger.info('External-render altitude hold: {} at {:.3f} s',
                             mission.phase, observation.ground_truth.simulation_time_s)
             if mission.phase == Phase.COMPLETE:
-                viewer.set_state(observation, 'stopped', 'completed')
-                return DemoResult(observation, tuple(mission.transitions))
+                service.complete()
+                continue
             if observation.ground_truth.simulation_time_s + TIMESTEP_S > duration:
-                raise TimeoutError(f'Altitude hold timed out in {mission.phase} after {duration:g} s')
+                service.running = False
+                service.ready_to_start = False
+                service.reason = 'mission_timeout'
+                continue
             observation = simulation.step(command)
             viewer.consume(observation)
             if on_observation is not None:

@@ -17,8 +17,6 @@ spawn, collision or app RC receiver.
 | `camera/front/camera_info` | Camera dimensions, field of view and capture rate | Simulation → renderer | 5555 | Validated CameraInfo dataclasses, no JSON Schema |
 | `render/drone_1/profile` | Profile name, backend and drone model | Simulation → renderer | 5555 | No packaged schema; built by RenderPublisher |
 | `render/drone_1/pose` | Position, attitude quaternion, velocity and sample identity | Simulation → renderer | 5555 | [pose.json](src/bullet_simulation_protocol/schemas/pose.json) |
-| `simulation/command` | Start, stop or reset request | Renderer/controller → simulation | 5557 | [command.json](src/bullet_simulation_protocol/schemas/command.json) |
-| `simulation/heartbeat` | Controller liveness, command payload with heartbeat action | Renderer/controller → simulation | 5557 | [command.json](src/bullet_simulation_protocol/schemas/command.json) |
 | `simulation/state` | Lifecycle, episode and reason | Simulation → clients | 5555 | [state.json](src/bullet_simulation_protocol/schemas/state.json) |
 | `flight/drone_1/feedback` | Complete ground truth, sensors and optional attitude estimate | Simulation → external consumers | 5555 | [Validated telemetry dataclasses](src/bullet_simulation_protocol/feedback.py) |
 | `render/drone_1/collision` | Collision proposal tied to a known simulation sample | Renderer → simulation | 5557 | [collision.json](src/bullet_simulation_protocol/schemas/collision.json) |
@@ -77,3 +75,5 @@ Wind now uses request/reply only in the wind example. See [wind protocol](../../
 Spawn uses `get_spawn` and `set_spawn` on the wind example’s shared REQ/REP endpoint (TCP 5560). Frozen dataclasses in `spawn.py` replace its JSON Schemas. See [spawn service](../../docs/design/spawn-request-reply.md).
 
 Feedback offers every observation independently of camera capture, using bounded latest-value buffering. See [message fields and timing](../../docs/design/simulation-feedback.md).
+
+Start/Stop/Reset use [command dataclasses](src/bullet_simulation_protocol/control.py) over the shared wind/spawn REQ/REP endpoint, default TCP 5560. See [command lifecycle](../../docs/design/command-request-reply.md).

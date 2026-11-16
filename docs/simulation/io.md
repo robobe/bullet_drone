@@ -100,3 +100,5 @@ endpoint key are rejected. This change does not add replacement external control
 Wind now uses request/reply only in the wind example. See [wind protocol](../design/wind-request-reply.md).
 
 Feedback uses [dataclasses and explicit measurement headers](../design/simulation-feedback.md), with no JSON Schema or lifecycle fields.
+
+Start/Stop/Reset and `get_simulation_state` use the shared TCP 5560 REQ/REP service in the wind example. Command and heartbeat PUB/SUB are removed, while collision transport stays on TCP 5557. See [command lifecycle](../design/command-request-reply.md).
