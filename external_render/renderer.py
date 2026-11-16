@@ -16,6 +16,7 @@ from bullet_simulation_protocol import load_transport
 from bullet_image_transport.shm import FrameReader, SLOTS, slot_name, topic_prefix
 
 from tools.zmq_render.publisher import RenderPublisher
+from bullet_simulation_protocol.pose import PoseMessage
 
 
 IMAGE_TOPIC = 'camera/front/image'
@@ -91,12 +92,7 @@ class ExternalRenderer:
 
     def consume(self, observation):
         self.ensure_running()
-        state = observation.ground_truth
-        source = dict(physics_id=self.physics_id, episode_id=state.episode_id,
-                      stream_id=self.publisher.stream, step_index=state.step_index,
-                      simulation_time_s=state.simulation_time_s,
-                      measurement_us=time.monotonic_ns() // NANOSECONDS_PER_MICROSECOND)
-        self.publisher.consume(observation, source=source)
+        self.publisher.consume(observation)
 
     def wait_ready(self, observation, *, timeout_s=STARTUP_TIMEOUT_S):
         self.set_running(False)
@@ -108,9 +104,13 @@ class ExternalRenderer:
                 frame = self.reader.read(self.images.recv())
                 if frame is not None:
                     metadata, _ = frame
-                    source = metadata.get('source', {})
-                    if (source.get('stream_id') == self.publisher.stream
-                            and source.get('episode_id') == observation.ground_truth.episode_id):
+                    expected = PoseMessage.from_state(observation.ground_truth)
+                    camera = self.publisher.config['camera']
+                    output = os.pread(self.log.fileno(), os.fstat(self.log.fileno()).st_size, 0).decode(errors='replace')
+                    sessions = set(SHM_LOG_PATTERN.findall(output))
+                    if (metadata['session'] in sessions and metadata.get('header') == expected.header.to_dict()
+                            and metadata.get('drone_id') == expected.drone_id
+                            and metadata['width'] == camera['width_px'] and metadata['height'] == camera['height_px']):
                         self.owned_sessions.add(metadata['session'])
                         return frame
         raise TimeoutError(f'No rendered camera image within {timeout_s:g} seconds')

@@ -158,7 +158,8 @@ def test_invalid_tcp_endpoint(endpoint):
 def test_duplicate_endpoints_and_schemas():
     with pytest.raises(ValueError, match='differ'):
         validate_transport(dict(telemetry_endpoint='tcp://127.0.0.1:5555', image_endpoint='tcp://127.0.0.1:5555', control_endpoint='tcp://127.0.0.1:5557'))
-    assert [v['properties']['schema_version']['const'] for v in json.loads(schema_bytes('pose.json'))['oneOf']] == [2, 3]
+    with pytest.raises(ValueError):
+        schema_bytes('pose.json')
     with pytest.raises(ValueError):
         schema_bytes('../pose.json')
 
@@ -230,3 +231,18 @@ time.sleep(30)
         reader.close()
         for path in paths:
             path.unlink(missing_ok=True)
+
+
+def test_version_three_preserves_simulation_header():
+    header = {'fid': 240, 'time_stamp': {'sec': 1, 'nanosec': 0}}
+    writer = FrameWriter(2, 2)
+    reader = FrameReader('camera/front/image')
+    try:
+        notification = writer.write('camera/front/image', bytes(12), header=header, drone_id='iris')
+        metadata, pixels = reader.read(notification)
+        assert metadata['version'] == 3 and metadata['header'] == header
+        assert metadata['drone_id'] == 'iris' and pixels == bytes(12)
+        assert 'source' not in metadata
+    finally:
+        reader.close()
+        writer.close()

@@ -184,3 +184,5 @@
 - [0137: Complete command migration](0137-command-request-reply.md) — Implemented, manual verification pending; shared Start/Stop/Reset REQ/REP and schema removal in both protocol packages; implementation commit Pending.
 
 - [0138: Remove renderer state polling](0138-remove-render-state-query.md) — Implemented, runtime verification pending; remove legacy schema/topic and renderer lifecycle queries; implementation commit Pending.
+
+- [0139: Minimal pose/header](0139-minimal-pose-header.md) — Implemented, manual verification pending; camera pose dataclass with image header propagation; implementation commit Pending.

@@ -80,3 +80,5 @@ finally:
 The [separate camera-viewer example](../../examples/takeoff_image_viewer/README.md)
 shows a complete subscriber and image window. Simulation pose, wind and lifecycle
 messages belong to [bullet-simulation-protocol](../bullet_simulation_protocol/README.md).
+
+Minimal camera pose now contains only header (fid = simulation step, time_stamp = simulation sec/nanosec), drone_id, position_m and orientation_xyzw. Pose schemas and old source/velocity fields are removed. Version-3 image descriptors copy header and drone_id unchanged, preserving separate monotonic capture_ns and SHM binary layout. Legacy descriptor versions 1/2 remain supported. Pose-based collision reporting is removed. Rebuild the renderer for the new format.

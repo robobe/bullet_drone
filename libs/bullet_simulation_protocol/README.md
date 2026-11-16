@@ -16,7 +16,7 @@ spawn, collision or app RC receiver.
 | --- | --- | --- | --- | --- |
 | `camera/front/camera_info` | Camera dimensions, field of view and capture rate | Simulation → renderer | 5555 | Validated CameraInfo dataclasses, no JSON Schema |
 | `render/drone_1/profile` | Profile name, backend and drone model | Simulation → renderer | 5555 | No packaged schema; built by RenderPublisher |
-| `render/drone_1/pose` | Position, attitude quaternion, velocity and sample identity | Simulation → renderer | 5555 | [pose.json](src/bullet_simulation_protocol/schemas/pose.json) |
+| `render/drone_1/pose` | Drone ID, camera transform and simulation-step header | Simulation → renderer | 5555 | [Pose dataclasses](src/bullet_simulation_protocol/pose.py) |
 | `flight/drone_1/feedback` | Complete ground truth, sensors and optional attitude estimate | Simulation → external consumers | 5555 | [Validated telemetry dataclasses](src/bullet_simulation_protocol/feedback.py) |
 | `render/drone_1/collision` | Collision proposal tied to a known simulation sample | Renderer → simulation | 5557 | [collision.json](src/bullet_simulation_protocol/schemas/collision.json) |
 
@@ -49,7 +49,8 @@ Godot consumes the wire format without importing the Python package.
 import json
 from bullet_simulation_protocol import schema_bytes
 
-pose_schema = json.loads(schema_bytes('pose.json'))
+from bullet_simulation_protocol.pose import PoseMessage
+pose = PoseMessage.from_dict(received_dictionary)
 ```
 
 Schemas are included in the wheel. Runtime validation uses the focused Python
@@ -78,3 +79,5 @@ Feedback offers every observation independently of camera capture, using bounded
 Start/Stop/Reset use [command dataclasses](src/bullet_simulation_protocol/control.py) over the shared wind/spawn REQ/REP endpoint, default TCP 5560. See [command lifecycle](../../docs/design/command-request-reply.md).
 
 Legacy state.json and simulation/state publication are removed. The renderer sends no lifecycle state query. Command buttons use fresh wind/spawn identities, display correlated results, and let simulation reject invalid transitions. A timeout reports Outcome unknown without automatic retry or reconciliation queries.
+
+See [minimal camera pose and image metadata](../../docs/design/minimal-camera-pose.md).

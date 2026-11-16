@@ -61,3 +61,5 @@ library interfaces rather than reconstructing those missing records.
 - [Simulation command request/reply](command-request-reply.md): Start/Stop/Reset on the shared wind/spawn service.
 
 - Renderer controls use command replies and wind/spawn identities without lifecycle polling.
+
+- [Minimal camera pose](minimal-camera-pose.md): pose dataclasses and image correlation headers.

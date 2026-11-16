@@ -186,6 +186,120 @@
         "capture_ns",
         "source"
       ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "const": 3
+        },
+        "session": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "slot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "shm_name": {
+          "type": "string",
+          "pattern": "^/bullet_msgs_[0-9a-f]{32}_s[0-2]$"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "encoding": {
+          "enum": [
+            "rgb8",
+            "bgr8"
+          ]
+        },
+        "step": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 18446744073709551615
+        },
+        "capture_ns": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "drone_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "header": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fid",
+            "time_stamp"
+          ],
+          "properties": {
+            "fid": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "time_stamp": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sec",
+                "nanosec"
+              ],
+              "properties": {
+                "sec": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000000000000
+                },
+                "nanosec": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999999999
+                }
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "version",
+        "session",
+        "slot",
+        "shm_name",
+        "width",
+        "height",
+        "encoding",
+        "step",
+        "bytes",
+        "sequence",
+        "capture_ns",
+        "header",
+        "drone_id"
+      ]
     }
   ]
 }

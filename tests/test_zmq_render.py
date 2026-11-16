@@ -145,12 +145,11 @@ def test_real_tcp_periodic_config_pose_and_binding_cleanup(tmp_path):
             assert subscriber.poll(2000)
             topic, payload = subscriber.recv_multipart()
             packet = json.loads(payload)
-            validate(packet, json.loads(schema_bytes('pose.json')))
+            from bullet_simulation_protocol.pose import PoseMessage
+            PoseMessage.from_dict(packet)
             assert topic == b'render/drone_1/pose'
-            assert packet['drone_id'] == 'drone_1'
-            assert packet['sequence'] == 0 and packet['position_m'] == [0, 0, 3]
-            assert packet['schema_version'] == 2
-            assert packet['linear_velocity_m_s'] == [1.25, -2.5, 0.75]
+            assert packet['drone_id'] == state.drone_id
+            assert packet['header']['fid'] == 0 and packet['position_m'] == [0, 0, 3]
             output.set_running(False)
             deadline = time.monotonic() + 3
             while True:
@@ -159,9 +158,8 @@ def test_real_tcp_periodic_config_pose_and_binding_cleanup(tmp_path):
                 held_topic, held_payload = subscriber.recv_multipart()
                 if held_topic == b'render/drone_1/pose':
                     held = json.loads(held_payload)
-                    validate(held, json.loads(schema_bytes('pose.json')))
-                    assert held['linear_velocity_m_s'] == [1.25, -2.5, 0.75]
-                    assert held['simulation_time_s'] == packet['simulation_time_s']
+                    PoseMessage.from_dict(held)
+                    assert held['header'] == packet['header']
                     break
             collision = RenderPublisher(path)
             with pytest.raises(RuntimeError, match='Address already in use'):
@@ -229,15 +227,13 @@ def test_sensor_pose_and_stopped_republication_keep_measurements(tmp_path, confi
                     if topic == b'render/drone_1/pose':
                         poses.append(json.loads(payload))
             assert len(poses) == 2 and output.error is None
-            assert poses[1]['sequence'] > poses[0]['sequence']
+            assert poses[1]['header'] == poses[0]['header']
             for pose in poses:
                 assert pose['position_m'] == list(expected.position_m)
                 assert pose['position_m'][:2] == list(observation.ground_truth.position_m[:2])
                 assert pose['position_m'][2] == observation.sensors.barometer.altitude_m
                 assert pose['orientation_xyzw'] == list(expected.orientation_xyzw)
-                assert pose['linear_velocity_m_s'] == list(observation.ground_truth.linear_velocity_m_s)
-                assert pose['source'] == source
-                assert pose['step_index'] == observation.ground_truth.step_index
+                assert pose['header']['fid'] == observation.ground_truth.step_index
             assert expected.position_m != observation.ground_truth.position_m
             assert expected.orientation_xyzw != observation.ground_truth.orientation_xyzw
         finally:

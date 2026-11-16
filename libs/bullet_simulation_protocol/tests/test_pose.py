@@ -1,38 +1,18 @@
-"""Pose v2 includes world ground-truth linear velocity."""
-import json
-
 import pytest
-from jsonschema import ValidationError, validate
-
-from bullet_simulation_protocol import schema_bytes
-
-
-def pose():
-    return dict(schema_version=2, stream_id="stream", drone_id="drone_1",
-                episode_id="episode", sequence=0, publisher_drops=0,
-                step_index=0, simulation_time_s=0, position_m=[0, 0, 3],
-                orientation_xyzw=[0, 0, 0, 1], linear_velocity_m_s=[1.25, -2.5, 0.75])
+from bullet_simulation_protocol.pose import PoseMessage, PoseHeader
+from bullet_simulation_protocol.feedback import TimeStamp
 
 
-def test_pose_velocity_contract():
-    validate(pose(), json.loads(schema_bytes("pose.json")))
+def test_pose_roundtrip():
+    pose = PoseMessage(PoseHeader(240, TimeStamp(1, 0)), 'iris', (0., 0., 3.), (0., 0., 0., 1.))
+    assert PoseMessage.from_dict(pose.to_dict()) == pose
+    assert set(pose.to_dict()) == {'header', 'drone_id', 'position_m', 'orientation_xyzw'}
 
 
-@pytest.mark.parametrize("velocity", [[], [1, 2], [1, 2, 3, 4], [True, 0, 0],
-                                      ["1", 0, 0], [1e10, 0, 0], [float("inf"), 0, 0]])
-def test_invalid_velocity(velocity):
-    value = pose()
-    value["linear_velocity_m_s"] = velocity
-    with pytest.raises(ValidationError):
-        validate(value, json.loads(schema_bytes("pose.json")))
-
-
-def test_missing_velocity_and_old_pose_version_rejected():
-    value = pose()
-    value.pop("linear_velocity_m_s")
-    with pytest.raises(ValidationError):
-        validate(value, json.loads(schema_bytes("pose.json")))
-    value = pose()
-    value["schema_version"] = 1
-    with pytest.raises(ValidationError):
-        validate(value, json.loads(schema_bytes("pose.json")))
+@pytest.mark.parametrize('field,value', [('position_m', [0., float('nan'), 0.]),
+    ('orientation_xyzw', [0., 0., 0., 0.]), ('schema_version', 2), ('drone_id', '')])
+def test_pose_rejects_invalid_fields(field, value):
+    packet = PoseMessage(PoseHeader(0, TimeStamp(0, 0)), 'drone', (0., 0., 0.), (0., 0., 0., 1.)).to_dict()
+    packet[field] = value
+    with pytest.raises(ValueError):
+        PoseMessage.from_dict(packet)

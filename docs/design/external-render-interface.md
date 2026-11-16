@@ -63,7 +63,7 @@ on the telemetry endpoint. Topic contracts shared with the renderer live in
 | --- | --- | --- |
 | `camera/front/camera_info` | Configured rate, default 1 Hz | `schema_version`, `stream_id`, `capture_fps_hz`, nested ROS-shaped `camera_info`. |
 | `render/drone_1/profile` | Once per second | `schema_version`, `stream_id`, `profile_name`, `backend`, `drone_model`. |
-| `render/drone_1/pose` | Capture schedule; stopped pose repeats at 1 Hz | `schema_version`, `stream_id`, `sequence`, `publisher_drops`, fixed render `drone_id`, `episode_id`, `step_index`, `simulation_time_s`, `position_m`, `orientation_xyzw`, `linear_velocity_m_s`. Sensor pose selection may add a `source` object with physics/stream/episode IDs, step/time, and monotonic measurement timestamp. |
+| `render/drone_1/pose` | Camera schedule, default 30 Hz simulation time, stopped 1 Hz | `header` (fid and simulation sec/nanosec), configured `drone_id`, `position_m`, `orientation_xyzw` |
 
 Pose position and velocity use world coordinates in metres and metres per
 second. The orientation is body-to-world quaternion in XYZW order. World Z points
@@ -99,3 +99,5 @@ in the shared transport worker, while observation scheduling stays in RenderPubl
 Wind now uses request/reply only in the wind example. See [wind protocol](wind-request-reply.md).
 
 Legacy state.json and simulation/state publication are removed. The renderer sends no lifecycle state query. Command buttons use fresh wind/spawn identities, display correlated results, and let simulation reject invalid transitions. A timeout reports Outcome unknown without automatic retry or reconciliation queries.
+
+Image descriptor version 3 copies the pose header and drone_id. See [minimal camera pose](minimal-camera-pose.md).

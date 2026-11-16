@@ -228,6 +228,8 @@ it does not run PX4 firmware. The same choice appears in the VS Code picker.
 
 Renderer lifecycle queries and the legacy state schema/topic are removed. Controls send commands using fresh wind/spawn identities, with simulation-side validation and per-command feedback.
 
+Camera pose uses a [minimal dataclass](docs/design/minimal-camera-pose.md); rendered image metadata carries its simulation-step header unchanged.
+
 ## Configuration
 
 ### Aerodynamics and wind

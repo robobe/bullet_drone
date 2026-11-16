@@ -48,12 +48,12 @@ def _reject_constant(value):
 def validate_descriptor(metadata):
     required = {'version', 'session', 'slot', 'shm_name', 'width', 'height', 'encoding',
                 'step', 'bytes', 'sequence', 'capture_ns'}
-    if not isinstance(metadata, dict) or set(metadata) not in (required, required | {'source'}):
+    if not isinstance(metadata, dict) or set(metadata) not in (required, required | {'source'}, required | {'header', 'drone_id'}):
         raise ValueError('invalid image descriptor fields')
     for key in ('version', 'slot', 'width', 'height', 'step', 'bytes', 'sequence', 'capture_ns'):
         if type(metadata[key]) is not int:
             raise ValueError(f'{key} must be an integer')
-    if metadata['version'] not in (1, 2) or metadata['slot'] not in range(SLOTS):
+    if metadata['version'] not in (1, 2, 3) or metadata['slot'] not in range(SLOTS):
         raise ValueError('unsupported descriptor version or slot')
     if not isinstance(metadata['session'], str) or not re.fullmatch('[0-9a-f]{32}', metadata['session']):
         raise ValueError('invalid publisher session')
@@ -64,6 +64,15 @@ def validate_descriptor(metadata):
         raise ValueError('invalid descriptor byte count')
     if not 1 <= metadata['sequence'] < 2**64 or not 0 <= metadata['capture_ns'] < 2**64:
         raise ValueError('invalid frame sequence or capture timestamp')
+    if metadata['version'] == 3:
+        from bullet_simulation_protocol.pose import PoseHeader
+        if set(metadata) != required | {'header', 'drone_id'}:
+            raise ValueError('version 3 requires pose header and drone ID')
+        PoseHeader.from_dict(metadata['header'])
+        if not isinstance(metadata['drone_id'], str) or not metadata['drone_id'].strip() or len(metadata['drone_id']) > 128:
+            raise ValueError('invalid image drone ID')
+    elif 'header' in metadata or 'drone_id' in metadata:
+        raise ValueError('pose header requires descriptor version 3')
     if metadata['version'] == 2:
         from bullet_simulation_protocol.flight import validate_source
         validate_source(metadata.get('source'))
@@ -198,7 +207,7 @@ class FrameWriter:
             self.close()
             raise
 
-    def write(self, topic, pixels, capture_ns=None, *, source=None):
+    def write(self, topic, pixels, capture_ns=None, *, source=None, header=None, drone_id=None):
         if not self.slots:
             raise RuntimeError('SHM writer is closed')
         if len(pixels) != self.layout['bytes']:
@@ -216,6 +225,10 @@ class FrameWriter:
                 metadata = dict(version=VERSION, session=self.session, slot=index,
                                 shm_name='/' + path.name, sequence=self.sequence,
                                 capture_ns=capture_ns, **self.layout)
+                if header is not None or drone_id is not None:
+                    if source is not None:
+                        raise ValueError('pose header and legacy source are exclusive')
+                    metadata.update(version=3, header=header, drone_id=drone_id)
                 if source is not None:
                     metadata.update(version=2, source=dict(source))
                 message = encode_descriptor(topic, metadata)

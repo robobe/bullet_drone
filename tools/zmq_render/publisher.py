@@ -1,5 +1,4 @@
 """Physics capture scheduling; transport worker owns serialization and ZeroMQ I/O."""
-from dataclasses import asdict
 from bullet_simulation_protocol.transport import ZmqIo
 from bullet_simulation_protocol.camera_info import CameraInfo, CameraInfoMessage, CAMERA_INFO_TOPIC
 import json
@@ -11,13 +10,12 @@ from uuid import uuid4
 from loguru import logger
 from bullet_drone.config import ConfigurationError, PoseSources
 from bullet_drone.pose import resolve_pose
+from bullet_simulation_protocol.pose import PoseMessage, POSE_TOPIC
 from bullet_simulation_protocol.flight import FEEDBACK_TOPIC
 from tools.zmq_render.feedback import from_observation
 from bullet_drone.rendering.config import CameraSettings, number
 
 
-POSE_SCHEMA_VERSION = 2
-RENDER_DRONE_ID = 'drone_1'
 QUEUE_CAPACITY = 1
 START_TIMEOUT_S = 15
 STOP_TIMEOUT_S = 5
@@ -175,17 +173,7 @@ class RenderPublisher:
                         next_idle_pose = now + 1 / IDLE_POSE_REFRESH_HZ
                     sequence = wire_sequence
                     wire_sequence += 1
-                    packet = {'schema_version': POSE_SCHEMA_VERSION, 'stream_id': self.stream,
-                              'sequence': sequence, 'publisher_drops': self.dropped,
-                              **{name: value for name, value in asdict(state).items()
-                                 if name in ('drone_id', 'episode_id', 'step_index',
-                                             'simulation_time_s', 'position_m', 'orientation_xyzw',
-                                             'linear_velocity_m_s')}}
-                    # The renderer has one fixed scene slot; retain the simulation ID elsewhere.
-                    packet['drone_id'] = RENDER_DRONE_ID
-                    if source is not None:
-                        packet.update(schema_version=3, source=source)
-                    io.publish(b'render/drone_1/pose', packet)
+                    io.publish(POSE_TOPIC, PoseMessage.from_state(state))
         except Exception as exc:
             self.error = f'ZeroMQ render publisher failed: {exc}'
             logger.error(self.error)
