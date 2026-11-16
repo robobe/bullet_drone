@@ -3,7 +3,7 @@
 This directory builds a standalone **Ubuntu 24.04/Linux x86_64** viewer from the
 existing `bullet_render` Godot scene. The exported package contains the engine,
 scene/terrain data, native ZeroMQ extension and non-system native dependencies.
-The runtime does not need the Godot editor or the sibling renderer/terrain source
+The runtime does not need the Godot editor or the sibling renderer source
 directories. It uses the machine's C/C++ runtime and OpenGL drivers.
 
 ## Build
@@ -123,3 +123,7 @@ after the child exits, including when a signal bypasses Godot's destructors.
 
 Tracked content is the build recipe, export preset, defaults and documentation.
 Generated executables, bundled libraries and editor/import caches stay untracked.
+
+Terrain is packaged from `../custom/terrain/terrain_heightmap.f32` relative to
+this directory. Physics profiles and the sibling Godot scene/exporter share these
+project-local assets; a separate workspace `terrain/` folder is not required.

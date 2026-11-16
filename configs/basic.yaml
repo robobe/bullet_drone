@@ -24,10 +24,10 @@ drone:
   # Required finite world-frame [X, Y, Z] spawn position in metres; Z is height above zero.
   initial_position_m: [0.0, 0.0, 1.0]
 
-# Optional shared Godot/PyBullet terrain; omit heightmap_path to use the flat default ground.
+# Optional project-local Godot/PyBullet terrain; omit heightmap_path to use the flat default ground.
 terrain:
   # Relative float32 little-endian heightmap path, resolved from this YAML file's directory.
-  heightmap_path: ../../terrain/terrain_heightmap.f32
+  heightmap_path: ../custom/terrain/terrain_heightmap.f32
   # Width and depth represented by the heightmap in metres.
   world_size_m: 500.0
   # Number of samples along each heightmap axis, including both edges.

@@ -1,5 +1,6 @@
 from dataclasses import replace
 import struct
+from pathlib import Path
 import pytest
 
 from bullet_drone.config import YamlConfigLoader
@@ -23,7 +24,7 @@ def test_shared_terrain_returns_body_down_agl_in_centimetres():
 def test_godot_bullet_frame_mapping_preserves_terrain_height():
     config = YamlConfigLoader().load("configs/heavy_quad.yaml")
     config = replace(config, simulation=replace(config.simulation, gui=False))
-    heights = struct.unpack("<14641f", open("../terrain/terrain_heightmap.f32", "rb").read())
+    heights = struct.unpack("<14641f", (Path(__file__).resolve().parents[1] / "custom/terrain/terrain_heightmap.f32").read_bytes())
     physics = PyBulletPhysics(config)
     try:
         physics.reset()

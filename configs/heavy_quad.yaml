@@ -20,8 +20,8 @@ drone:
   initial_position_m: [0.0, 0.0, 1.0]
 
 terrain:
-  # Shared float32 terrain asset, resolved relative to this configuration file.
-  heightmap_path: ../../terrain/terrain_heightmap.f32
+  # Project-local float32 terrain asset, resolved relative to this configuration file.
+  heightmap_path: ../custom/terrain/terrain_heightmap.f32
   # Terrain width/depth represented by the shared asset in metres.
   world_size_m: 500.0
   # Heightmap samples along each horizontal axis, including both edges.

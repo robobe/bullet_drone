@@ -161,3 +161,5 @@
 - [0125: README refactor](0125-readme-refactor.md) — Implemented and verified; headings, links, Mermaid and CLI help checked; implementation commit Pending.
 
 - [0126: Godot build task](0126-godot-build-task.md) — Implemented and verified; task JSON and README links checked; implementation commit Pending.
+
+- [0127: Local terrain migration](0127-local-terrain-migration.md) — Implemented and verified; 25 focused tests, post-removal terrain checks and renderer build passed; implementation commit Pending.

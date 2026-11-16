@@ -8,7 +8,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parent
 RENDER_SOURCE = ROOT.parents[1] / 'bullet_render'
-TERRAIN_SOURCE = ROOT.parents[1] / 'terrain/terrain_heightmap.f32'
+TERRAIN_SOURCE = ROOT.parent / 'custom/terrain/terrain_heightmap.f32'
 DISTRIBUTION = ROOT / 'dist/linux-x86_64'
 NATIVE_LIBRARY = 'libzmq_camera.so'
 SYSTEM_LIBRARIES = {
@@ -41,7 +41,7 @@ def main() -> None:
         if shutil.which(command) is None:
             raise RuntimeError(f'Install {command} before building the renderer')
     if not TERRAIN_SOURCE.is_file():
-        raise FileNotFoundError(f'Missing shared terrain: {TERRAIN_SOURCE}')
+        raise FileNotFoundError(f'Missing project terrain: {TERRAIN_SOURCE}')
     subprocess.run(['cmake', '--preset', 'debug'], cwd=RENDER_SOURCE, check=True)
     subprocess.run(['cmake', '--build', '--preset', 'debug'], cwd=RENDER_SOURCE, check=True)
     DISTRIBUTION.parent.mkdir(parents=True, exist_ok=True)
@@ -59,7 +59,7 @@ def main() -> None:
         shutil.copy2(TERRAIN_SOURCE, stage / 'terrain/terrain_heightmap.f32')
         script = stage / 'main.gd'
         source = script.read_text()
-        old_path = 'res://../../terrain/terrain_heightmap.f32'
+        old_path = 'res://../../bullet_drone/custom/terrain/terrain_heightmap.f32'
         if old_path not in source:
             raise RuntimeError('Renderer terrain path changed; update the export recipe')
         script.write_text(source.replace(old_path, 'res://terrain/terrain_heightmap.f32'))

@@ -1,0 +1,12 @@
+{
+  "collision_mesh": "terrain.obj",
+  "height_units": "m",
+  "origin_m": [
+    -250.0,
+    -250.0
+  ],
+  "sample_format": "float32_le",
+  "samples_x": 121,
+  "samples_z": 121,
+  "world_size_m": 500.0
+}
