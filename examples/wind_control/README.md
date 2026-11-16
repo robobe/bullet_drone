@@ -1,68 +1,50 @@
-# Rendered takeoff with live wind controls
+# Godot wind control
+
+Build firmware-independent renderer assets, then run the automatic internal-control
+mission with the existing Godot wind panel:
 
 ```bash
 uv run --locked python external_render/build.py
 uv run --locked --extra render python -m examples.wind_control.main
 ```
 
-Godot shows the flight while a separate Tk window edits constant world X/Y/Z
-wind velocity in m/s. Set values and press **Apply wind**. **Enable wind** controls
-whether airflow is active. Values must be finite numbers; calm wind is the default.
-Tkinter and a desktop display are required. The mission takes off to 3 m, holds
-for 10 seconds and lands. It controls altitude, not XY position: horizontal wind
-can cause drift, and large wind may prevent mission completion.
+The default render profile is `external_render/configs/wind.json`, selecting
+`wind_transport.json`. Only this example starts the wind service. No Tk window
+or Python GUI dependency is used. The drone takes off to 3 m, holds and lands;
+the Wind button lets you apply settings during that mission. Viewer closure or
+Ctrl+C closes transport, renderer and physics resources. After landing the
+application exits; this does not introduce Start/Stop/Reset controls.
 
-The caller pumps the UI and invokes `RcSimulation.set_wind` between physics steps.
-The panel displays applied values. Invalid drafts do not change physics. Closing
-the control window or pressing Escape interrupts the mission and closes physics,
-Godot, UI and publisher resources. Normal completion also closes all resources.
-
-## How the renderer learns about wind
+## Request/reply flow
 
 ```mermaid
-flowchart LR
-    subgraph Python["Python simulation process"]
-        direction LR
-        GUI["Tk wind GUI<br/>Enable + world XYZ velocity"]
-        Apply["Validate WindSettings<br/>Apply between physics steps"]
-        Sim["RcSimulation<br/>Physics owns wind + forces"]
-        Pub["RenderPublisher"]
-        Pose["ExternalRenderer adapter"]
-        GUI -->|"Apply wind, local call<br/>No network port"| Apply
-        Apply -->|"RcSimulation.set_wind()"| Sim
-        Sim -->|"Applied wind readback<br/>simulation.wind, local call"| GUI
-        Sim -->|"Wind snapshot<br/>RenderPublisher.set_wind()"| Pub
-        Sim -->|DroneObservation| Pose
-        Pose -->|"Position + attitude"| Pub
+sequenceDiagram
+    participant UI as Godot wind panel
+    participant Native as Native I/O worker
+    participant IO as Python I/O worker
+    participant App as Wind example loop
+    participant Physics as Physics wind model
+    loop Configured readback rate, default 10 Hz
+        Native->>IO: REQ get_wind, TCP 5560
+        IO->>App: Validated transport request, bounded queue
+        App->>Physics: Read immutable snapshot between steps
+        Physics-->>App: Applied settings and current wind
+        App->>IO: WindReply dataclass
+        IO-->>Native: REP dictionary serialized as JSON
+        Native-->>UI: Cached readback for panel and windsock
     end
-
-    subgraph Godot["Godot renderer process"]
-        direction LR
-        Receiver["ZeroMQ subscriber<br/>JSON receiver"]
-        Sock["Windsock<br/>Direction + speed label"]
-        Drone["Drone + camera pose"]
-        Receiver -->|Wind state| Sock
-        Receiver -->|Pose| Drone
-    end
-
-    Pub -->|"simulation/wind_state<br/>ZeroMQ PUB/SUB, TCP 5555<br/>Every 0.1 s"| Receiver
-    Pub -->|"render/drone_1/pose<br/>ZeroMQ PUB/SUB, TCP 5555<br/>Configured capture rate"| Receiver
+    UI->>Native: Apply full settings once
+    Native->>IO: REQ set_wind with expected IDs and issue time
+    IO->>App: Pending request
+    App->>Physics: set_wind after validation, before next step
+    App->>IO: Applied or rejected with authoritative snapshot
+    IO-->>Native: Correlated reply
+    Native-->>UI: Apply result
 ```
 
-Both JSON topics share `tcp://127.0.0.1:5555` by default: Python binds
-the publisher and Godot subscribes. The endpoint is configurable in the transport
-profile. The GUI and physics share a Python process and use local calls.
+Networking and JSON conversion run in I/O workers; at most one request is handled
+between steps. The physics library has no sockets. Reads do not advance time or
+consume gust RNG samples. There is no wind PUB/SUB topic. A timeout means outcome
+unknown: the UI reconciles with get_wind and never automatically resends Apply.
 
-Physics owns wind and its resulting forces. The example publishes authoritative
-`simulation/wind_state` through `RenderPublisher.set_wind`; the existing publisher
-sends the latest state over ZeroMQ every 0.1 seconds. It includes settings, current
-world velocity, episode identity and the application result. The renderer already
-subscribes to that topic. Drone movement independently arrives in pose messages.
-No wind force is applied by the renderer.
-
-This automatic example uses its own Tk panel and publishes with no controller
-owner. The windsock updates its direction and speed label in viewer-only mode,
-while the Godot wind editor remains disabled.
-
-`--renderer` and `--render-config` select the existing renderer executable and profile.
-In VS Code, choose **Wind control (rendered takeoff + live UI)** in **Bullet: Run example**.
+See [wind protocol and timing](../../docs/design/wind-request-reply.md).

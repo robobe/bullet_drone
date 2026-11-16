@@ -43,7 +43,6 @@ rate keys are rejected. Omitting keys uses these defaults:
 | `publish_rates_hz.camera_info` | 1 Hz | Immediate startup and periodic calibration |
 | `publish_rates_hz.profile` | 1 Hz | Render profile metadata |
 | `publish_rates_hz.state` | 1 Hz | State refresh and stopped pose refresh; transitions still publish promptly |
-| `publish_rates_hz.wind` | 10 Hz | Latest applied wind-state refresh |
 | `fps` | 30 in bundled profile | Pose/image capture scheduling in simulation time, existing maximum 240 Hz |
 
 Periodic metadata uses monotonic wall time and continues while physics is paused.
@@ -53,7 +52,8 @@ and source association; image descriptor and SHM formats remain unchanged.
 ## I/O module
 
 `bullet_simulation_protocol.transport` owns Python ZeroMQ sockets and serialization.
-ZmqIo provides publish, receive, request, poll_request, reply, start and close.
+ZmqIo provides publish, receive, request, poll_request, reply, start and close. The wind example
+now enables this request/reply transport as described in [wind protocol](wind-request-reply.md).
 A dedicated worker owns context, sockets and poller; no handler runs in the worker.
 The existing RenderPublisher remains responsible for observation selection and
 publication cadence. Renderer adapters delegate image subscriptions to

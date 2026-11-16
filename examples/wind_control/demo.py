@@ -18,7 +18,7 @@ from examples.altitude_hold_external_render.demo import (
     MAX_DURATION_S, TIMESTEP_S, GRAVITY_M_S2, WORLD_GRAVITY_M_S2, MASS_KG, INITIAL_POSITION_M,
     CONTROL_SETTINGS, ALTITUDE_PID, VERTICAL_SPEED_PID, BODY_RATE_LIMITS_RAD_S, DemoResult,
 )
-from examples.wind_control.panel import WindPanel
+from examples.wind_control.service import WindService
 
 
 def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_observation=None):
@@ -33,12 +33,11 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
         RcCodec(max_thrust, BODY_RATE_LIMITS_RAD_S))
     with ExitStack() as resources:
         viewer = resources.enter_context(ExternalRenderer(renderer, render_config, profile_name='wind_control'))
-        panel = WindPanel()
-        resources.callback(panel.close)
         simulation = RcSimulation(config, CONTROL_SETTINGS, vehicle)
         resources.callback(simulation.close)
         observation = simulation.reset()
         viewer.wait_ready(observation)
+        service = resources.enter_context(WindService(viewer.transport, viewer.physics_id))
         mission.reset(observation)
         viewer.set_state(observation, 'running', 'automatic_start')
         started = time.monotonic()
@@ -46,7 +45,7 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
             on_observation(observation)
         while True:
             viewer.ensure_running()
-            panel.update(simulation, viewer, observation)
+            service.update(simulation, observation)
             previous_phase = mission.phase
             command = mission.command(observation, TIMESTEP_S)
             if mission.phase != previous_phase:

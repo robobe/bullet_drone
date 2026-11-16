@@ -252,10 +252,10 @@ def test_camera_info_publication_rates_are_configurable(tmp_path):
     output = publisher(tmp_path)
     path = tmp_path/'render.json'
     value = json.loads(path.read_text())
-    value['publish_rates_hz'] = {'camera_info': 5, 'profile': 2, 'state': 3, 'wind': 4}
+    value['publish_rates_hz'] = {'camera_info': 5, 'profile': 2, 'state': 3}
     path.write_text(json.dumps(value))
     configured = RenderPublisher(path)
-    assert configured.rates == {'camera_info': 5, 'profile': 2, 'state': 3, 'wind': 4}
+    assert configured.rates == {'camera_info': 5, 'profile': 2, 'state': 3}
     assert configured.config['fps'] == 30
     for rates in ({'camera_info':0}, {'unknown':1}, {'camera_info':float('nan')}):
         value['publish_rates_hz'] = rates

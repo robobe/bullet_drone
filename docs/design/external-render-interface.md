@@ -65,7 +65,6 @@ on the telemetry endpoint. Topic contracts shared with the renderer live in
 | `render/drone_1/profile` | Once per second | `schema_version`, `stream_id`, `profile_name`, `backend`, `drone_model`. |
 | `render/drone_1/pose` | Capture schedule; stopped pose repeats at 1 Hz | `schema_version`, `stream_id`, `sequence`, `publisher_drops`, fixed render `drone_id`, `episode_id`, `step_index`, `simulation_time_s`, `position_m`, `orientation_xyzw`, `linear_velocity_m_s`. Sensor pose selection may add a `source` object with physics/stream/episode IDs, step/time, and monotonic measurement timestamp. |
 | `simulation/state` | On change and once per second | External-RC state, episode identity, and terminal status. |
-| `simulation/wind_state` | Periodic refresh | Current wind configuration and state. |
 
 Pose position and velocity use world coordinates in metres and metres per
 second. The orientation is body-to-world quaternion in XYZW order. World Z points
@@ -97,3 +96,5 @@ See [Simulation I/O](../simulation/io.md) for the current direct interfaces.
 See [CameraInfo and threaded I/O](camera-info-zmq.md) for the current dataclass
 contract and configurable metadata publication rates. Socket ownership now lives
 in the shared transport worker, while observation scheduling stays in RenderPublisher.
+
+Wind now uses request/reply only in the wind example. See [wind protocol](wind-request-reply.md).

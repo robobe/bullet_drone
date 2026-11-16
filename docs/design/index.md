@@ -51,3 +51,5 @@ library interfaces rather than reconstructing those missing records.
 - [Simulation I/O](../simulation/io.md): direct subsystem connections, topics, ports and endpoint ownership.
 
 - [CameraInfo and threaded ZeroMQ](camera-info-zmq.md): dataclass calibration, configured rates and transport ownership.
+
+- [Wind request/reply](wind-request-reply.md): validated dataclasses and optional Godot wind service.

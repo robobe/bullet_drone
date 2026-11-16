@@ -1,0 +1,14 @@
+{
+  "transport_config": "wind_transport.json",
+  "camera": {
+    "width_px": 640,
+    "height_px": 480,
+    "fov_x_deg": 90
+  },
+  "fps": 30,
+  "publish_rates_hz": {
+    "camera_info": 1,
+    "profile": 1,
+    "state": 1
+  }
+}

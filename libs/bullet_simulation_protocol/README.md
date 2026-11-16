@@ -9,7 +9,7 @@ Python dataclass names; current callers use dictionaries and validators.
 
 This table lists retained contracts, including legacy contracts for external
 consumers. Current simulation examples publish render config/profile/pose,
-simulation state and optional wind state only. There is no local lifecycle,
+simulation state only. There is no local lifecycle,
 spawn, collision or app RC receiver.
 
 | Topic | Message / purpose | Direction | Default TCP port | JSON schema |
@@ -23,8 +23,6 @@ spawn, collision or app RC receiver.
 | `flight/drone_1/feedback` | Sensor feedback, attitude, applied RC and armed/mode state | Simulation → external app | 5555 | [flight_feedback.json](src/bullet_simulation_protocol/schemas/flight_feedback.json) |
 | `simulation/spawn_request` | Initial position and takeoff-height request | Renderer/controller → simulation | 5557 | [spawn_request.json](src/bullet_simulation_protocol/schemas/spawn_request.json) |
 | `simulation/spawn_state` | Applied spawn settings and request outcome | Simulation → renderer | 5555 | [spawn_state.json](src/bullet_simulation_protocol/schemas/spawn_state.json) |
-| `simulation/wind_request` | Enable, mean wind, gust settings and seed | Renderer/controller → simulation | 5557 | [wind_request.json](src/bullet_simulation_protocol/schemas/wind_request.json) |
-| `simulation/wind_state` | Applied settings, current world wind and request outcome | Simulation → renderer | 5555 | [wind_state.json](src/bullet_simulation_protocol/schemas/wind_state.json) |
 | `render/drone_1/collision` | Collision proposal tied to a known simulation sample | Renderer → simulation | 5557 | [collision.json](src/bullet_simulation_protocol/schemas/collision.json) |
 
 `flight.py` also retains the `MISSION_TOPIC` constant (`app/drone_1/mission`).
@@ -44,8 +42,7 @@ seconds, and attitude is a body-to-world quaternion in XYZW order. Source stamps
 associate samples with physics, stream, episode, step and monotonic measurement
 time. Consult the linked schemas and validators for supported versions and fields.
 
-The automatic wind-control example applies GUI settings locally, then publishes
-`simulation/wind_state`; it does not send `simulation/wind_request`.
+The wind-control example accepts dataclass get/set requests through REQ/REP.
 
 Camera image descriptors on port 5556 and SHM pixels belong to the separate
 [image-transport library](../README.md), not this simulation-message library.
@@ -76,3 +73,5 @@ the removed flight-config contract must migrate separately.
 
 Camera info uses validated frozen dataclasses with dictionary export; other
 contracts retain their schemas. See [the migration guide](../../docs/design/camera-info-zmq.md).
+
+Wind now uses request/reply only in the wind example. See [wind protocol](../../docs/design/wind-request-reply.md).

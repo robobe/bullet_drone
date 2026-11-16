@@ -175,3 +175,5 @@
 - [0132: Task detail display](0132-task-detail-display.md) — Implemented and verified; workspace setting and JSON checked; implementation commit Pending.
 
 - [0133: CameraInfo and ZeroMQ I/O](0133-camera-info-zmq.md) — Implemented and verified; 700 tests passed, 8 skipped, 25 native checks and rendered readiness passed; implementation commit Pending.
+
+- [0134: Wind request/reply](0134-wind-request-reply.md) — Implemented and verified, uncommitted; dataclasses and Godot REQ/REP wind editor; implementation commit Pending.

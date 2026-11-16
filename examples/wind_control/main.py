@@ -1,11 +1,11 @@
-"""Run a rendered takeoff with an example-owned wind editor."""
+"""Run a rendered takeoff with an Godot request/reply wind editor."""
 import sys
 
 import click
 from loguru import logger
 
 from bullet_drone.config import ConfigurationError
-from examples.altitude_hold_external_render.demo_cli import CliParser
+from examples.wind_control.cli import CliParser
 
 
 EXIT_SUCCESS = 0

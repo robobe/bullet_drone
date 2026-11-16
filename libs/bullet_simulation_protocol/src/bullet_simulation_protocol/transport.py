@@ -20,7 +20,8 @@ MAX_MESSAGE_BYTES = 64 * 1024 * 1024
 
 def encode(value):
     return json.dumps(value.to_dict() if hasattr(value, 'to_dict') else value,
-                      allow_nan=False, separators=(',', ':')).encode()
+                      allow_nan=False, separators=(',', ':'),
+                      default=lambda message: message.to_dict()).encode()
 
 
 def decode(raw):

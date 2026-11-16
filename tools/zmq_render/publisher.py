@@ -19,7 +19,7 @@ RENDER_DRONE_ID = 'drone_1'
 QUEUE_CAPACITY = 1
 START_TIMEOUT_S = 15
 STOP_TIMEOUT_S = 5
-DEFAULT_PUBLISH_RATES_HZ = dict(camera_info=1., profile=1., state=1., wind=10.)
+DEFAULT_PUBLISH_RATES_HZ = dict(camera_info=1., profile=1., state=1.)
 SCHEDULE_TOLERANCE_S = 1e-12
 WORKER_POLL_S = 0.002
 
@@ -72,7 +72,6 @@ class RenderPublisher:
         self.snapshot_lock = Lock()
         self.latest_pose = None
         self.control_state = None
-        self.wind_state = None
         self.latest_source = None
         self.sequence = 0
         self.dropped = 0
@@ -94,12 +93,6 @@ class RenderPublisher:
         validate_state(state)
         with self.snapshot_lock:
             self.control_state = dict(state)
-
-    def set_wind(self, state):
-        from bullet_simulation_protocol.wind import validate_state
-        validate_state(state)
-        with self.snapshot_lock:
-            self.wind_state = state
 
     def consume(self, observation, *, source=None):
         if self.thread is None or self.stop.is_set():
@@ -141,7 +134,6 @@ class RenderPublisher:
                 next_config = 0.0
                 next_state = 0.0
                 next_profile = 0.0
-                next_wind = 0.0
                 next_idle_pose = 0.0
                 wire_sequence = 0
                 previous_state = None
@@ -160,12 +152,7 @@ class RenderPublisher:
                         control_state = self.control_state
                         latest = self.latest_pose
                         source = self.latest_source
-                        wind_state = self.wind_state
                     now = time.monotonic()
-                    if wind_state is not None and now >= next_wind:
-                        from bullet_simulation_protocol.wind import STATE_TOPIC as WIND_TOPIC
-                        io.publish(WIND_TOPIC, wind_state)
-                        next_wind = now + 1 / self.rates['wind']
                     changed = control_state != previous_state
                     if control_state is not None and (changed or now >= next_state):
                         io.publish(STATE_TOPIC, control_state)

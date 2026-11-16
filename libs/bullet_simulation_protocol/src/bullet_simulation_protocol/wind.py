@@ -1,68 +1,142 @@
-"""Live world wind settings and physics-authoritative readback."""
-from .control import identity, MAX_SEQUENCE
-from .flight import _shape, _integer, _number
+"""Process-neutral wind request/reply dataclasses, without JSON Schema."""
+from dataclasses import dataclass, asdict, fields
+from math import isfinite
 
-REQUEST_TOPIC = b'simulation/wind_request'
-STATE_TOPIC = b'simulation/wind_state'
-WIND_INTERVAL_S = 0.1
-SETTINGS_FIELDS = {'enabled', 'behavior', 'velocity_world_m_s', 'gust_stddev_m_s', 'correlation_time_s', 'seed'}
-REQUEST_FIELDS = {'schema_version', 'physics_id', 'episode_id', 'controller_id', 'request_id', 'issued_ms', 'settings'}
-STATE_FIELDS = {'schema_version', 'physics_id', 'episode_id', 'controller_id', 'request_id', 'settings',
-                'velocity_world_m_s', 'simulation_time_s', 'result', 'reason'}
+MAX_WIRE_INTEGER = 2**53 - 1
+MAX_WIND_VALUE = 1e12
 
 
-def _vector(value, nonnegative=False):
-    if not isinstance(value, (list, tuple)) or len(value) != 3:
-        raise ValueError('wind requires three components')
-    for number in value:
-        _number(number)
-        if nonnegative and number < 0:
-            raise ValueError('gust standard deviations must be nonnegative')
+def shape(value, cls):
+    if not isinstance(value, dict) or set(value) != {f.name for f in fields(cls)}:
+        raise ValueError("invalid wind message fields")
 
 
-def validate_settings(value):
-    _shape(value, SETTINGS_FIELDS)
-    if type(value['enabled']) is not bool or value['behavior'] not in ('constant', 'gusts'):
-        raise ValueError('invalid wind enable/behavior')
-    _vector(value['velocity_world_m_s'])
-    _vector(value['gust_stddev_m_s'], True)
-    _number(value['correlation_time_s'])
-    if value['correlation_time_s'] <= 0:
-        raise ValueError('wind correlation time must be positive')
-    _integer(value['seed'], -MAX_SEQUENCE, MAX_SEQUENCE)
-    return value
+def number(value, nonnegative=False):
+    if type(value) not in (int, float) or not isfinite(value) or abs(value) > MAX_WIND_VALUE or (nonnegative and value < 0):
+        raise ValueError("invalid wind number")
 
 
-def _header(value):
-    _integer(value['schema_version'], 1, 1)
-    for key in ('physics_id', 'episode_id'):
-        if not identity(value[key]):
-            raise ValueError('invalid wind identity')
-    validate_settings(value['settings'])
+def identity(value):
+    if not isinstance(value, str) or not value or len(value) > 128:
+        raise ValueError("invalid wind identity")
 
 
-def validate_request(value):
-    _shape(value, REQUEST_FIELDS)
-    _header(value)
-    for key in ('controller_id', 'request_id'):
-        if not identity(value[key]):
-            raise ValueError('invalid wind request identity')
-    _integer(value['issued_ms'])
-    return value
+class DictionaryMessage:
+    def to_dict(self):
+        def plain(value):
+            if isinstance(value, dict):
+                return {key: plain(item) for key, item in value.items()}
+            if isinstance(value, (tuple, list)):
+                return [plain(item) for item in value]
+            return value
+        return plain(asdict(self))
 
 
-def validate_state(value):
-    _shape(value, STATE_FIELDS)
-    _header(value)
-    for key in ('controller_id', 'request_id'):
-        if value[key] is not None and not identity(value[key]):
-            raise ValueError('invalid wind state identity')
-    _vector(value['velocity_world_m_s'])
-    _number(value['simulation_time_s'])
-    if value['simulation_time_s'] < 0 or value['result'] not in ('idle', 'applied', 'rejected'):
-        raise ValueError('invalid wind state')
-    if (value['request_id'] is None) != (value['result'] == 'idle'):
-        raise ValueError('wind result requires a request identity')
-    if not isinstance(value['reason'], str) or not 0 < len(value['reason']) <= 256:
-        raise ValueError('invalid wind reason')
-    return value
+@dataclass(frozen=True)
+class WindSettingsMessage(DictionaryMessage):
+    enabled: bool
+    behavior: str
+    velocity_world_m_s: tuple[float, float, float]
+    gust_stddev_m_s: tuple[float, float, float]
+    correlation_time_s: float
+    seed: int
+
+    def __post_init__(self):
+        if type(self.enabled) is not bool or self.behavior not in ('constant', 'gusts'):
+            raise ValueError("invalid wind behavior")
+        for vector in (self.velocity_world_m_s, self.gust_stddev_m_s):
+            if not isinstance(vector, tuple) or len(vector) != 3:
+                raise ValueError("invalid wind vector")
+        for value in self.velocity_world_m_s:
+            number(value)
+        for value in self.gust_stddev_m_s:
+            number(value, True)
+        number(self.correlation_time_s)
+        if self.correlation_time_s <= 0 or type(self.seed) is not int or abs(self.seed) > MAX_WIRE_INTEGER:
+            raise ValueError("invalid wind seed or correlation")
+
+    @classmethod
+    def from_dict(cls, value):
+        shape(value, cls)
+        try:
+            return cls(**dict(value, velocity_world_m_s=tuple(value['velocity_world_m_s']),
+                              gust_stddev_m_s=tuple(value['gust_stddev_m_s'])))
+        except TypeError as error:
+            raise ValueError("invalid wind settings") from error
+
+
+@dataclass(frozen=True)
+class GetWindRequest(DictionaryMessage):
+    action: str = 'get_wind'
+
+    def __post_init__(self):
+        if self.action != 'get_wind':
+            raise ValueError("invalid wind action")
+
+    @classmethod
+    def from_dict(cls, value):
+        shape(value, cls)
+        return cls(**value)
+
+
+@dataclass(frozen=True)
+class SetWindRequest(DictionaryMessage):
+    physics_id: str
+    episode_id: str
+    issued_ms: int
+    settings: WindSettingsMessage
+    action: str = 'set_wind'
+
+    def __post_init__(self):
+        identity(self.physics_id)
+        identity(self.episode_id)
+        if self.action != 'set_wind' or type(self.issued_ms) is not int or not 0 <= self.issued_ms <= MAX_WIRE_INTEGER or not isinstance(self.settings, WindSettingsMessage):
+            raise ValueError("invalid wind request")
+
+    @classmethod
+    def from_dict(cls, value):
+        shape(value, cls)
+        return cls(**dict(value, settings=WindSettingsMessage.from_dict(value['settings'])))
+
+
+@dataclass(frozen=True)
+class WindReadback(DictionaryMessage):
+    physics_id: str
+    episode_id: str
+    step_index: int
+    simulation_time_s: float
+    settings: WindSettingsMessage
+    velocity_world_m_s: tuple[float, float, float]
+
+    def __post_init__(self):
+        identity(self.physics_id)
+        identity(self.episode_id)
+        if type(self.step_index) is not int or not 0 <= self.step_index <= MAX_WIRE_INTEGER or not isinstance(self.settings, WindSettingsMessage):
+            raise ValueError("invalid wind snapshot")
+        number(self.simulation_time_s, True)
+        if not isinstance(self.velocity_world_m_s, tuple) or len(self.velocity_world_m_s) != 3:
+            raise ValueError("invalid actual wind")
+        for value in self.velocity_world_m_s:
+            number(value)
+
+    @classmethod
+    def from_dict(cls, value):
+        shape(value, cls)
+        return cls(**dict(value, settings=WindSettingsMessage.from_dict(value['settings']),
+                          velocity_world_m_s=tuple(value['velocity_world_m_s'])))
+
+
+@dataclass(frozen=True)
+class WindReply(DictionaryMessage):
+    status: str
+    reason: str
+    state: WindReadback
+
+    def __post_init__(self):
+        if self.status not in ('current', 'applied', 'rejected') or not isinstance(self.reason, str) or not 0 < len(self.reason) <= 256 or not isinstance(self.state, WindReadback):
+            raise ValueError("invalid wind reply")
+
+    @classmethod
+    def from_dict(cls, value):
+        shape(value, cls)
+        return cls(**dict(value, state=WindReadback.from_dict(value['state'])))

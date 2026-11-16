@@ -13,7 +13,9 @@ flowchart LR
     Image["Image consumer"]
     Shm["POSIX shared memory pixels"]
     Sitl["Betaflight SITL"]
-    Sim -->|"TCP 5555: camera/front/camera_info, render/drone_1/profile,<br/>render/drone_1/pose, simulation/state, simulation/wind_state"| Render
+    Sim -->|"TCP 5555: camera/front/camera_info, render/drone_1/profile,<br/>render/drone_1/pose, simulation/state"| Render
+    Render -->|"Optional REQ get_wind/set_wind, TCP 5560"| Sim
+    Sim -->|"REP: current/applied/rejected and snapshot"| Render
     Render -->|"TCP 5556: camera/front/image descriptors"| Image
     Render -->|"Write pixels"| Shm
     Shm -->|"Read referenced slot"| Image
@@ -33,6 +35,7 @@ open another listening port. PUB/SUB traffic is multipart topic plus JSON.
 | --- | --- | --- | --- |
 | ZeroMQ TCP 5555 | Simulation RenderPublisher, PUB | Godot, app and optional consumers, SUB | Scene and feedback; `telemetry_endpoint` |
 | ZeroMQ TCP 5556 | Godot image publisher, PUB | Image readers, SUB | Image descriptors; `image_endpoint` |
+| ZeroMQ TCP 5560, wind example only | Simulation wind service, REP | Godot wind client, REQ | Get/set wind, one JSON request and correlated reply; `wind_endpoint` |
 | UDP 9003 | SITL state listener | Simulation UdpSitlBridge | Binary FDM input |
 | UDP 9002 | Simulation UdpSitlBridge | SITL | Binary motor output; simulation also sends FDM from this bound socket |
 | TCP 5761 | SITL virtual UART1 | Application MSP client | RC, configuration and estimator queries |
@@ -48,7 +51,7 @@ external app RC receiver. Remaining publisher endpoints are configurable.
 
 Topics below are exact current names, including fixed `drone_1` namespaces.
 A changed YAML drone identity does not automatically rename every topic.
-All ZeroMQ endpoints carry UTF-8 topic and JSON payload as two frames.
+PUB/SUB endpoints carry UTF-8 topic and JSON payload as two frames. Wind REQ/REP carries one JSON object per request/reply, without a topic frame.
 
 | Endpoint | Topic | Data / use | Cadence or trigger |
 | --- | --- | --- | --- |
@@ -56,7 +59,6 @@ All ZeroMQ endpoints carry UTF-8 topic and JSON payload as two frames.
 | 5555 | `render/drone_1/profile` | Backend, model and profile identity | Every 1 s |
 | 5555 | `render/drone_1/pose` | World position/velocity and XYZW attitude, sample identity | Configured capture fps; stopped refresh 1 Hz |
 | 5555 | `simulation/state` | Running/stopped and episode/terminal status | Change and 1 Hz refresh |
-| 5555 | `simulation/wind_state` | Wind settings and request outcome | Periodic/change refresh |
 | 5556 | `camera/front/image` | SHM descriptor, dimensions and capture/source metadata | Rendered captures |
 
 The optional UDP renderer, MSP, MAVLink and FDM have their own framing and do not
@@ -93,3 +95,5 @@ endpoint key are rejected. This change does not add replacement external control
 - [Render interface](../design/external-render-interface.md),
   [Godot control and camera](../design/zmq-rendering.md),
   [FDM and motor mapping](sitl_fd.md)
+
+Wind now uses request/reply only in the wind example. See [wind protocol](../design/wind-request-reply.md).

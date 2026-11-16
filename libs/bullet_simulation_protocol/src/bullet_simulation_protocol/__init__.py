@@ -3,7 +3,7 @@ from importlib.resources import files
 import json
 import re
 
-SCHEMAS = ('pose.json', 'command.json', 'state.json', 'flight_feedback.json', 'collision.json', 'spawn_request.json', 'spawn_state.json', 'wind_request.json', 'wind_state.json')
+SCHEMAS = ('pose.json', 'command.json', 'state.json', 'flight_feedback.json', 'collision.json', 'spawn_request.json', 'spawn_state.json')
 
 def schema_bytes(name):
     if name not in SCHEMAS:
@@ -20,11 +20,19 @@ def validate_endpoint(endpoint):
 
 def validate_transport(profile):
     required = {"telemetry_endpoint", "image_endpoint", "control_endpoint"}
-    if not isinstance(profile, dict) or not required <= set(profile) or set(profile) - required:
+    if not isinstance(profile, dict) or not required <= set(profile) or set(profile) - required - {"wind_endpoint", "wind_io"}:
         raise ValueError("expected telemetry_endpoint, image_endpoint and control_endpoint")
-    for endpoint in profile.values():
+    endpoints = [value for key, value in profile.items() if key != 'wind_io']
+    for endpoint in endpoints:
         validate_endpoint(endpoint)
-    if len(set(profile.values())) != len(profile):
+    if 'wind_io' in profile:
+        from math import isfinite
+        settings = profile['wind_io']
+        if 'wind_endpoint' not in profile or not isinstance(settings, dict) or set(settings) != {'poll_hz', 'request_timeout_s', 'request_max_age_s'}:
+            raise ValueError('invalid wind I/O settings')
+        if any(type(v) not in (int, float) or not isfinite(v) or v <= 0 for v in settings.values()):
+            raise ValueError('wind I/O values must be positive and finite')
+    if len(set(endpoints)) != len(endpoints):
         raise ValueError("endpoints must differ")
     return profile
 

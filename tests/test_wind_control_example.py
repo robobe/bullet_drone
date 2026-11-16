@@ -1,50 +1,43 @@
+from dataclasses import asdict
 from types import SimpleNamespace
 from unittest.mock import Mock
-
+import socket,time
 import pytest
-
 from bullet_drone.config import WindSettings
-from examples.wind_control.panel import wind_settings, publish_wind, WindPanel
-from bullet_simulation_protocol.wind import validate_state
+from bullet_drone.forces.wind import WindModel
+from bullet_simulation_protocol.transport import ZmqIo
+from bullet_simulation_protocol.wind import SetWindRequest, WindSettingsMessage, WindReply
+from examples.wind_control.service import WindService
+
+WAIT_S=3
 
 
-@pytest.mark.parametrize('values', [('nan','0','0'), ('inf','0','0'), ('no','0','0')])
-def test_nonfinite_and_invalid_wind_rejected(values):
-    with pytest.raises(ValueError):
-        wind_settings(True, values)
-
-
-def test_wind_settings_and_state_match_protocol():
-    settings = wind_settings(True, ('1', '-2', '0.5'))
-    snapshot = SimpleNamespace(settings=settings, velocity_world_m_s=settings.velocity_world_m_s, simulation_time_s=2.0)
-    simulation = SimpleNamespace(wind=snapshot)
-    renderer = SimpleNamespace(physics_id='physics', publisher=Mock())
-    observation = SimpleNamespace(ground_truth=SimpleNamespace(episode_id='episode'))
-    for request in (None, 'request'):
-        publish_wind(simulation, renderer, observation, request)
-        packet = renderer.publisher.set_wind.call_args.args[0]
-        validate_state(packet)
-        assert packet['velocity_world_m_s'] == [1.0, -2.0, 0.5]
-        assert packet['result'] == ('idle' if request is None else 'applied')
-
-
-def test_panel_applies_at_step_boundary_and_close_interrupts():
-    panel = WindPanel.__new__(WindPanel)
-    panel.root = Mock()
-    panel.closed = False
-    panel.pending = WindSettings(velocity_world_m_s=(1,0,0))
-    panel.request_id = None
-    panel.next_update = 0
-    panel.status = Mock()
-    simulation = Mock()
-    simulation.wind = SimpleNamespace(settings=panel.pending, velocity_world_m_s=(1,0,0), simulation_time_s=0)
-    renderer = SimpleNamespace(physics_id='physics', publisher=Mock())
-    observation = SimpleNamespace(ground_truth=SimpleNamespace(episode_id='episode'))
-    panel.update(simulation, renderer, observation)
-    simulation.set_wind.assert_called_once()
-    assert panel.pending is None
-    validate_state(renderer.publisher.set_wind.call_args.args[0])
-    panel.closed = True
-    panel.next_update = 0
-    with pytest.raises(KeyboardInterrupt):
-        panel.update(simulation, renderer, observation)
+def test_wind_real_requests_reject_stale_and_preserve_readback():
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1',0))
+        endpoint=f'tcp://127.0.0.1:{sock.getsockname()[1]}'
+    model=WindModel(WindSettings(behavior='gusts',gust_stddev_m_s=(1.,1.,0.)))
+    model.velocity(.5)
+    simulation=Mock()
+    type(simulation).wind=property(lambda self:model.snapshot)
+    simulation.set_wind.side_effect=lambda settings:model.set_settings(settings,.5)
+    obs=SimpleNamespace(ground_truth=SimpleNamespace(episode_id='episode',step_index=120))
+    with WindService({'wind_endpoint':endpoint},'physics') as service,ZmqIo(request_endpoint=endpoint) as client:
+        def transact(payload):
+            future=client.request(payload)
+            deadline=time.monotonic()+WAIT_S
+            while not future.done() and time.monotonic()<deadline:
+                service.update(simulation,obs)
+                time.sleep(.002)
+            return WindReply.from_dict(future.result(1)['payload'])
+        before=model.snapshot
+        assert transact({'action':'get_wind'}).status=='current'
+        assert model.snapshot==before
+        simulation.set_wind.assert_not_called()
+        settings=WindSettingsMessage.from_dict(asdict(WindSettings(velocity_world_m_s=(2.,0.,0.))))
+        request=SetWindRequest('physics','episode',int(time.monotonic()*1000),settings)
+        reply=transact(request.to_dict())
+        assert reply.status=='applied' and model.snapshot.velocity_world_m_s==(2.,0.,0.)
+        for bad in [dict(request.to_dict(),episode_id='old'),dict(request.to_dict(),issued_ms=0),{'action':'wrong'}]:
+            assert transact(bad).status=='rejected'
+        assert simulation.set_wind.call_count==1

@@ -94,7 +94,7 @@ viewer. The example owns its loop and cleanup; Ctrl+C releases resources.
 | [Altitude hold](#altitude-hold-example) | Internal Angle-mode flight, take off to 3 m, hold, then land. | Internal |
 | [Altitude hold with packaged renderer](#altitude-hold-with-the-packaged-renderer) | The altitude-hold mission with the external Godot viewer. | Internal |
 | [Rendered takeoff with camera viewer](examples/takeoff_image_viewer/README.md) | Take off, hold and land with Godot plus a separate SHM camera window. | Internal |
-| [Live wind control](examples/wind_control/README.md) | Rendered takeoff with a UI for applying world XYZ wind. | Internal |
+| [Godot wind control](examples/wind_control/README.md) | Rendered takeoff with the Godot panel for applying world XYZ wind. | Internal |
 | [Betaflight SITL altitude hold](#betaflight-sitl-altitude-hold-example) | Altitude hold using Betaflight firmware for stabilization and motor output. | Betaflight SITL |
 | [Position square](#position-square-example) | Fly a square using internal position and velocity control with Angle mode. | Internal |
 | [Acro position square](#acro-position-square-example) | Fly a square using position navigation and Betaflight Acro rate control. | Betaflight SITL |
@@ -242,7 +242,7 @@ See [models, defaults and compatibility](docs/design/aerodynamics.md).
 
 Programmatic rendering adapters accept sensor-derived pose selection. See
 [sensor pose settings](docs/design/sensors.md#sensor-pose-selection-and-attitude-estimation).
-The [wind-control example](examples/wind_control/README.md) provides local wind editing.
+The [wind-control example](examples/wind_control/README.md) provides Godot wind editing through request/reply.
 GPS remains opt-in; see [GPS configuration](docs/design/sensors.md#opt-in-gps).
 
 ## Project Structure
