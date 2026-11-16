@@ -328,6 +328,8 @@ Implementation records are in [the plan menu](plan/README.md).
 
 ## Documentation
 
+- [CameraInfo and threaded ZeroMQ I/O](docs/design/camera-info-zmq.md)
+
 - [Simulation I/O: connections, topics and ports](docs/simulation/io.md)
 
 - [Design menu](docs/design/index.md)

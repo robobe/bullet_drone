@@ -107,6 +107,7 @@ def test_real_tcp_periodic_config_pose_and_binding_cleanup(tmp_path):
     with zmq.Context() as context, context.socket(zmq.SUB) as subscriber:
         subscriber.setsockopt(zmq.LINGER, 0)
         subscriber.setsockopt(zmq.SUBSCRIBE, b'render/drone_1/')
+        subscriber.setsockopt(zmq.SUBSCRIBE, b'camera/front/camera_info')
         subscriber.connect(profile['telemetry_endpoint'])
         output.start()
         try:
@@ -123,17 +124,18 @@ def test_real_tcp_periodic_config_pose_and_binding_cleanup(tmp_path):
                                                    'profile_name': 'unknown', 'backend': 'internal', 'drone_model': 'racer'}
                     continue
                 break
-            assert topic == b'render/drone_1/config'
+            assert topic == b'camera/front/camera_info'
             from bullet_simulation_protocol import schema_bytes
-            validate(json.loads(payload), json.loads(schema_bytes('config.json')))
-            assert json.loads(payload)['camera']['width_px'] == 640
+            from bullet_simulation_protocol.camera_info import CameraInfoMessage
+            CameraInfoMessage.from_dict(json.loads(payload))
+            assert json.loads(payload)['camera_info']['width'] == 640
             while subscriber.poll(0):
                 profile_topic, profile_payload = subscriber.recv_multipart()
                 assert profile_topic == b'render/drone_1/profile'
                 assert json.loads(profile_payload)['stream_id'] == output.stream
             assert subscriber.poll(1500)
             repeated_topic, repeated_payload = subscriber.recv_multipart()
-            assert repeated_topic == b'render/drone_1/config'
+            assert repeated_topic == b'camera/front/camera_info'
             assert subscriber.poll(1500)
             repeated_topic, repeated_payload = subscriber.recv_multipart()
             assert repeated_topic == b'render/drone_1/profile'
@@ -206,6 +208,7 @@ def test_sensor_pose_and_stopped_republication_keep_measurements(tmp_path, confi
     with zmq.Context() as context, context.socket(zmq.SUB) as subscriber:
         subscriber.setsockopt(zmq.LINGER, 0)
         subscriber.setsockopt(zmq.SUBSCRIBE, b'render/drone_1/')
+        subscriber.setsockopt(zmq.SUBSCRIBE, b'camera/front/camera_info')
         subscriber.connect(json.loads((tmp_path/'transport.json').read_text())['telemetry_endpoint'])
         output.start()
         try:
@@ -243,3 +246,48 @@ def test_sensor_pose_and_stopped_republication_keep_measurements(tmp_path, confi
         finally:
             output.close()
             simulation.close()
+
+
+def test_camera_info_publication_rates_are_configurable(tmp_path):
+    output = publisher(tmp_path)
+    path = tmp_path/'render.json'
+    value = json.loads(path.read_text())
+    value['publish_rates_hz'] = {'camera_info': 5, 'profile': 2, 'state': 3, 'wind': 4}
+    path.write_text(json.dumps(value))
+    configured = RenderPublisher(path)
+    assert configured.rates == {'camera_info': 5, 'profile': 2, 'state': 3, 'wind': 4}
+    assert configured.config['fps'] == 30
+    for rates in ({'camera_info':0}, {'unknown':1}, {'camera_info':float('nan')}):
+        value['publish_rates_hz'] = rates
+        path.write_text(json.dumps(value))
+        with pytest.raises((ValueError, ConfigurationError)):
+            RenderPublisher(path)
+
+
+def test_camera_info_rate_does_not_change_pose_capture_rate(tmp_path):
+    import zmq
+    output = publisher(tmp_path)
+    path = tmp_path/'render.json'
+    profile = tcp_profile()
+    (tmp_path/'transport.json').write_text(json.dumps(profile))
+    settings = json.loads(path.read_text())
+    settings['publish_rates_hz'] = {'camera_info': 10}
+    path.write_text(json.dumps(settings))
+    output = RenderPublisher(path)
+    with zmq.Context() as ctx, ctx.socket(zmq.SUB) as sub:
+        sub.setsockopt(zmq.LINGER, 0)
+        sub.setsockopt(zmq.SUBSCRIBE, b'camera/front/camera_info')
+        sub.connect(profile['telemetry_endpoint'])
+        output.start()
+        try:
+            stamps=[]
+            deadline=time.monotonic()+3
+            while len(stamps)<4 and time.monotonic()<deadline:
+                if sub.poll(100):
+                    _, raw=sub.recv_multipart()
+                    assert json.loads(raw)['capture_fps_hz']==30
+                    stamps.append(time.monotonic())
+            assert len(stamps)==4
+            assert .15 < stamps[-1]-stamps[0] < 1
+        finally:
+            output.close()

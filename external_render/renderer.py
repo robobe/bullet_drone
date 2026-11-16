@@ -11,7 +11,7 @@ import time
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-import zmq
+from bullet_simulation_protocol.transport import ImageSubscription
 from bullet_simulation_protocol import load_transport
 from bullet_image_transport.shm import FrameReader, SLOTS, slot_name, topic_prefix
 
@@ -62,12 +62,8 @@ class ExternalRenderer:
             raise
 
     def _start_zmq(self):
-        context = self.resources.enter_context(zmq.Context())
-        self.images = self.resources.enter_context(context.socket(zmq.SUB))
-        self.images.setsockopt(zmq.LINGER, 0)
-        self.images.setsockopt(zmq.RCVHWM, 1)
-        self.images.setsockopt(zmq.SUBSCRIBE, topic_prefix(IMAGE_TOPIC))
-        self.images.connect(self.transport['image_endpoint'])
+        self.images = ImageSubscription(self.transport['image_endpoint'], topic_prefix(IMAGE_TOPIC))
+        self.resources.callback(self.images.close)
         self.reader = FrameReader(IMAGE_TOPIC)
         self.resources.callback(self.reader.close)
         self.resources.callback(self.publisher.close)

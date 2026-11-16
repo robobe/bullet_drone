@@ -61,7 +61,7 @@ on the telemetry endpoint. Topic contracts shared with the renderer live in
 
 | Topic | Publisher cadence | Main fields and purpose |
 | --- | --- | --- |
-| `render/drone_1/config` | Once per second | `schema_version`, `stream_id`, camera dimensions/FOV, `fps`. |
+| `camera/front/camera_info` | Configured rate, default 1 Hz | `schema_version`, `stream_id`, `capture_fps_hz`, nested ROS-shaped `camera_info`. |
 | `render/drone_1/profile` | Once per second | `schema_version`, `stream_id`, `profile_name`, `backend`, `drone_model`. |
 | `render/drone_1/pose` | Capture schedule; stopped pose repeats at 1 Hz | `schema_version`, `stream_id`, `sequence`, `publisher_drops`, fixed render `drone_id`, `episode_id`, `step_index`, `simulation_time_s`, `position_m`, `orientation_xyzw`, `linear_velocity_m_s`. Sensor pose selection may add a `source` object with physics/stream/episode IDs, step/time, and monotonic measurement timestamp. |
 | `simulation/state` | On change and once per second | External-RC state, episode identity, and terminal status. |
@@ -93,3 +93,7 @@ Godot exit during an active rendered mission is an error. `--headless` skips the
 renderer process and its transport resources.
 
 See [Simulation I/O](../simulation/io.md) for the current direct interfaces.
+
+See [CameraInfo and threaded I/O](camera-info-zmq.md) for the current dataclass
+contract and configurable metadata publication rates. Socket ownership now lives
+in the shared transport worker, while observation scheduling stays in RenderPublisher.

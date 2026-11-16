@@ -21,7 +21,7 @@ horizontal FOV, 30 Hz; the camera is centered and forward-facing. One drone_1 st
 is supported. Settings are immutable during a run. Startup config is republished
 once a wall-clock second for late subscribers.
 
-Topics: render/drone_1/config and render/drone_1/pose. Pose v2 messages contain position,
+Topics: camera/front/camera_info and render/drone_1/pose. Pose v2 messages contain position,
 body-to-world XYZW orientation, world ground-truth `linear_velocity_m_s` ([vx, vy, vz]
 in m/s, Z up), drone/episode/stream identity, step, simulation time,
 sequence and publisher_drops. Shared schemas are packaged by local bullet_simulation_protocol; renderer/recorder

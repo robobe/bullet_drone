@@ -49,3 +49,5 @@ library interfaces rather than reconstructing those missing records.
 - [GPS point-to-point MAVLink feedback](../../examples/gps_point_to_point_mavlink/README.md): standalone 400 m GPS line flight, terrain-map landing, firmware telemetry feedback and MSP Acro commands.
 
 - [Simulation I/O](../simulation/io.md): direct subsystem connections, topics, ports and endpoint ownership.
+
+- [CameraInfo and threaded ZeroMQ](camera-info-zmq.md): dataclass calibration, configured rates and transport ownership.

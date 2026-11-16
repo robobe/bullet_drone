@@ -14,7 +14,7 @@ spawn, collision or app RC receiver.
 
 | Topic | Message / purpose | Direction | Default TCP port | JSON schema |
 | --- | --- | --- | --- | --- |
-| `render/drone_1/config` | Camera dimensions, field of view and capture rate | Simulation → renderer | 5555 | [config.json](src/bullet_simulation_protocol/schemas/config.json) |
+| `camera/front/camera_info` | Camera dimensions, field of view and capture rate | Simulation → renderer | 5555 | Validated CameraInfo dataclasses, no JSON Schema |
 | `render/drone_1/profile` | Profile name, backend and drone model | Simulation → renderer | 5555 | No packaged schema; built by RenderPublisher |
 | `render/drone_1/pose` | Position, attitude quaternion, velocity and sample identity | Simulation → renderer | 5555 | [pose.json](src/bullet_simulation_protocol/schemas/pose.json) |
 | `simulation/command` | Start, stop or reset request | Renderer/controller → simulation | 5557 | [command.json](src/bullet_simulation_protocol/schemas/command.json) |
@@ -73,3 +73,6 @@ retained contract, without a local receiver.
 The former flight configuration topic/schema/validator are removed. Renderer
 configuration and flight feedback contracts remain. External consumers importing
 the removed flight-config contract must migrate separately.
+
+Camera info uses validated frozen dataclasses with dictionary export; other
+contracts retain their schemas. See [the migration guide](../../docs/design/camera-info-zmq.md).

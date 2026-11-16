@@ -1,5 +1,7 @@
-"""Physics capture scheduling; bounded worker owns serialization and ZeroMQ I/O."""
+"""Physics capture scheduling; transport worker owns serialization and ZeroMQ I/O."""
 from dataclasses import asdict
+from bullet_simulation_protocol.transport import ZmqIo
+from bullet_simulation_protocol.camera_info import CameraInfo, CameraInfoMessage, CAMERA_INFO_TOPIC
 import json
 from pathlib import Path
 from queue import Empty, Full, Queue
@@ -14,11 +16,10 @@ from bullet_drone.rendering.config import CameraSettings, number
 
 POSE_SCHEMA_VERSION = 2
 RENDER_DRONE_ID = 'drone_1'
-TELEMETRY_HWM = 64
 QUEUE_CAPACITY = 1
 START_TIMEOUT_S = 15
 STOP_TIMEOUT_S = 5
-CONFIG_INTERVAL_S = 1
+DEFAULT_PUBLISH_RATES_HZ = dict(camera_info=1., profile=1., state=1., wind=10.)
 SCHEDULE_TOLERANCE_S = 1e-12
 WORKER_POLL_S = 0.002
 
@@ -31,7 +32,7 @@ class RenderPublisher:
         path = Path(path).resolve()
         try:
             config = json.loads(path.read_text())
-            if set(config) != {'transport_config', 'camera', 'fps'}:
+            if set(config) - {'transport_config', 'camera', 'fps', 'publish_rates_hz'} or not {'transport_config', 'camera', 'fps'} <= set(config):
                 raise ValueError('expected transport_config, camera and fps')
             camera = config['camera']
             if set(camera) != {'width_px', 'height_px', 'fov_x_deg'}:
@@ -45,6 +46,15 @@ class RenderPublisher:
             self.transport_path = path.parent / config['transport_config']
         except (OSError, ValueError, TypeError, KeyError) as exc:
             raise ConfigurationError(f'Invalid render configuration: {exc}') from exc
+        self.rates = DEFAULT_PUBLISH_RATES_HZ.copy()
+        configured_rates = config.get('publish_rates_hz', {})
+        if not isinstance(configured_rates, dict) or set(configured_rates) - set(self.rates):
+            raise ConfigurationError('invalid publication rates')
+        self.rates.update(configured_rates)
+        for rate in self.rates.values():
+            number(rate, 'publication rate', 0)
+            if rate <= 0:
+                raise ConfigurationError('publication rate must be positive')
         self.pose_sources = pose_sources
         if not all(isinstance(value, str) and value for value in (profile_name, drone_model, backend)):
             raise ConfigurationError('render profile metadata must be nonblank strings')
@@ -124,27 +134,27 @@ class RenderPublisher:
     def _run(self):
         import time
         try:
-            import zmq
             from bullet_simulation_protocol import load_transport
             transport = load_transport(self.transport_path)
-            with zmq.Context() as context, context.socket(zmq.PUB) as socket:
-                socket.setsockopt(zmq.LINGER, 0)
-                socket.setsockopt(zmq.SNDHWM, TELEMETRY_HWM)
-                socket.bind(transport['telemetry_endpoint'])
-                config = {'schema_version': 1, 'stream_id': self.stream,
-                          'camera': self.config['camera'], 'fps': self.config['fps']}
+            with ZmqIo(publish_endpoint=transport['telemetry_endpoint']) as io:
+                config = CameraInfoMessage(self.stream, self.config['fps'], CameraInfo.from_config(self.config['camera']))
                 next_config = 0.0
                 next_state = 0.0
+                next_profile = 0.0
                 next_wind = 0.0
                 next_idle_pose = 0.0
                 wire_sequence = 0
                 previous_state = None
                 self.ready.set()
                 while not self.stop.is_set():
+                    if io.error:
+                        raise RuntimeError(io.error)
                     if time.monotonic() >= next_config:
-                        socket.send_multipart([b'render/drone_1/config', json.dumps(config).encode()], flags=zmq.DONTWAIT)
-                        socket.send_multipart([b'render/drone_1/profile', json.dumps(self.profile).encode()], flags=zmq.DONTWAIT)
-                        next_config = time.monotonic() + CONFIG_INTERVAL_S
+                        io.publish(CAMERA_INFO_TOPIC, config)
+                        next_config = time.monotonic() + 1 / self.rates['camera_info']
+                    if time.monotonic() >= next_profile:
+                        io.publish(b'render/drone_1/profile', self.profile)
+                        next_profile = time.monotonic() + 1 / self.rates['profile']
                     from bullet_simulation_protocol.control import STATE_TOPIC
                     with self.snapshot_lock:
                         control_state = self.control_state
@@ -153,13 +163,13 @@ class RenderPublisher:
                         wind_state = self.wind_state
                     now = time.monotonic()
                     if wind_state is not None and now >= next_wind:
-                        from bullet_simulation_protocol.wind import STATE_TOPIC as WIND_TOPIC, WIND_INTERVAL_S
-                        socket.send_multipart([WIND_TOPIC, json.dumps(wind_state, allow_nan=False).encode()], flags=zmq.DONTWAIT)
-                        next_wind = now + WIND_INTERVAL_S
+                        from bullet_simulation_protocol.wind import STATE_TOPIC as WIND_TOPIC
+                        io.publish(WIND_TOPIC, wind_state)
+                        next_wind = now + 1 / self.rates['wind']
                     changed = control_state != previous_state
                     if control_state is not None and (changed or now >= next_state):
-                        socket.send_multipart([STATE_TOPIC, json.dumps(control_state).encode()], flags=zmq.DONTWAIT)
-                        next_state = now + CONFIG_INTERVAL_S
+                        io.publish(STATE_TOPIC, control_state)
+                        next_state = now + 1 / self.rates['state']
                         previous_state = control_state
                     try:
                         _, state, source = self.queue.get(timeout=WORKER_POLL_S)
@@ -167,7 +177,7 @@ class RenderPublisher:
                         if control_state is None or control_state['state'] == 'running' or latest is None or (not changed and now < next_idle_pose):
                             continue
                         state = latest
-                        next_idle_pose = now + CONFIG_INTERVAL_S
+                        next_idle_pose = now + 1 / self.rates['state']
                     sequence = wire_sequence
                     wire_sequence += 1
                     packet = {'schema_version': POSE_SCHEMA_VERSION, 'stream_id': self.stream,
@@ -180,7 +190,7 @@ class RenderPublisher:
                     packet['drone_id'] = RENDER_DRONE_ID
                     if source is not None:
                         packet.update(schema_version=3, source=source)
-                    socket.send_multipart([b'render/drone_1/pose', json.dumps(packet, allow_nan=False).encode()], flags=zmq.DONTWAIT)
+                    io.publish(b'render/drone_1/pose', packet)
         except Exception as exc:
             self.error = f'ZeroMQ render publisher failed: {exc}'
             logger.error(self.error)

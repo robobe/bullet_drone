@@ -4,7 +4,7 @@ import re
 import time
 from uuid import uuid4
 
-import zmq
+from .transport import ZmqIo
 
 COMMAND_TOPIC = b'simulation/command'
 HEARTBEAT_TOPIC = b'simulation/heartbeat'
@@ -66,15 +66,7 @@ class ControlPublisher:
     def __init__(self, endpoint):
         self.controller_id = uuid4().hex
         self.sequence = 0
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.PUB)
-        try:
-            self.socket.setsockopt(zmq.LINGER, 0)
-            self.socket.setsockopt(zmq.SNDHWM, 8)
-            self.socket.bind(endpoint)
-        except BaseException:
-            self.close()
-            raise
+        self.io = ZmqIo(publish_endpoint=endpoint).start()
 
     def send(self, action):
         self.sequence += 1
@@ -82,15 +74,14 @@ class ControlPublisher:
                      action=action, issued_ms=int(time.monotonic() * 1000))
         validate_command(value)
         topic = HEARTBEAT_TOPIC if action == 'heartbeat' else COMMAND_TOPIC
-        self.socket.send_multipart([topic, json.dumps(value).encode()], flags=zmq.DONTWAIT)
+        self.io.publish(topic, value)
         return value
 
     def heartbeat(self):
         return self.send('heartbeat')
 
     def close(self):
-        self.socket.close(linger=0)
-        self.context.term()
+        self.io.close()
 
     def __enter__(self):
         return self

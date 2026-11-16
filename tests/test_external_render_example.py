@@ -96,7 +96,7 @@ def test_godot_launch_failure_closes_started_communication(profile, tmp_path, mo
         with renderer:
             pytest.fail('Renderer launch unexpectedly succeeded')
     assert not renderer.publisher.thread.is_alive()
-    assert renderer.images.closed
+    assert not renderer.images.io.thread.is_alive()
     assert renderer.log.closed
     assert_ports_free(transport)
 

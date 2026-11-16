@@ -127,3 +127,7 @@ Generated executables, bundled libraries and editor/import caches stay untracked
 Terrain is packaged from `../custom/terrain/terrain_heightmap.f32` relative to
 this directory. Physics profiles and the sibling Godot scene/exporter share these
 project-local assets; a separate workspace `terrain/` folder is not required.
+
+The renderer expects `camera/front/camera_info`, generated from Python dataclasses,
+instead of the former render config topic. Rebuild/restart both ends together;
+see [camera metadata and rates](../docs/design/camera-info-zmq.md).

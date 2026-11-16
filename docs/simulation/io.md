@@ -13,7 +13,7 @@ flowchart LR
     Image["Image consumer"]
     Shm["POSIX shared memory pixels"]
     Sitl["Betaflight SITL"]
-    Sim -->|"TCP 5555: render/drone_1/config, render/drone_1/profile,<br/>render/drone_1/pose, simulation/state, simulation/wind_state"| Render
+    Sim -->|"TCP 5555: camera/front/camera_info, render/drone_1/profile,<br/>render/drone_1/pose, simulation/state, simulation/wind_state"| Render
     Render -->|"TCP 5556: camera/front/image descriptors"| Image
     Render -->|"Write pixels"| Shm
     Shm -->|"Read referenced slot"| Image
@@ -52,7 +52,7 @@ All ZeroMQ endpoints carry UTF-8 topic and JSON payload as two frames.
 
 | Endpoint | Topic | Data / use | Cadence or trigger |
 | --- | --- | --- | --- |
-| 5555 | `render/drone_1/config` | Stream identity, camera dimensions/FOV, capture fps | Every 1 s |
+| 5555 | `camera/front/camera_info` | Stream identity, capture fps and ROS-shaped pinhole calibration | Every 1 s |
 | 5555 | `render/drone_1/profile` | Backend, model and profile identity | Every 1 s |
 | 5555 | `render/drone_1/pose` | World position/velocity and XYZW attitude, sample identity | Configured capture fps; stopped refresh 1 Hz |
 | 5555 | `simulation/state` | Running/stopped and episode/terminal status | Change and 1 Hz refresh |
