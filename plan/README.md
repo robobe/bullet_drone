@@ -167,3 +167,5 @@
 - [0128: Simulation I/O](0128-simulation-io.md) — Implemented and verified; rendered Mermaid, checked topics and links; implementation commit Pending.
 
 - [0129: Remove external RC](0129-remove-external-rc.md) — Implemented and verified; 620 project tests passed, 8 skipped and 85 focused checks passed; implementation commit Pending.
+
+- [0130: Remove scenario end](0130-remove-scenario-ended.md) — Implemented and verified; 97 protocol/render checks passed; implementation commit Pending.

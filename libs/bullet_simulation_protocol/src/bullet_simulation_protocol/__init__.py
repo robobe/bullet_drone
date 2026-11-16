@@ -3,7 +3,7 @@ from importlib.resources import files
 import json
 import re
 
-SCHEMAS = ('config.json', 'pose.json', 'command.json', 'state.json', 'flight_config.json', 'flight_feedback.json', 'collision.json', 'scenario_end.json', 'spawn_request.json', 'spawn_state.json', 'wind_request.json', 'wind_state.json')
+SCHEMAS = ('config.json', 'pose.json', 'command.json', 'state.json', 'flight_config.json', 'flight_feedback.json', 'collision.json', 'spawn_request.json', 'spawn_state.json', 'wind_request.json', 'wind_state.json')
 
 def schema_bytes(name):
     if name not in SCHEMAS:
