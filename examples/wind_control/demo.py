@@ -1,5 +1,6 @@
 """Independent paced physics loop, with an exported Godot process as viewer."""
 from contextlib import ExitStack
+from dataclasses import replace
 from math import ceil
 import time
 
@@ -20,6 +21,9 @@ from examples.altitude_hold_external_render.demo import (
 )
 from examples.wind_control.service import WindService
 
+SETUP_POLL_INTERVAL_S = 0.01
+SPAWN_CLEARANCE_M = 0.20
+
 
 def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_observation=None):
     duration = _number(max_duration_s, 'max_duration_s', positive=True)
@@ -38,6 +42,35 @@ def run_demo(renderer, render_config, *, max_duration_s=MAX_DURATION_S, on_obser
         observation = simulation.reset()
         viewer.wait_ready(observation)
         service = resources.enter_context(WindService(viewer.transport, viewer.physics_id))
+        def replace_spawn(request):
+            nonlocal simulation, config
+            candidate_config = replace(config, drone=replace(config.drone,
+                initial_position_m=request.position_m))
+            candidate = RcSimulation(candidate_config, CONTROL_SETTINGS, vehicle)
+            try:
+                candidate_observation = candidate.reset()
+                if candidate.terrain_clearance_m() < SPAWN_CLEARANCE_M:
+                    raise ValueError('terrain_clearance')
+                candidate.set_wind(simulation.wind.settings)
+            except BaseException:
+                candidate.close()
+                raise
+            old = simulation
+            simulation, config = candidate, candidate_config
+            resources.callback(candidate.close)
+            old.close()
+            return candidate_observation
+
+        logger.info('Stopped setup: select a spawn in Godot, then press Start')
+        while not service.start_requested:
+            viewer.ensure_running()
+            observation = service.update(simulation, observation, stopped=True,
+                replace_spawn=replace_spawn) or observation
+            viewer.set_state(observation, 'stopped', 'spawn_setup')
+            viewer.consume(observation)
+            time.sleep(SETUP_POLL_INTERVAL_S)
+        if service.spawn_state is not None:
+            mission.target_altitude_m = config.drone.initial_position_m[2] + service.spawn_state.takeoff_height_m
         mission.reset(observation)
         viewer.set_state(observation, 'running', 'automatic_start')
         started = time.monotonic()

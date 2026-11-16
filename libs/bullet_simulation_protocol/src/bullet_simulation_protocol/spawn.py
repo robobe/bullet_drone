@@ -38,6 +38,7 @@ class SpawnRequest(DictionaryMessage):
             raise ValueError('invalid spawn request') from error
 
     def __post_init__(self):
+        _integer(self.schema_version, 2, 2)
         if self.action != SPAWN_ACTION:
             raise ValueError('invalid spawn action')
         for key in ('controller_id', 'physics_id', 'episode_id', 'request_id'):
@@ -45,6 +46,8 @@ class SpawnRequest(DictionaryMessage):
                 raise ValueError('invalid spawn identity')
         _integer(self.issued_ms)
         _name(self.scenario_name)
+        if not isinstance(self.position_m, tuple):
+            raise ValueError('expected immutable XYZ tuple')
         validate_position(self.position_m)
         validate_takeoff_height(self.takeoff_height_m)
 
@@ -81,6 +84,8 @@ class SpawnState(DictionaryMessage):
             if value is not None and not identity(value):
                 raise ValueError('invalid optional spawn identity')
         _name(self.scenario_name)
+        if not isinstance(self.position_m, tuple):
+            raise ValueError('expected immutable XYZ tuple')
         validate_position(self.position_m)
         validate_takeoff_height(self.takeoff_height_m)
         if self.result not in ('idle', 'applied', 'rejected') or not isinstance(self.reason, str) or not 0 < len(self.reason) <= 256:
@@ -111,37 +116,43 @@ def validate_takeoff_height(value):
     return value
 
 
-def _spawn_shape(value, fields):
-    version = value.get('schema_version') if isinstance(value, dict) else None
-    _shape(value, fields if version == 2 else fields - {'takeoff_height_m'})
-    _integer(version, 1, 2)
-    if version == 2:
-        validate_takeoff_height(value['takeoff_height_m'])
-
-
 def validate_request(value):
-    _spawn_shape(value, set(SpawnRequest.__annotations__))
-    for key in ('controller_id', 'physics_id', 'episode_id', 'request_id'):
-        if not identity(value[key]):
-            raise ValueError('invalid spawn identity')
-    _integer(value['issued_ms'])
-    _name(value['scenario_name'])
-    validate_position(value['position_m'])
+    SpawnRequest.from_dict(value)
     return value
 
 
 def validate_state(value):
-    _spawn_shape(value, set(SpawnState.__annotations__))
-    for key in ('physics_id', 'episode_id'):
-        if not identity(value[key]):
-            raise ValueError('invalid spawn identity')
-    for key in ('controller_id', 'request_id'):
-        if value[key] is not None and not identity(value[key]):
-            raise ValueError('invalid optional spawn identity')
-    _name(value['scenario_name'])
-    validate_position(value['position_m'])
-    if value['result'] not in ('idle', 'applied', 'rejected') or not isinstance(value['reason'], str) or not 0 < len(value['reason']) <= 256:
-        raise ValueError('invalid spawn outcome')
-    if (value['request_id'] is None) != (value['result'] == 'idle'):
-        raise ValueError('spawn outcome requires request identity')
+    SpawnState.from_dict(value)
     return value
+
+
+@dataclass(frozen=True)
+class GetSpawnRequest(DictionaryMessage):
+    action: str = 'get_spawn'
+
+    def __post_init__(self):
+        if self.action != 'get_spawn':
+            raise ValueError('invalid spawn action')
+
+    @classmethod
+    def from_dict(cls, value):
+        _shape(value, {'action'})
+        return cls(**value)
+
+
+@dataclass(frozen=True)
+class SpawnReply(DictionaryMessage):
+    status: str
+    reason: str
+    state: SpawnState
+
+    def __post_init__(self):
+        if self.status not in ('current', 'applied', 'rejected'):
+            raise ValueError('invalid spawn reply status')
+        if not isinstance(self.reason, str) or not 0 < len(self.reason) <= 256 or not isinstance(self.state, SpawnState):
+            raise ValueError('invalid spawn reply')
+
+    @classmethod
+    def from_dict(cls, value):
+        _shape(value, {'status', 'reason', 'state'})
+        return cls(value['status'], value['reason'], SpawnState.from_dict(value['state']))

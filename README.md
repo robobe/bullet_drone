@@ -242,7 +242,7 @@ See [models, defaults and compatibility](docs/design/aerodynamics.md).
 
 Programmatic rendering adapters accept sensor-derived pose selection. See
 [sensor pose settings](docs/design/sensors.md#sensor-pose-selection-and-attitude-estimation).
-The [wind-control example](examples/wind_control/README.md) provides Godot wind editing through request/reply.
+The [wind-control example](examples/wind_control/README.md) provides Godot wind editing and stopped spawn setup through a shared request/reply endpoint. Apply a spawn in Scenario, then press Start.
 GPS remains opt-in; see [GPS configuration](docs/design/sensors.md#opt-in-gps).
 
 ## Project Structure

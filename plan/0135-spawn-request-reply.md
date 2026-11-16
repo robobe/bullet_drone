@@ -16,7 +16,10 @@ Use the existing optional wind endpoint (`tcp://127.0.0.1:5560` in the wind prof
 Not run by user request; user will verify manually.
 
 ## Scope and status
-Renderer sibling migration included. In progress; uncommitted.
+Renderer sibling migration included. Implemented; uncommitted, manual verification pending.
 
 ## Implementation commit
 Pending.
+
+## Implemented setup lifecycle
+The wind example waits stopped for Start on the shared service. Spawn builds and resets a candidate, checks 0.20 m terrain clearance, retains wind settings, then replaces the old simulation. The selected climb is relative to the spawn altitude. Start is routed through the same REQ/REP socket.

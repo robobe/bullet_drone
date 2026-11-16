@@ -49,7 +49,10 @@ class AltitudeHoldMission:
     No XY position control, tilt compensation, or absolute yaw control.
     """
 
-    def __init__(self, altitude: AltitudeController, codec: RcCodec) -> None:
+    def __init__(self, altitude: AltitudeController, codec: RcCodec, *,
+                 target_altitude_m=TARGET_ALTITUDE_M, landing_altitude_m=LANDING_ALTITUDE_M) -> None:
+        self.target_altitude_m = target_altitude_m
+        self.landing_altitude_m = landing_altitude_m
         self.altitude = altitude
         self.codec = codec
         self.phase = Phase.SETTLE
@@ -90,7 +93,7 @@ class AltitudeHoldMission:
             self._transition(Phase.TAKEOFF, now)
         elif self.phase == Phase.TAKEOFF:
             if self._settled(
-                abs(altitude - TARGET_ALTITUDE_M) <= TAKEOFF_ALTITUDE_TOLERANCE_M
+                abs(altitude - self.target_altitude_m) <= TAKEOFF_ALTITUDE_TOLERANCE_M
                 and abs(speed) <= TAKEOFF_SPEED_TOLERANCE_M_S,
                 now, TAKEOFF_SETTLE_DURATION_S,
             ):
@@ -111,7 +114,7 @@ class AltitudeHoldMission:
         if armed:
             landing = self.phase == Phase.LAND
             thrust = self.altitude.thrust(
-                LANDING_ALTITUDE_M if landing else TARGET_ALTITUDE_M, altitude, speed, dt_s,
+                self.landing_altitude_m if landing else self.target_altitude_m, altitude, speed, dt_s,
                 velocity_limit_m_s=DESCENT_SPEED_LIMIT_M_S if landing else CLIMB_SPEED_LIMIT_M_S,
             )
         return self.codec.encode(mode='angle', rpy=LEVEL_RPY_RAD,

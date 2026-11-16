@@ -2,7 +2,7 @@
 
 These independent uv workspace packages ship as separate wheels. Install both through `bullet-drone[render]`.
 
-- `bullet-simulation-protocol`: import `bullet_simulation_protocol`. Owns simulation/render configuration, pose, lifecycle, flight, spawn, wind and scenario contracts, JSON schemas and transport-profile validation.
+- `bullet-simulation-protocol`: import `bullet_simulation_protocol`. Owns simulation/render configuration, pose, lifecycle, flight, spawn, wind and scenario contracts, validated camera/wind/spawn dataclasses, remaining JSON schemas and transport-profile validation.
 - `bullet-image-transport`: import `bullet_image_transport.shm`. Owns image descriptors, the POSIX SHM binary format, readers/writers and slot helpers.
 
 The renderer consumes the unchanged JSON/SHM protocol and does not import Python. Existing SHM magic and slot prefixes are retained for compatibility. Sibling projects still use bullet_msgs independently.

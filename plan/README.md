@@ -177,4 +177,4 @@
 - [0133: CameraInfo and ZeroMQ I/O](0133-camera-info-zmq.md) — Implemented and verified; 700 tests passed, 8 skipped, 25 native checks and rendered readiness passed; implementation commit Pending.
 
 - [0134: Wind request/reply](0134-wind-request-reply.md) — Implemented and verified, uncommitted; dataclasses and Godot REQ/REP wind editor; implementation commit Pending.
-- [0135: Spawn request/reply](0135-spawn-request-reply.md) — In progress; migrate spawn to dataclasses and route through shared wind REQ/REP endpoint; implementation commit Pending.
+- [0135: Spawn request/reply](0135-spawn-request-reply.md) — Implemented, manual verification pending; migrate spawn to dataclasses and route through shared wind REQ/REP endpoint; implementation commit Pending.

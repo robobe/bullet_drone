@@ -21,8 +21,6 @@ spawn, collision or app RC receiver.
 | `simulation/heartbeat` | Controller liveness, command payload with heartbeat action | Renderer/controller → simulation | 5557 | [command.json](src/bullet_simulation_protocol/schemas/command.json) |
 | `simulation/state` | Lifecycle, episode and reason | Simulation → clients | 5555 | [state.json](src/bullet_simulation_protocol/schemas/state.json) |
 | `flight/drone_1/feedback` | Sensor feedback, attitude, applied RC and armed/mode state | Simulation → external app | 5555 | [flight_feedback.json](src/bullet_simulation_protocol/schemas/flight_feedback.json) |
-| `simulation/spawn_request` | Initial position and takeoff-height request | Renderer/controller → simulation | 5557 | [spawn_request.json](src/bullet_simulation_protocol/schemas/spawn_request.json) |
-| `simulation/spawn_state` | Applied spawn settings and request outcome | Simulation → renderer | 5555 | [spawn_state.json](src/bullet_simulation_protocol/schemas/spawn_state.json) |
 | `render/drone_1/collision` | Collision proposal tied to a known simulation sample | Renderer → simulation | 5557 | [collision.json](src/bullet_simulation_protocol/schemas/collision.json) |
 
 `flight.py` also retains the `MISSION_TOPIC` constant (`app/drone_1/mission`).
@@ -75,3 +73,5 @@ Camera info uses validated frozen dataclasses with dictionary export; other
 contracts retain their schemas. See [the migration guide](../../docs/design/camera-info-zmq.md).
 
 Wind now uses request/reply only in the wind example. See [wind protocol](../../docs/design/wind-request-reply.md).
+
+Spawn uses `get_spawn` and `set_spawn` on the wind example’s shared REQ/REP endpoint (TCP 5560). Frozen dataclasses in `spawn.py` replace its JSON Schemas. See [spawn service](../../docs/design/spawn-request-reply.md).

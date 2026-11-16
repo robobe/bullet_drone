@@ -1,30 +1,23 @@
 import json
 
 import pytest
-from jsonschema import Draft202012Validator
 
-from bullet_simulation_protocol import schema_bytes
-from bullet_simulation_protocol.spawn import validate_request, validate_state
+from bullet_simulation_protocol.spawn import SpawnRequest, SpawnState, validate_request, validate_state
 
 
 def request():
-    return dict(schema_version=1, physics_id='physics', episode_id='episode', controller_id='godot',
-                request_id='apply1', issued_ms=1000, scenario_name='Hill', position_m=[12, -34, 25.125])
+    return dict(schema_version=2, physics_id='physics', episode_id='episode', controller_id='godot',
+                action='set_spawn', takeoff_height_m=7.5, request_id='apply1', issued_ms=1000, scenario_name='Hill', position_m=[12, -34, 25.125])
 
 
 def state():
-    return dict(schema_version=1, physics_id='physics', episode_id='episode', controller_id=None,
-                request_id=None, result='idle', reason='startup', scenario_name='Default', position_m=[0, 0, .015])
+    return dict(schema_version=2, physics_id='physics', episode_id='episode', controller_id=None,
+                takeoff_height_m=7.5, request_id=None, result='idle', reason='startup', scenario_name='Default', position_m=[0, 0, .015])
 
 
-def test_shared_spawn_schemas():
-    for packet, validator, name in [(request(), validate_request, 'spawn_request.json'),
-                                     (state(), validate_state, 'spawn_state.json')]:
-        assert validator(packet) is packet
-        Draft202012Validator(json.loads(schema_bytes(name))).validate(packet)
-    packet = dict(state(), request_id='apply1', result='applied')
-    validate_state(packet)
-    Draft202012Validator(json.loads(schema_bytes('spawn_state.json'))).validate(packet)
+def test_shared_spawn_dataclasses():
+    for packet, cls in ((request(), SpawnRequest), (state(), SpawnState)):
+        assert cls.from_dict(packet).to_dict() == packet
 
 
 @pytest.mark.parametrize('change', [dict(schema_version=True), dict(issued_ms=True), dict(request_id='a/b'),
@@ -48,7 +41,6 @@ def test_bad_spawn_state(change):
 def test_spawn_v2_takeoff(factory, validator, name):
     packet = dict(factory(), schema_version=2, takeoff_height_m=7.5)
     validator(packet)
-    Draft202012Validator(json.loads(schema_bytes(name))).validate(packet)
     for value in (0, -1, 100.1, True, float('nan'), float('inf'), '6'):
         with pytest.raises(ValueError):
             validator(dict(packet, takeoff_height_m=value))
