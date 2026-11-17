@@ -1,5 +1,5 @@
 import struct
-from threading import Lock
+from threading import Event, Lock
 import time
 
 import pytest
@@ -76,8 +76,7 @@ class LoopbackTransport:
         message = Parser().feed(packet)[0]
         with self.lock:
             self.sent.append(message)
-            if message.command != 200:
-                self.responses.append(encode(message.command, b'reply', direction='>'))
+            self.responses.append(encode(message.command, b'reply', direction='>'))
 
     def receive(self):
         with self.lock:
@@ -138,5 +137,83 @@ def test_request_metrics_count_responses_before_snapshot_sampling():
         assert metrics['response_turnaround_mean_s'] >= 0
         assert client.request_metrics(108, now) == metrics
         assert client.request_metrics(108, now + 2)['responses_hz'] == 0
+    finally:
+        client.close()
+
+
+@pytest.mark.parametrize('module', ['examples.common.msp.client',
+                                   'examples.gps_point_to_point_mavlink.msp.client'])
+def test_slow_rc_ack_keeps_only_latest_channels(module):
+    from importlib import import_module
+
+    transport = LoopbackTransport()
+    original_receive = transport.receive
+    release = Event()
+    transport.receive = lambda: original_receive() if release.is_set() else b''
+    client = import_module(module).Client(transport).start()
+    try:
+        assert client.connected.wait(.2)
+        client.rc.update((1500, 1500, 1000, 1500))
+        wait_for(lambda: len(transport.sent) == 1)
+        client.rc.update((1500, 1500, 1200, 1500))
+        time.sleep(.1)
+        assert len(transport.sent) == 1
+        release.set()
+        wait_for(lambda: len(transport.sent) >= 2)
+        assert transport.sent[1].payload == pack_rc((1500, 1500, 1200, 1500))
+        assert client.request(101).payload == b'reply'
+    finally:
+        client.close()
+
+
+@pytest.mark.parametrize('module', ['examples.common.msp.client',
+                                   'examples.gps_point_to_point_mavlink.msp.client'])
+def test_missing_rc_ack_disconnects_and_clears_channels(module, monkeypatch):
+    from importlib import import_module
+
+    implementation = import_module(module)
+    monkeypatch.setattr(implementation, 'RC_ACK_TIMEOUT_S', .05)
+    transport = LoopbackTransport()
+    transport.receive = lambda: b''
+    client = implementation.Client(transport).start()
+    try:
+        assert client.connected.wait(.2)
+        client.rc.update((1500, 1500, 1000, 1500))
+        wait_for(lambda: not client.connected.is_set())
+        assert client.error == 'MSP RC acknowledgement timed out'
+        assert client.rc.payload is None
+    finally:
+        client.close()
+
+
+@pytest.mark.parametrize('module', ['examples.common.msp.client',
+                                   'examples.gps_point_to_point_mavlink.msp.client'])
+def test_status_wait_does_not_pause_rc_stream(module):
+    from concurrent.futures import ThreadPoolExecutor
+    from importlib import import_module
+
+    transport = LoopbackTransport()
+    release_status = Event()
+
+    def receive():
+        with transport.lock:
+            for index, packet in enumerate(transport.responses):
+                if Parser().feed(packet)[0].command != 101 or release_status.is_set():
+                    return transport.responses.pop(index)
+        return b''
+
+    transport.receive = receive
+    client = import_module(module).Client(transport).start()
+    try:
+        assert client.connected.wait(.2)
+        client.rc.update((1500, 1500, 1000, 1500))
+        with ThreadPoolExecutor(max_workers=1) as worker:
+            future = worker.submit(client.request, 101)
+            wait_for(lambda: any(m.command == 101 for m in transport.sent))
+            initial = sum(m.command == 200 for m in transport.sent)
+            wait_for(lambda: sum(m.command == 200 for m in transport.sent) >= initial + 3)
+            assert not future.done()
+            release_status.set()
+            assert future.result(.3).payload == b'reply'
     finally:
         client.close()

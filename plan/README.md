@@ -192,3 +192,7 @@
 - [0141: Godot request boolean types](0141-godot-request-bool-types.md) — Implemented; source-reviewed parser fix, manual rebuild pending; implementation commit Pending.
 
 - [0142: Image header integer types](0142-image-header-integers.md) — Implemented, manual runtime verification pending; preserve fid/sec/nanosec integer types through Godot; implementation commit Pending.
+
+- [0143: MSP RC backpressure](0143-msp-rc-backpressure.md) — Implemented; rendered flight and final smoke verified, 57 tests passed; implementation commit Pending.
+
+- [0144: Empty ZeroMQ poller](0144-empty-zmq-poller.md) — Implemented; full rendered flight at 0.93 RTF, 21 focused tests passed; implementation commit Pending.

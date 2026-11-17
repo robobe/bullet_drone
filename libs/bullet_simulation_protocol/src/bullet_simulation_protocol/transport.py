@@ -171,7 +171,12 @@ class ZmqIo:
                                 req.send(encode(value), zmq.DONTWAIT)
                                 poller.register(req, zmq.POLLIN)
                                 active = client_token, time.monotonic()+timeout, future
-                        events = dict(poller.poll(POLL_MS))
+                        if sub is None and rep is None and active is None:
+                            # An empty ZeroMQ poller returns immediately instead of waiting.
+                            self.stop.wait(POLL_MS / 1000)
+                            events = {}
+                        else:
+                            events = dict(poller.poll(POLL_MS))
                         if sub in events:
                             parts = sub.recv_multipart()
                             accepted = ((len(parts) == 2 and parts[0] in self.topics) or

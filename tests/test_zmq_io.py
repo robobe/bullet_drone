@@ -81,3 +81,19 @@ def test_absent_consumers_do_not_block_snapshot_submission():
         assert time.monotonic()-started < TIMEOUT_S
         assert len(io.outgoing) <= 1
         assert io.error is None
+
+
+@pytest.mark.parametrize('role', ['publish_endpoint', 'request_endpoint'])
+def test_idle_worker_does_not_poll_an_empty_socket_set(monkeypatch, role):
+    original = zmq.Poller.poll
+
+    def checked_poll(self, timeout=None):
+        assert self.sockets, 'empty poller would busy-spin'
+        return original(self, timeout)
+
+    monkeypatch.setattr(zmq.Poller, 'poll', checked_poll)
+    with ZmqIo(**{role: endpoint()}) as io:
+        time.sleep(.03)
+        assert io.error is None
+        assert io.thread.is_alive()
+    assert not io.thread.is_alive()

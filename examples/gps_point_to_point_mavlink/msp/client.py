@@ -11,6 +11,7 @@ from .rc import RcStream
 
 REQUEST_CAPACITY = 32
 RECONNECT_S = .2
+RC_ACK_TIMEOUT_S = .3
 # shortcut: retain about 40 seconds at 50 Hz, add overflow telemetry if runtime stalls longer.
 RC_DELIVERY_CAPACITY = 2048
 
@@ -80,19 +81,26 @@ class Client:
                         with self.timing_lock:
                             self.timings.clear()
                         parser = Parser()
+                        rc_pending = False
                         self.error = None
                         self.connected.set()
                     now = time.monotonic()
-                    delivery = self.rc.due_with_channels(now)
+                    # Firmware serial processing slows with simulation time; do not backlog RC.
+                    delivery = (self.rc.due_with_channels(now)
+                                if not rc_pending and (
+                                    (pending is None and self.queue.empty())
+                                    or (pending is not None and pending[0] != 200)) else None)
                     if delivery is not None:
                         payload, channels = delivery
                         self.transport.send(encode(200, payload, version=self.version))
+                        rc_pending = True
+                        rc_deadline = time.monotonic() + RC_ACK_TIMEOUT_S
                         self.rc.sent += 1
                         sent_at_us = time.monotonic_ns() // 1000
                         self.rc.last_sent_at = sent_at_us / 1e6
                         with self.rc_delivery_lock:
                             self.rc_deliveries.append(RcDelivery(sent_at_us, self.generation, channels))
-                    if pending is None:
+                    if pending is None and not rc_pending:
                         try:
                             pending = self.queue.get_nowait()
                         except Empty:
@@ -108,6 +116,11 @@ class Client:
                                 with self.timing_lock:
                                     self.timings.append(('sent', pending[0], sent_at, sent_at - pending[4]))
                     for message in parser.feed(self.transport.receive()):
+                        if rc_pending and message.command == 200 and message.direction in ('>', '!'):
+                            if message.direction == '!':
+                                raise ValueError('Streamed MSP RC rejected by firmware')
+                            rc_pending = False
+                            continue
                         if pending is not None and message.direction in ('>', '!') and message.command == pending[0]:
                             if not pending[3].done():
                                 if message.direction == '!':
@@ -118,6 +131,8 @@ class Client:
                                         self.timings.append(('response', pending[0], received_at, received_at - sent_at))
                                     pending[3].set_result(replace(message, received_at=received_at))
                             pending = None
+                    if rc_pending and time.monotonic() >= rc_deadline:
+                        raise TimeoutError('MSP RC acknowledgement timed out')
                     if pending is not None and time.monotonic() >= pending[2]:
                         raise TimeoutError(f'MSP command {pending[0]} timed out')
                 except (OSError, ValueError, TimeoutError) as error:

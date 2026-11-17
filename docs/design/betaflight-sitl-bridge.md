@@ -351,3 +351,18 @@ altitude mission still uses ground-truth world Z, not VFR_HUD feedback.
 Run repeatable live coordinate, course, pressure independence and restart checks
 with `BULLET_TEST_GPS_SITL=1 uv run pytest tests/test_gps_sitl.py`. These checks
 require both GPS binaries built and the simulation ports free.
+
+### MSP flow control during slow rendered runs
+
+The example MSP clients allow only one unacknowledged streamed RC packet.
+Betaflight processes one MSP packet per serial-task invocation, scheduled at
+100 Hz in simulation time by default. At 0.33 real-time factor this is roughly
+33 packets per wall second, below the client's requested 50 Hz RC stream alone.
+Unbounded RC sends therefore accumulate ahead of status requests.
+
+The client waits for the RC acknowledgement, prioritizes queued requests, and
+then sends the latest RC values. One RC packet may remain in flight alongside
+a non-RC request so waiting for STATUS does not pause RC delivery. It never replays intermediate channel values.
+A missing RC acknowledgement after 300 ms or a rejected RC packet disconnects
+and clears RC streaming, using the same cleanup path as request failures.
+This applies to both the common client and the GPS example's local copy.

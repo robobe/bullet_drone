@@ -94,3 +94,9 @@ query is enabled by the simulation examples.
 - [ROS CameraInfo definition](https://github.com/ros2/common_interfaces/blob/rolling/sensor_msgs/msg/CameraInfo.msg)
 
 Stopped pose refresh is local-only at 1 Hz via set_running(bool). No lifecycle state topic is published.
+
+Publisher-only workers and idle request clients have no input sockets registered
+with the poller. An empty ZeroMQ poll returns immediately, regardless of its
+requested timeout. These workers wait on the stop event for `POLL_MS` instead,
+so they do not busy-spin or contend with the physics/MSP threads. Workers with
+SUB, REP, or an active REQ socket continue to use socket polling.
