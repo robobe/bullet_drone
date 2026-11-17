@@ -2,6 +2,7 @@
 
 | Plan | Description | Status | Implementation commit |
 | --- | --- | --- | --- |
+| [0145: Simulation launcher](0145-infrastructure-launcher.md) | Persistent PyBullet FDM loop with optional process-only SITL and rendering; external controller owns MSP/MAVLink. | Implemented; CLI checks and SITL Ctrl-C cleanup verified | Pending |
 | [0117: merge Iris example task](0117-merge-iris-example-task.md) | Move PX4 Iris into the shared example picker. | Implemented and verified; uncommitted | Pending |
 | [0116: example task color](0116-example-task-color.md) | Add a green play icon to Bullet: Run example. | Implemented and verified; uncommitted | Pending |
 | [0003: control diagram SVG](0003-control-diagram-svg.md) | Replace obsolete PNG with current RC/internal-control diagram. | Implemented and verified; uncommitted | Pending |

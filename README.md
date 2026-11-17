@@ -87,11 +87,14 @@ uv run --locked python -m examples.altitude_hold.main --headless
 The drone takes off to 3 m, holds, then lands. Remove `--headless` for the PyBullet
 viewer. The example owns its loop and cleanup; Ctrl+C releases resources.
 
+Start the external-controller launcher with `uv run --locked --all-packages --all-extras --all-groups python -m examples.simulation_launcher.main`. It starts SITL and Godot by default; `--no-sitl` and `--no-render` disable either process. The launcher does not open MSP. Start the external controller separately.
+
 ## Usage
 
 | Example | Description | Control backend |
 | --- | --- | --- |
 | [Altitude hold](#altitude-hold-example) | Internal Angle-mode flight, take off to 3 m, hold, then land. | Internal |
+| [Simulation launcher](#quick-start) | Persistent PyBullet FDM loop with optional SITL and renderer for an external controller. | Betaflight or internal |
 | [Altitude hold with packaged renderer](#altitude-hold-with-the-packaged-renderer) | The altitude-hold mission with the external Godot viewer. | Internal |
 | [Rendered takeoff with camera viewer](examples/takeoff_image_viewer/README.md) | Take off, hold and land with Godot plus a separate SHM camera window. | Internal |
 | [Godot wind control](examples/wind_control/README.md) | Rendered takeoff with the Godot panel for applying world XYZ wind. | Internal |

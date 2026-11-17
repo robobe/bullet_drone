@@ -1,4 +1,4 @@
-"""Example-owned Betaflight process and MSP connection."""
+"""Example-owned Betaflight process and optional MSP connection."""
 
 from contextlib import suppress
 import os
@@ -25,9 +25,11 @@ LOG_TAIL_BYTES = 2000
 
 
 class SitlSession:
-    def __init__(self, binary, *, profile_path=PROFILE_PATH, extra_ports=(), gps_enabled=False):
+    def __init__(self, binary, *, profile_path=PROFILE_PATH, extra_ports=(), gps_enabled=False,
+                 connect_msp=True):
         self.profile_path = profile_path
         self.extra_ports = extra_ports
+        self.connect_msp = connect_msp
         self.binary = Path(binary).resolve()
         if not self.binary.is_file() or not os.access(self.binary, os.X_OK):
             raise ValueError('SITL binary missing or not executable. Run tools/setup_betaflight_sitl.sh first.')
@@ -55,17 +57,21 @@ class SitlSession:
                            stdout=self.log, stderr=self.log, timeout=STARTUP_TIMEOUT_S, check=True)
             self.process = subprocess.Popen([str(self.binary), '--ip', HOST], cwd=self.work.name,
                                             stdout=self.log, stderr=self.log)
-            self.client = Client(TcpTransport(HOST, MSP_PORT)).start()
-            if not self.client.connected.wait(STARTUP_TIMEOUT_S):
-                self.check_running()
-                raise RuntimeError(f'SITL MSP connection timed out: {self.client.error}')
-            self.commands = FlightCommands(self.client)
-            identity = self.commands.identify()
-            if identity['variant'] != EXPECTED_VARIANT or identity['version'][:3] != EXPECTED_VERSION:
-                raise ValueError('Expected Betaflight 2026.6.2 SITL')
-            self.client.rc.update(SAFE_CHANNELS)
-            logger.info('SITL ready: pid={} version={}.{}.{} MSP={}:{}; Acro arm=1000 throttle=1000',
-                        self.process.pid, *EXPECTED_VERSION, HOST, MSP_PORT)
+            if self.connect_msp:
+                self.client = Client(TcpTransport(HOST, MSP_PORT)).start()
+                if not self.client.connected.wait(STARTUP_TIMEOUT_S):
+                    self.check_running()
+                    raise RuntimeError(f'SITL MSP connection timed out: {self.client.error}')
+                self.commands = FlightCommands(self.client)
+                identity = self.commands.identify()
+                if identity['variant'] != EXPECTED_VARIANT or identity['version'][:3] != EXPECTED_VERSION:
+                    raise ValueError('Expected Betaflight 2026.6.2 SITL')
+                self.client.rc.update(SAFE_CHANNELS)
+                logger.info('SITL ready: pid={} version={}.{}.{} MSP={}:{}; Acro arm=1000 throttle=1000',
+                            self.process.pid, *EXPECTED_VERSION, HOST, MSP_PORT)
+            else:
+                logger.info('SITL process started: pid={} MSP={} (external controller owns connection)',
+                            self.process.pid, MSP_PORT)
             return self
         except BaseException:
             logger.error('SITL startup failed. Recent firmware output:\n{}', self.recent_output())
