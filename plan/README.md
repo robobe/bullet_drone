@@ -190,3 +190,5 @@
 - [0140: Three request topics](0140-three-request-topics.md) — Implemented, runtime verification pending; mutation-only spawn/wind/command interfaces; implementation commit Pending.
 
 - [0141: Godot request boolean types](0141-godot-request-bool-types.md) — Implemented; source-reviewed parser fix, manual rebuild pending; implementation commit Pending.
+
+- [0142: Image header integer types](0142-image-header-integers.md) — Implemented, manual runtime verification pending; preserve fid/sec/nanosec integer types through Godot; implementation commit Pending.

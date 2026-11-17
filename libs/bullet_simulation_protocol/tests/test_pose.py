@@ -16,3 +16,17 @@ def test_pose_rejects_invalid_fields(field, value):
     packet[field] = value
     with pytest.raises(ValueError):
         PoseMessage.from_dict(packet)
+
+
+@pytest.mark.parametrize('header', [
+    {'fid': True, 'time_stamp': {'sec': 0, 'nanosec': 0}},
+    {'fid': 1.5, 'time_stamp': {'sec': 0, 'nanosec': 0}},
+    {'fid': 1, 'time_stamp': {'sec': 0.0, 'nanosec': 0}},
+    {'fid': 1, 'time_stamp': {'sec': True, 'nanosec': 0}},
+    {'fid': 1, 'time_stamp': {'sec': 0, 'nanosec': 1.5}},
+    {'fid': 1, 'time_stamp': {'sec': -1, 'nanosec': 0}},
+    {'fid': 1, 'time_stamp': {'sec': 0, 'nanosec': 1000000000}},
+])
+def test_pose_header_rejects_noninteger_or_out_of_range_values(header):
+    with pytest.raises(ValueError):
+        PoseHeader.from_dict(header)
