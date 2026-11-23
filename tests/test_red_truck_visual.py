@@ -7,6 +7,8 @@ import pytest
 from bullet_drone.controllers import AltitudeController
 from bullet_drone.controllers.internal import AttitudeController
 from bullet_drone.commands import RcInput
+from bullet_drone.models import ControlFeedback
+from examples.red_truck_visual.telemetry import SensorSample
 from bullet_drone.rc import RcCodec
 from bullet_drone.vehicle import load_racer_parameters
 from examples.red_truck_visual.mission import (
@@ -63,14 +65,23 @@ def test_vision_worker_polls_and_exposes_only_fresh_detection():
         assert vision.target(13, 2) is None
 
 
+class MissionFixture(RedTruckMission):
+    def command(self, observation, status, dt_s, target=None, **kwargs):
+        state = observation.ground_truth
+        sensors = SensorSample(state.position_m[2], state.linear_velocity_m_s[2],
+                               ControlFeedback(state.orientation_xyzw, (0, 0, 0)), time.monotonic())
+        return super().command(state.simulation_time_s, status, dt_s, target,
+                               sensors=sensors, **kwargs)
+
+
 def mission():
     vehicle = load_racer_parameters()
     max_thrust = 4 * vehicle.max_thrust_per_rotor_n
     codec = RcCodec(max_thrust, MAX_BODY_RATES_RAD_S)
-    value = RedTruckMission(
+    value = MissionFixture(
         AltitudeController(1.0, 9.81, max_thrust, ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID),
         AttitudeController((4.0, 4.0, 4.0), MAX_BODY_RATES_RAD_S), codec, max_thrust)
-    value.reset(observation(30.0, 0.0))
+    value.reset(0.0, SensorSample(30, 0, ControlFeedback((0, 0, 0, 1), (0, 0, 0)), time.monotonic()))
     value.phase = Phase.APPROACH
     value.approach_start_altitude_m = 30.0
     value.approach_started_s = 0.0
@@ -96,9 +107,19 @@ def test_image_errors_drive_roll_pitch_and_vertical_thrust():
     b, _ = mission()
     negative = b.command(observation(30.0, 0.1), status(), 1.0, TargetOffset(.5, -.5, 100))
     assert positive[0] > 1500
-    assert positive[1] == negative[1]
-    assert positive[2] < negative[2]
+    assert positive[1] > negative[1]
     assert codec.decode(RcInput(positive), 'episode', 25).mode == 'acro'
+
+
+def test_dy_guidance_is_reduced_at_20_m_and_full_at_40_m():
+    low, _ = mission()
+    low.command(observation(20.0, 0.1), status(), 1.0, TargetOffset(0, .5, 100))
+    high, _ = mission()
+    high.command(observation(40.0, 0.1), status(), 1.0, TargetOffset(0, .5, 100))
+
+    assert low.control_targets[0] < high.control_targets[0]
+    assert low.altitude.last_output.velocity_target_m_s == pytest.approx(-5.0)
+    assert high.altitude.last_output.velocity_target_m_s == pytest.approx(-5.5)
 
 
 def test_lost_target_reacquires_search_timeout_lands_and_contact_completes():
@@ -119,7 +140,6 @@ def test_lost_target_reacquires_search_timeout_lands_and_contact_completes():
 
 
 def test_contact_uses_exact_topic_and_requires_active_stream_and_fresh_pose():
-    import zmq
     from bullet_simulation_protocol.scenario import CONTACT_TOPIC
     from bullet_simulation_protocol.transport import ZmqIo
     from examples.red_truck_visual.renderer import ExternalRenderer
@@ -211,12 +231,6 @@ def test_status_poll_does_not_block_physics_caller():
     assert not worker.thread.is_alive()
 
 
-def test_approach_descends_along_camera_ray():
-    value, _ = mission()
-    value.command(observation(30, 3), status(), 1 / 240, TargetOffset(0, .5, 100))
-    assert value.altitude.last_output.velocity_target_m_s == pytest.approx(-10 * .375 / (1 + .375 ** 2) ** .5)
-    assert value.control_targets[2] < 9.81
-
 
 def test_diagnostics_rate_limits_errors_but_reports_state_changes(monkeypatch):
     from loguru import logger
@@ -250,19 +264,12 @@ def test_takeoff_speed_and_deceleration_preserve_other_phase_limits():
     value.phase = Phase.TAKEOFF
     value.command(observation(5, 1), status(), 1 / 240)
     assert value.altitude.last_output.velocity_target_m_s == 4
-    value.command(observation(29.9, 2), status(), 1 / 240)
+    value.command(observation(19.9, 2), status(), 1 / 240)
     assert 0 < value.altitude.last_output.velocity_target_m_s < .2
     value.phase = Phase.LAND
     value.command(observation(20, 3), status(), 1 / 240)
     assert value.altitude.last_output.velocity_target_m_s == -1.5
 
-
-def test_tracking_accelerates_below_ten_and_brakes_above():
-    for speed, sign in ((6, 1), (12, -1)):
-        value, _ = mission()
-        value.command(observation(30, .1, velocity=(speed, 0, 0)), status(),
-                      1 / 240, TargetOffset(0, 0, 100))
-        assert value.control_targets[0] * sign > 0
 
 
 def test_packet_pacing_counts_work_and_does_not_catch_up(monkeypatch):
@@ -287,18 +294,54 @@ def test_packet_pacing_counts_work_and_does_not_catch_up(monkeypatch):
     assert bridge.sent == 4
 
 
-def test_camera_attitude_compensation_preserves_world_descent_bearing():
-    from math import atan, tan
-    from bullet_drone.geometry import from_rpy
 
-    level, _ = mission()
-    pitched, _ = mission()
-    first = observation(30, .1)
-    second = observation(30, .1)
-    second.ground_truth.orientation_xyzw = from_rpy((0, .2, 0))
-    level.command(first, status(), 1 / 240, TargetOffset(0, .4, 100))
-    pitched.command(second, status(), 1 / 240,
-                    TargetOffset(0, tan(atan(.4 * .75) - .2) / .75, 100))
-    assert level.control_targets[1] == pytest.approx(pitched.control_targets[1])
-    assert level.altitude.last_output.velocity_target_m_s == pytest.approx(
-        pitched.altitude.last_output.velocity_target_m_s)
+
+def test_mavlink_attitude_cannot_refresh_stale_altitude(monkeypatch):
+    from examples.red_truck_visual import telemetry
+    worker = telemetry.SensorWorker()
+    clock = [1.0]
+    messages = iter([
+        SimpleNamespace(get_type=lambda: 'ATTITUDE', roll=.1, pitch=.2, yaw=.3),
+        SimpleNamespace(get_type=lambda: 'VFR_HUD', alt=12.0),
+        SimpleNamespace(get_type=lambda: 'ATTITUDE', roll=.1, pitch=.2, yaw=.3),
+    ])
+
+    class Connection:
+        calls = 0
+        closed = False
+
+        def recv_match(self, **kwargs):
+            self.calls += 1
+            if self.calls == 3:
+                clock[0] = 2.0
+                worker.stop.set()
+            return next(messages)
+
+        def close(self):
+            self.closed = True
+
+    connection = Connection()
+    monkeypatch.setattr(telemetry.mavutil, 'mavlink_connection', lambda *a, **k: connection)
+    monkeypatch.setattr(telemetry.time, 'monotonic', lambda: clock[0])
+    worker._run()
+    assert connection.closed
+    assert worker.error is None
+    with pytest.raises(RuntimeError, match='stale'):
+        worker.latest()
+
+
+def test_mission_requires_explicit_mavlink_sample():
+    value, _ = mission()
+    with pytest.raises(RuntimeError, match='MAVLink'):
+        RedTruckMission.command(value, .1, status(), 1 / 240, TargetOffset(0, 0, 100))
+
+
+def test_takeoff_allows_sensor_noise_before_los_acquisition():
+    value, _ = mission()
+    value.phase = Phase.TAKEOFF
+    target = TargetOffset(.1, .2, 100)
+    value.command(observation(19.3, 1, velocity=(0, 0, 1.0)), status(), 1 / 240, target)
+    value.command(observation(19.5, 1.31, velocity=(0, 0, .8)), status(), 1 / 240, target)
+    assert value.phase == Phase.SEARCH
+    value.command(observation(29.5, 1.32), status(), 1 / 240, target)
+    assert value.phase == Phase.APPROACH

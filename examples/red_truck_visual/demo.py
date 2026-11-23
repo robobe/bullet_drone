@@ -26,7 +26,8 @@ from examples.red_truck_visual.renderer import ExternalRenderer
 from examples.red_truck_visual.vision import VisionWorker
 from examples.red_truck_visual.status import StatusWorker
 from examples.red_truck_visual.diagnostics import Diagnostics
-from examples.position_square_acro.sitl import SitlSession
+from examples.red_truck_visual.telemetry import SensorWorker
+from examples.red_truck_visual.sitl import SitlSession
 
 
 PHYSICS_HZ = 240
@@ -38,7 +39,8 @@ CONTACT_MAX_AGE_STEPS = 240
 MASS_KG = 1.0
 GRAVITY_M_S2 = 9.81
 GRAVITY_VECTOR_M_S2 = (0.0, 0.0, -GRAVITY_M_S2)
-INITIAL_POSITION_M = (0.0, 0.0, 0.015)
+# Negative world Y offsets the launch to the right of the original track.
+INITIAL_POSITION_M = (-20.0, -18.0, 0.015)
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,13 +84,22 @@ def run_demo(*, renderer=DEFAULT_RENDERER, render_config=None, sitl_binary=DEFAU
         viewer.wait_ready(observation)
         vision = resources.enter_context(VisionWorker(viewer))
         statuses = resources.enter_context(StatusWorker(sitl.commands))
-        mission.reset(observation)
+        sensors = resources.enter_context(SensorWorker())
+        deadline = time.monotonic() + 10.0
+        while sensors.latest(required=False) is None:
+            if time.monotonic() >= deadline:
+                raise RuntimeError('MAVLink sensor startup timed out')
+            backend.command(observation)
+            observation = environment.hold()
+        sensor_feedback = sensors.latest()
+        mission.reset(observation.ground_truth.simulation_time_s, sensor_feedback)
         viewer.set_running(True)
         diagnostics = Diagnostics()
 
         for _ in range(max_steps):
             viewer.ensure_running()
             status = statuses.read()
+            sensor_feedback = sensors.latest()
             if status is None or not 0 <= time.monotonic() - status.received_at <= FEEDBACK_TIMEOUT_S:
                 raise RuntimeError('Betaflight status is stale')
             state = observation.ground_truth
@@ -97,8 +108,9 @@ def run_demo(*, renderer=DEFAULT_RENDERER, render_config=None, sitl_binary=DEFAU
             contact = viewer.poll_contact(stream_id=viewer.publisher.stream,
                 current_step=state.step_index, max_age_steps=CONTACT_MAX_AGE_STEPS)
             try:
-                channels = mission.command(observation, status, TIMESTEP_S,
-                                           latest_target, contact=contact)
+                channels = mission.command(state.simulation_time_s, status, TIMESTEP_S,
+                                           latest_target, contact=contact,
+                                           sensors=sensor_feedback)
             except RuntimeError as error:
                 if status.armed:
                     raise
@@ -109,7 +121,7 @@ def run_demo(*, renderer=DEFAULT_RENDERER, render_config=None, sitl_binary=DEFAU
                     f'{error}; MSP connected={client.connected.is_set()}, error={client.error!r}, '
                     f'RC frames={client.rc.sent}, last_rc_age_s={rc_age}') from error
             sitl.client.rc.update(channels)
-            diagnostics.report(mission, state, latest_target, channels)
+            diagnostics.report(mission, state, latest_target, channels, sensor_feedback)
             diagnostics.report_rates(state, bridge.sent, viewer.publisher.sequence, vision)
             if mission.phase == Phase.COMPLETE:
                 viewer.set_running(False)

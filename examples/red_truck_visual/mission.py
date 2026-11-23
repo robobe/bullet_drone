@@ -1,10 +1,10 @@
-"""Image-servo Acro mission; renderer pixels steer, physics state stabilizes."""
+"""Image-error Acro mission using only explicit MAVLink sensor feedback."""
 from enum import StrEnum
-from math import cos, degrees, radians, sin, sqrt, tan
+from math import cos, degrees, radians, sqrt, tan
 
-from bullet_drone.controllers import AltitudeController, IdealStateFeedback, PidSettings
+from bullet_drone.controllers import AltitudeController, PidSettings
 from bullet_drone.controllers.internal import AttitudeController
-from bullet_drone.geometry import yaw_from_quaternion, body_to_world
+from bullet_drone.geometry import yaw_from_quaternion
 from bullet_drone.rc import RcCodec
 from examples.red_truck_visual.vision import TargetOffset
 
@@ -12,26 +12,34 @@ from examples.red_truck_visual.vision import TargetOffset
 TARGET_ALTITUDE_AGL_M = 30.0
 SEARCH_TIMEOUT_S = 30.0
 MAX_MISSION_TIME_S = 150.0
-APPROACH_SPEED_M_S = 10.0
+LOW_ALTITUDE_APPROACH_DESCENT_M_S = 3.0
+FULL_ALTITUDE_APPROACH_DESCENT_M_S = 3.5
+IMAGE_DESCENT_GAIN_M_S = 4.0
+FULL_IMAGE_GUIDANCE_ALTITUDE_M = 40.0
+MIN_IMAGE_GUIDANCE_SCALE = 0.5
 TAKEOFF_SPEED_M_S = 4.0
 DESCENT_SPEED_M_S = 8.0
 LANDING_SPEED_M_S = 1.5
 GROUND_ALTITUDE_M = 0.0
 GROUND_SETTLE_S = 0.5
-TAKEOFF_SETTLE_S = 1.0
+TAKEOFF_SETTLE_S = 0.3
 TOUCHDOWN_SETTLE_S = 0.5
 DISARMED_SETTLE_S = 1.0
-ALTITUDE_TOLERANCE_M = 0.15
-VERTICAL_SPEED_TOLERANCE_M_S = 0.15
+ALTITUDE_TOLERANCE_M = 1.0
+TAKEOFF_VERTICAL_SPEED_TOLERANCE_M_S = 1.5
+VERTICAL_SPEED_TOLERANCE_M_S = 0.5
 TOUCHDOWN_ALTITUDE_M = 0.03
 SEARCH_YAW_RATE_RAD_S = 0.35
 REACQUIRE_YAW_RATE_RAD_S = 0.25
 MAX_TILT_RAD = radians(30.0)
 MAX_BODY_RATES_RAD_S = (2.0, 2.0, 1.0)
 ATTITUDE_KP_S_INV = (4.0, 4.0, 4.0)
-MAX_FORWARD_PITCH_RAD = radians(25.0)
-FORWARD_SPEED_GAIN_RAD_PER_M_S = 0.08
-PITCH_SLEW_RAD_S = radians(45.0)
+MAX_FORWARD_PITCH_RAD = radians(18.0)
+IMAGE_ROLL_GAIN_RAD = radians(12.0)
+IMAGE_PITCH_GAIN_RAD = radians(10.0)
+IMAGE_ROLL_D_GAIN_RAD_S = radians(30.0)
+IMAGE_D_FILTER_S = 0.2
+PITCH_SLEW_RAD_S = radians(40.0)
 RC_MIN_PWM = 1000
 RC_MAX_PWM = 2000
 RC_NEUTRAL_PWM = 1500
@@ -42,7 +50,7 @@ ACTUAL_MAX_RATE_DPS = 670.0
 ACTUAL_RATE_CURVE_DPS = ACTUAL_MAX_RATE_DPS - ACTUAL_CENTER_RATE_DPS
 UNUSED_CHANNELS = (RC_MIN_PWM,) * 12
 ALTITUDE_POSITION_PID = PidSettings(1.5, 0.0, 0.0, 8.0, 0.0)
-ALTITUDE_VELOCITY_PID = PidSettings(6.0, 4.0, 0.0, 5.0, 2.0)
+ALTITUDE_VELOCITY_PID = PidSettings(2.0, 1.0, 0.0, 5.0, 2.0)
 
 
 class Phase(StrEnum):
@@ -82,7 +90,6 @@ class RedTruckMission:
         self.attitude = attitude
         self.codec = codec
         self.max_thrust_n = max_thrust_n
-        self.feedback = IdealStateFeedback()
         self.camera_tan_x = tan(radians(camera_fov_x_deg) / 2)
         self.camera_tan_y = self.camera_tan_x / camera_aspect
         self.phase = Phase.PREARM
@@ -92,15 +99,16 @@ class RedTruckMission:
         self.heading_rad = 0.0
         self.last_pitch_rad = 0.0
         self.transitions = []
+        self.last_dx = None
+        self.dx_rate = 0.0
 
-    def reset(self, observation):
-        state = observation.ground_truth
+    def reset(self, now, sensors):
         self.altitude.reset()
         self.phase = Phase.PREARM
-        self.phase_started_s = state.simulation_time_s
+        self.phase_started_s = now
         self.dwell_started_s = None
         self.search_started_s = 0.0
-        self.heading_rad = yaw_from_quaternion(state.orientation_xyzw)
+        self.heading_rad = yaw_from_quaternion(sensors.attitude.orientation_xyzw)
         self.last_pitch_rad = 0.0
         self.transitions = [(self.phase, self.phase_started_s)]
 
@@ -114,6 +122,8 @@ class RedTruckMission:
         if phase == Phase.SEARCH:
             self.search_started_s = now
         if phase == Phase.APPROACH:
+            self.last_dx = None
+            self.dx_rate = 0.0
             self.last_pitch_rad = 0.0
 
     def _settled(self, condition, now, duration):
@@ -123,13 +133,14 @@ class RedTruckMission:
             self.dwell_started_s = now
         return self.dwell_started_s is not None and now - self.dwell_started_s >= duration
 
-    def command(self, observation, status, dt_s: float, target: TargetOffset | None = None,
-                *, contact: bool = False) -> tuple[int, ...]:
-        state = observation.ground_truth
-        now = state.simulation_time_s
-        self._altitude_m = state.position_m[2]
-        vertical_speed = state.linear_velocity_m_s[2]
-        yaw = yaw_from_quaternion(state.orientation_xyzw)
+    def command(self, now, status, dt_s: float, target: TargetOffset | None = None,
+                *, contact: bool = False, sensors=None) -> tuple[int, ...]:
+        if sensors is None:
+            raise RuntimeError('Betaflight MAVLink sensor data is required')
+        self._altitude_m = sensors.altitude_m
+        vertical_speed = sensors.vertical_speed_m_s
+        orientation = sensors.attitude.orientation_xyzw
+        yaw = yaw_from_quaternion(orientation)
 
         if contact:
             self._transition(Phase.COMPLETE, now)
@@ -147,7 +158,7 @@ class RedTruckMission:
                 self._transition(Phase.PREARM, now)
         elif self.phase == Phase.TAKEOFF:
             if self._settled(abs(self._altitude_m - TARGET_ALTITUDE_AGL_M) <= ALTITUDE_TOLERANCE_M
-                             and abs(vertical_speed) <= VERTICAL_SPEED_TOLERANCE_M_S,
+                             and abs(vertical_speed) <= TAKEOFF_VERTICAL_SPEED_TOLERANCE_M_S,
                              now, TAKEOFF_SETTLE_S):
                 self._transition(Phase.SEARCH, now)
         elif self.phase == Phase.SEARCH:
@@ -188,10 +199,7 @@ class RedTruckMission:
             yaw_rate_override = SEARCH_YAW_RATE_RAD_S if self.phase == Phase.SEARCH else REACQUIRE_YAW_RATE_RAD_S
             vertical_target = self._altitude_m
             if self.phase == Phase.REACQUIRE:
-                forward_speed = (state.linear_velocity_m_s[0] * cos(yaw)
-                                 + state.linear_velocity_m_s[1] * sin(yaw))
-                pitch_target = max(-MAX_TILT_RAD, min(0.0,
-                    -forward_speed * FORWARD_SPEED_GAIN_RAD_PER_M_S))
+                pitch_target = 0.0
                 max_change = PITCH_SLEW_RAD_S * dt_s
                 pitch_target = max(self.last_pitch_rad - max_change,
                                    min(self.last_pitch_rad + max_change, pitch_target))
@@ -199,27 +207,27 @@ class RedTruckMission:
         elif self.phase == Phase.APPROACH:
             if target is None:
                 target = TargetOffset(0.0, 0.0, 0)
-            ray = body_to_world((1.0, -target.dx * self.camera_tan_x,
-                                 -target.dy * self.camera_tan_y), state.orientation_xyzw)
-            norm = sqrt(sum(component * component for component in ray))
-            desired = tuple(APPROACH_SPEED_M_S * component / norm for component in ray)
-            desired_forward = desired[0] * cos(yaw) + desired[1] * sin(yaw)
-            lateral_error = ((desired[0] - state.linear_velocity_m_s[0]) * -sin(yaw)
-                             + (desired[1] - state.linear_velocity_m_s[1]) * cos(yaw))
+            if self.last_dx is not None:
+                rate = (target.dx - self.last_dx) / dt_s
+                self.dx_rate += dt_s / (IMAGE_D_FILTER_S + dt_s) * (rate - self.dx_rate)
+            self.last_dx = target.dx
+            image_guidance_scale = max(MIN_IMAGE_GUIDANCE_SCALE,
+                                       min(1.0, self._altitude_m / FULL_IMAGE_GUIDANCE_ALTITUDE_M))
+            approach_descent_m_s = LOW_ALTITUDE_APPROACH_DESCENT_M_S + (
+                (image_guidance_scale - MIN_IMAGE_GUIDANCE_SCALE) / (1.0 - MIN_IMAGE_GUIDANCE_SCALE)
+                * (FULL_ALTITUDE_APPROACH_DESCENT_M_S - LOW_ALTITUDE_APPROACH_DESCENT_M_S))
             roll_target = max(-MAX_TILT_RAD, min(MAX_TILT_RAD,
-                -lateral_error * FORWARD_SPEED_GAIN_RAD_PER_M_S))
-            forward_speed = (state.linear_velocity_m_s[0] * cos(yaw)
-                             + state.linear_velocity_m_s[1] * sin(yaw))
-            forward_pitch = max(-MAX_FORWARD_PITCH_RAD, min(MAX_FORWARD_PITCH_RAD,
-                (desired_forward - forward_speed) * FORWARD_SPEED_GAIN_RAD_PER_M_S))
-            pitch_target = max(-MAX_TILT_RAD, min(MAX_TILT_RAD,
-                forward_pitch))
+                target.dx * IMAGE_ROLL_GAIN_RAD + self.dx_rate * IMAGE_ROLL_D_GAIN_RAD_S))
+            pitch_target = max(radians(5.0), min(MAX_TILT_RAD,
+                MAX_FORWARD_PITCH_RAD * max(0.2, 1.0 - abs(target.dx))
+                + target.dy * IMAGE_PITCH_GAIN_RAD * image_guidance_scale))
             max_change = PITCH_SLEW_RAD_S * dt_s
             pitch_target = max(self.last_pitch_rad - max_change,
                                min(self.last_pitch_rad + max_change, pitch_target))
             self.last_pitch_rad = pitch_target
-            vertical_target = max(GROUND_ALTITUDE_M,
-                self._altitude_m + desired[2] / ALTITUDE_POSITION_PID.kp)
+            vertical_target = max(GROUND_ALTITUDE_M, self._altitude_m - (approach_descent_m_s
+                + target.dy * IMAGE_DESCENT_GAIN_M_S)
+                / ALTITUDE_POSITION_PID.kp)
         elif self.phase == Phase.LAND:
             vertical_target = GROUND_ALTITUDE_M
 
@@ -230,7 +238,7 @@ class RedTruckMission:
         tilt_cosine = max(0.5, cos(roll_target) * cos(pitch_target))
         thrust = min(self.max_thrust_n, thrust / tilt_cosine)
         rates = self.attitude.rates((roll_target, pitch_target, self.heading_rad),
-                                    self.feedback.read(observation))
+                                    sensors.attitude)
         if yaw_rate_override is not None:
             rates = rates[0], rates[1], yaw_rate_override
         self.control_targets = (pitch_target, vertical_target, thrust)

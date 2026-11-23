@@ -7,7 +7,7 @@ import click
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SITL_BINARY = PROJECT_ROOT / 'bin/betaflight_SITL.elf'
+DEFAULT_SITL_BINARY = PROJECT_ROOT / 'bin/betaflight_mavlink_SITL.elf'
 DEFAULT_RENDER_CONFIG = PROJECT_ROOT / 'external_render/configs/physics.json'
 DEFAULT_RENDERER = PROJECT_ROOT / 'external_render/dist/linux-x86_64/render'
 
@@ -24,7 +24,7 @@ class CliParser:
         @click.command()
         @click.option('--sitl-binary', default=DEFAULT_SITL_BINARY,
                       type=click.Path(dir_okay=False, path_type=Path),
-                      help='Prebuilt Betaflight 2026.6.2 SITL executable.')
+                      help='Prebuilt Betaflight 2026.6.2 MAVLink SITL executable.')
         @click.option('--render-config', default=DEFAULT_RENDER_CONFIG,
                       type=click.Path(exists=True, dir_okay=False, path_type=Path),
                       help='Camera/transport profile used by the viewer.')

@@ -21,7 +21,7 @@ class Diagnostics:
         self.next_report = 0.0
         self.rate_sample = None
 
-    def report(self, mission, state, target, channels):
+    def report(self, mission, state, target, channels, sensors=None):
         for index in range(self.transition_count, len(mission.transitions)):
             phase, simulation_time = mission.transitions[index]
             previous = mission.transitions[index - 1][0].name if index else 'STARTUP'
@@ -41,8 +41,8 @@ class Diagnostics:
             'VISION phase={} sim={:.2f}s target={} | z={:.2f} z_target={:.2f}m '
             'vz={:+.2f}m/s pitch_target={:+.1f}deg thrust={:.2f}N | '
             'RC roll={} pitch={} throttle={} yaw={}',
-            mission.phase.name, state.simulation_time_s, error, state.position_m[2],
-            altitude, state.linear_velocity_m_s[2], degrees(pitch), thrust,
+            mission.phase.name, state.simulation_time_s, error, sensors.altitude_m if sensors else state.position_m[2],
+            altitude, sensors.vertical_speed_m_s if sensors else state.linear_velocity_m_s[2], degrees(pitch), thrust,
             channels[0], channels[1], channels[2], channels[3])
 
     def report_rates(self, state, packets, captures, vision):

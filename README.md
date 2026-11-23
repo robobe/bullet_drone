@@ -191,15 +191,16 @@ Build firmware first with `tools/setup_betaflight_sitl.sh`. See
 ### Red truck visual approach
 
 ```bash
-uv run --locked --extra render --extra sitl python -m examples.red_truck_visual.main
+uv run --locked --extra render --extra mavlink python -m examples.red_truck_visual.main
 ```
 
 This Acro example takes off to 30 m AGL, yaws in place for up to 30 seconds,
 then descends while steering from red-truck centroid error in actual Godot RGB
-frames copied from SHM. It caps forward navigation at 3 m/s. Losing the target
-brakes and starts reacquisition; search timeout lands and disarms. A swept
-renderer contact report for the red truck completes the flight. Build Betaflight
-and the packaged renderer first. See [the example guide](examples/red_truck_visual/README.md).
+frames copied from SHM. Its controller uses MAVLink attitude and barometer
+altitude, with image-error steering and a bounded forward-pitch heuristic.
+Target loss levels the requested tilt and starts reacquisition; search timeout
+lands and disarms. A swept renderer contact report completes the flight. Build
+firmware with `tools/setup_betaflight_mavlink_sitl.sh` and build the packaged renderer first. See [the example guide](examples/red_truck_visual/README.md).
 
 ### VS Code tasks
 

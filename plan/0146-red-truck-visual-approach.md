@@ -116,3 +116,64 @@ and succeeds only on renderer-confirmed truck contact.
 
 - Repeat rendered run confirmed contact at 21.967 s near (46.96, -0.003, 5.67) m.
   Both approaches retained the target. All 16 focused tests passed.
+
+## Sensor-only control completion
+
+- Package-owned MAVLink receiver thread and copied SITL/profile, GPS disabled.
+  ATTITUDE and VFR_HUD altitude at 20 Hz, independent freshness checking,
+  finite-value validation, filtered barometer differentiation for vertical speed.
+- Mission accepts only time, arm status, image error and explicit sensor sample.
+  No simulator position, orientation or horizontal velocity enters control.
+- Camera dx commands roll, dy corrects forward pitch. Forward pitch reduces when
+  lateral error is large and is bounded between 5 and 30 degrees. This maximizes
+  allowed pitch within a visibility heuristic, not measured forward speed.
+- Removed obsolete horizontal-velocity/ray tests. Vertical PI retuned to 2/1
+  for delayed barometer feedback. Full sensor flight verification in progress.
+- User requested more tolerant LOS entry: altitude within 1 m, vertical speed
+  within 1.5 m/s, held for 0.3 s. This changed rendered takeoff-to-search from
+  32.2 s to 12.32 s, immediately acquiring the truck.
+- Fixed unconditional descent after target moved above center: vertical demand
+  is now 2 + 6*dy m/s down, allowing recovery upward with negative dy.
+- Further camera tuning: roll uses filtered image-error derivative damping,
+  forward baseline 18 degrees, vertical image pitch gain 10 degrees, and descent
+  request 3 + 4*dy m/s. Only camera error and its change enter this guidance.
+- Final image roll gains: P=12 degrees per normalized dx, D=30 degree-seconds,
+  derivative filter 0.2 s. Sixteen focused tests pass, including stale-altitude
+  rejection despite fresh attitude and tolerant takeoff-to-LOS transition.
+- Two real rendered MAVLink-only sensor-control runs achieved truck contact at
+  19.700 s and 19.738 s. LOS entry occurred at 12.433 s and 12.471 s. No target
+  loss, unexpected disarm, or telemetry timeout in these two final runs.
+- Package-owned telemetry, SITL and profile are wired. GPS disabled. Controller
+  contains no simulator truth references. README diagrams rendered successfully.
+  Status: Implemented and validated at the current launch. Commit: Pending.
+
+## 40 m takeoff tuning
+
+- Raise takeoff altitude from 30 m to 40 m while preserving the 4 m/s climb cap
+  and existing settling criteria.
+- The first rendered 40 m run entered approach but lost the target at 22.225 s,
+  at 9.1 m altitude with the target at the bottom of the image. Increase only
+  the approach baseline descent request from 3 to 3.5 m/s; preserve the image
+  correction, limits, attitude tuning and landing behavior.
+- Update focused takeoff tests and user-facing parameter documentation, then
+  verify with focused tests and a rendered SITL run. Commit: Pending.
+- Verification complete: all 16 focused tests passed. The rendered MAVLink-only
+  run retained the target and reached renderer-confirmed contact at 22.225 s.
+  Status: Implemented and validated. Commit: Pending.
+
+## Altitude-aware image guidance
+
+- Preserve the current 20 m takeoff default and the validated 40 m behavior.
+- Scale the camera `dy` pitch correction from half gain at 20 m to full gain at
+  40 m. Scale base descent from 3.0 to 3.5 m/s over the same range, while keeping
+  full `dy` vertical authority so a target above center can reverse the descent.
+  Preserve controller limits and landing behavior.
+- Add a focused comparison at 20 m and 40 m, update parameter documentation,
+  and verify both focused tests and rendered 20 m behavior. Commit: Pending.
+- The first attempt also halved vertical `dy` authority. It failed because a
+  target above center could not cancel base descent, losing the target at 0.7 m.
+  Keeping full vertical `dy` authority and scaling only pitch fixed the cause.
+- Verification complete: all 17 focused tests passed. The rendered 20 m run
+  reached renderer-confirmed contact at 17.167 s and 4.48 m altitude. The 40 m
+  gain endpoints remain unchanged and covered by the focused comparison.
+  Status: Implemented and validated. Commit: Pending.
