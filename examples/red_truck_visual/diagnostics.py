@@ -7,6 +7,7 @@ from loguru import logger
 from examples.red_truck_visual.mission import Phase
 
 REPORT_PERIOD_S = 0.1
+RATE_REPORT_PERIOD_S = 1.0
 PHASE_COLORS = {
     Phase.PREARM: 'yellow', Phase.ARMING: 'magenta', Phase.TAKEOFF: 'cyan',
     Phase.SEARCH: 'blue', Phase.APPROACH: 'green', Phase.REACQUIRE: 'yellow',
@@ -18,6 +19,7 @@ class Diagnostics:
     def __init__(self):
         self.transition_count = 0
         self.next_report = 0.0
+        self.rate_sample = None
 
     def report(self, mission, state, target, channels):
         for index in range(self.transition_count, len(mission.transitions)):
@@ -42,3 +44,19 @@ class Diagnostics:
             mission.phase.name, state.simulation_time_s, error, state.position_m[2],
             altitude, state.linear_velocity_m_s[2], degrees(pitch), thrust,
             channels[0], channels[1], channels[2], channels[3])
+
+    def report_rates(self, state, packets, captures, vision):
+        now = time.monotonic()
+        sample = (now, state.simulation_time_s, packets, captures,
+                  vision.frames_read, vision.detections)
+        if self.rate_sample is None:
+            self.rate_sample = sample
+            return
+        elapsed = now - self.rate_sample[0]
+        if elapsed < RATE_REPORT_PERIOD_S:
+            return
+        rates = [(current - previous) / elapsed
+                 for current, previous in zip(sample[1:], self.rate_sample[1:])]
+        self.rate_sample = sample
+        logger.info('TIMING RTF={:.3f}x FDM={:.1f}Hz captures={:.1f}fps '
+                    'SHM={:.1f}fps detector={:.1f}fps', *rates)

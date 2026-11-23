@@ -7,7 +7,7 @@ import time
 from loguru import logger
 
 from bullet_drone.betaflight.backend import BetaflightBackend
-from bullet_drone.betaflight.bridge import UdpSitlBridge
+from examples.red_truck_visual.timing import PacedSitlBridge
 from bullet_drone.config import ControlSettings, DroneSettings, SimulationConfig, SimulationSettings, _number
 from bullet_drone.controllers import AltitudeController, PidSettings
 from bullet_drone.controllers.internal import AttitudeController
@@ -57,21 +57,24 @@ def run_demo(*, renderer=DEFAULT_RENDERER, render_config=None, sitl_binary=DEFAU
         DroneSettings(MASS_KG, INITIAL_POSITION_M), control=ControlSettings('betaflight'))
     vehicle = load_racer_parameters()
     max_thrust = len(vehicle.rotor_positions_m) * vehicle.max_thrust_per_rotor_n
-    mission = RedTruckMission(
-        AltitudeController(MASS_KG, GRAVITY_M_S2, max_thrust,
-                           ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID),
-        AttitudeController(ATTITUDE_KP_S_INV, MAX_BODY_RATES_RAD_S),
-        RcCodec(max_thrust, MAX_BODY_RATES_RAD_S),
-        max_thrust)
     with ExitStack() as resources:
         viewer = resources.enter_context(ExternalRenderer(renderer, render_config))
+        camera = viewer.publisher.config['camera']
+        mission = RedTruckMission(
+            AltitudeController(MASS_KG, GRAVITY_M_S2, max_thrust,
+                               ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID),
+            AttitudeController(ATTITUDE_KP_S_INV, MAX_BODY_RATES_RAD_S),
+            RcCodec(max_thrust, MAX_BODY_RATES_RAD_S),
+            max_thrust, camera_fov_x_deg=camera['fov_x_deg'],
+            camera_aspect=camera['width_px'] / camera['height_px'])
         physics = PyBulletPhysics(config, vehicle)
         resources.callback(physics.close)
         environment = DroneEnvironment(
             physics, imu=ImuSensor(GRAVITY_VECTOR_M_S2, config.sensors.imu, sample_period_s=TIMESTEP_S),
             barometer=BarometerSensor(config.sensors.barometer))
         resources.callback(environment.close)
-        backend = BetaflightBackend(vehicle, UdpSitlBridge())
+        bridge = PacedSitlBridge(TIMESTEP_S)
+        backend = BetaflightBackend(vehicle, bridge)
         resources.callback(backend.close)
         sitl = resources.enter_context(SitlSession(sitl_binary))
         observation = environment.reset()
@@ -81,8 +84,6 @@ def run_demo(*, renderer=DEFAULT_RENDERER, render_config=None, sitl_binary=DEFAU
         statuses = resources.enter_context(StatusWorker(sitl.commands))
         mission.reset(observation)
         viewer.set_running(True)
-        started = time.monotonic()
-        next_step = started
         diagnostics = Diagnostics()
 
         for _ in range(max_steps):
@@ -109,18 +110,14 @@ def run_demo(*, renderer=DEFAULT_RENDERER, render_config=None, sitl_binary=DEFAU
                     f'RC frames={client.rc.sent}, last_rc_age_s={rc_age}') from error
             sitl.client.rc.update(channels)
             diagnostics.report(mission, state, latest_target, channels)
+            diagnostics.report_rates(state, bridge.sent, viewer.publisher.sequence, vision)
             if mission.phase == Phase.COMPLETE:
                 viewer.set_running(False)
                 logger.info('Red truck visual approach completed at step {}', state.step_index)
                 return DemoResult(observation, tuple(mission.transitions))
             if state.simulation_time_s + TIMESTEP_S > max_duration_s:
                 raise TimeoutError(f'Red truck visual approach timed out in {mission.phase}')
-            remaining = next_step - time.monotonic()
-            if remaining > 0:
-                time.sleep(remaining)
             rotor_command = backend.command(observation)
             observation = (environment.hold() if mission.phase in (Phase.PREARM, Phase.ARMING)
                            else environment.step(rotor_command))
-            # SITL derives its clock rate from packet spacing: never send catch-up bursts.
-            next_step = time.monotonic() + TIMESTEP_S
         raise TimeoutError('Red truck visual approach exceeded simulation limit')

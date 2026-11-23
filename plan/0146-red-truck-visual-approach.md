@@ -79,3 +79,40 @@ and succeeds only on renderer-confirmed truck contact.
   in the physics loop. Verify descent authority and diagnostic cadence.
 - Focused suite: 12 passed. Rendered interception tuning remains unverified.
   Implementation commit: Pending.
+
+## Approved speed and FPS plan
+
+- Take off at up to 4 m/s, decelerating near 30 m. Track at 10 m/s with
+  overspeed braking; preserve approach descent and landing limits.
+- Pace at actual FDM send boundary, including work within the timestep and
+  scheduling from actual sends after missed deadlines; never catch up in bursts.
+- Report wall-time RTF, FDM Hz, scheduled capture FPS, unique SHM frame FPS,
+  and detector FPS every second. Preserve worker queue and 10 Hz target logs.
+- Verify controller limits, pacing with a fake clock, and a rendered SITL run
+  where a display is available. Implementation commit: Pending.
+- Implemented. Fifteen focused tests passed, including takeoff/deceleration,
+  descent preservation, forward overspeed braking, and fake-clock packet spacing.
+- Real renderer + SITL ran for 35 simulation seconds, reached a measured 4 m/s
+  climb and entered tracking, without MSP timeout or unexpected disarm. Typical
+  observed RTF was 0.95–0.97x with camera/detector rates around 28–29 FPS. The run
+  lost the target and entered reacquisition; it ended at the configured duration
+  limit. Truck contact is not validated. Implementation commit: Pending.
+
+## Camera-bearing interception tuning
+
+- Failure trace: target dy grew to +0.858 before disappearing while the vehicle
+  descended at its 3 m/s cap and retained forward motion. Timed descent did not
+  match the camera bearing.
+- Replace timed descent/image pitch addition with a calibrated camera ray rotated
+  into world coordinates using measured attitude. Request a 10 m/s velocity along
+  that ray; control horizontal velocity with bounded roll/pitch and map requested
+  vertical velocity through the existing altitude cascade. Limit approach vertical
+  speed to 8 m/s; preserve 4 m/s takeoff and 1.5 m/s landing.
+- Use renderer FOV and aspect ratio. No truck world coordinates or depth lookup.
+- First real rendered SITL run: confirmed contact at 21.892 simulation seconds,
+  near (46.91, 0.001, 5.70) m, without target loss during approach.
+- Regression coverage includes camera attitude compensation and ray-derived
+  descent. Implementation commit: Pending.
+
+- Repeat rendered run confirmed contact at 21.967 s near (46.96, -0.003, 5.67) m.
+  Both approaches retained the target. All 16 focused tests passed.

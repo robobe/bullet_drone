@@ -44,6 +44,8 @@ class VisionWorker:
         self.results = Queue(RESULT_QUEUE_CAPACITY)
         self.latest = None
         self.error = None
+        self.frames_read = 0
+        self.detections = 0
         self.thread = Thread(target=self._run, name='red-truck-vision', daemon=True)
 
     def __enter__(self):
@@ -80,7 +82,9 @@ class VisionWorker:
                 frame_id = metadata.get('header', {}).get('fid', -1)
                 if type(frame_id) is not int or frame_id <= last_frame_id:
                     continue
+                self.frames_read += 1
                 target = detect_target(metadata, pixels)
+                self.detections += 1
                 last_frame_id = frame_id
                 try:
                     self.results.put_nowait((frame_id, target))

@@ -96,7 +96,7 @@ def test_image_errors_drive_roll_pitch_and_vertical_thrust():
     b, _ = mission()
     negative = b.command(observation(30.0, 0.1), status(), 1.0, TargetOffset(.5, -.5, 100))
     assert positive[0] > 1500
-    assert positive[1] > negative[1]
+    assert positive[1] == negative[1]
     assert positive[2] < negative[2]
     assert codec.decode(RcInput(positive), 'episode', 25).mode == 'acro'
 
@@ -211,10 +211,10 @@ def test_status_poll_does_not_block_physics_caller():
     assert not worker.thread.is_alive()
 
 
-def test_approach_can_command_three_meter_per_second_descent():
+def test_approach_descends_along_camera_ray():
     value, _ = mission()
     value.command(observation(30, 3), status(), 1 / 240, TargetOffset(0, .5, 100))
-    assert value.altitude.last_output.velocity_target_m_s == -3.0
+    assert value.altitude.last_output.velocity_target_m_s == pytest.approx(-10 * .375 / (1 + .375 ** 2) ** .5)
     assert value.control_targets[2] < 9.81
 
 
@@ -243,3 +243,62 @@ def test_diagnostics_rate_limits_errors_but_reports_state_changes(monkeypatch):
     assert any('REACQUIRE' in message and 'STATE' in message for message in messages)
     assert any('dx=+0.2000 dy=+0.3000' in message for message in messages)
     assert any('target=LOST' in message for message in messages)
+
+
+def test_takeoff_speed_and_deceleration_preserve_other_phase_limits():
+    value, _ = mission()
+    value.phase = Phase.TAKEOFF
+    value.command(observation(5, 1), status(), 1 / 240)
+    assert value.altitude.last_output.velocity_target_m_s == 4
+    value.command(observation(29.9, 2), status(), 1 / 240)
+    assert 0 < value.altitude.last_output.velocity_target_m_s < .2
+    value.phase = Phase.LAND
+    value.command(observation(20, 3), status(), 1 / 240)
+    assert value.altitude.last_output.velocity_target_m_s == -1.5
+
+
+def test_tracking_accelerates_below_ten_and_brakes_above():
+    for speed, sign in ((6, 1), (12, -1)):
+        value, _ = mission()
+        value.command(observation(30, .1, velocity=(speed, 0, 0)), status(),
+                      1 / 240, TargetOffset(0, 0, 100))
+        assert value.control_targets[0] * sign > 0
+
+
+def test_packet_pacing_counts_work_and_does_not_catch_up(monkeypatch):
+    from bullet_drone.betaflight.bridge import UdpSitlBridge
+    from examples.red_truck_visual.timing import PacedSitlBridge
+
+    clock = [0.0]
+    sent = []
+    monkeypatch.setattr(UdpSitlBridge, 'send_fdm', lambda self, packet: sent.append(clock[0]))
+
+    def sleep(delay):
+        clock[0] += delay
+
+    bridge = PacedSitlBridge(.004, clock=lambda: clock[0], sleep=sleep)
+    bridge.send_fdm(b'')
+    clock[0] += .001  # processing consumes part of the interval
+    bridge.send_fdm(b'')
+    clock[0] += .020  # missed deadline: no backlog
+    bridge.send_fdm(b'')
+    bridge.send_fdm(b'')
+    assert sent == pytest.approx([0, .004, .024, .028])
+    assert bridge.sent == 4
+
+
+def test_camera_attitude_compensation_preserves_world_descent_bearing():
+    from math import atan, tan
+    from bullet_drone.geometry import from_rpy
+
+    level, _ = mission()
+    pitched, _ = mission()
+    first = observation(30, .1)
+    second = observation(30, .1)
+    second.ground_truth.orientation_xyzw = from_rpy((0, .2, 0))
+    level.command(first, status(), 1 / 240, TargetOffset(0, .4, 100))
+    pitched.command(second, status(), 1 / 240,
+                    TargetOffset(0, tan(atan(.4 * .75) - .2) / .75, 100))
+    assert level.control_targets[1] == pytest.approx(pitched.control_targets[1])
+    assert level.altitude.last_output.velocity_target_m_s == pytest.approx(
+        pitched.altitude.last_output.velocity_target_m_s)
