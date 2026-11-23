@@ -40,7 +40,7 @@ MASS_KG = 1.0
 GRAVITY_M_S2 = 9.81
 GRAVITY_VECTOR_M_S2 = (0.0, 0.0, -GRAVITY_M_S2)
 # Negative world Y offsets the launch to the right of the original track.
-INITIAL_POSITION_M = (-20.0, -18.0, 0.015)
+INITIAL_POSITION_M = (-50.0, -58.0, 0.015)
 
 
 @dataclass(frozen=True, slots=True)

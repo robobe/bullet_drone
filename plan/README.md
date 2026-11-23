@@ -5,6 +5,7 @@
 | [0145: Simulation launcher](0145-infrastructure-launcher.md) | Persistent PyBullet FDM loop with optional process-only SITL and rendering; external controller owns MSP/MAVLink. | Implemented; CLI checks and SITL Ctrl-C cleanup verified | Pending |
 | [0146: Red truck visual approach](0146-red-truck-visual-approach.md) | Acro SHM vision search, descending approach and renderer-confirmed red truck contact. | Implemented; live visual flight verification pending | Pending |
 | [0147: Red truck control-loop guide](0147-red-truck-control-loop-guide.md) | Detailed MAVLink and camera feedback path through RC, Betaflight motors and PyBullet. | Implemented; four SVGs and six Mermaid diagrams rendered | Pending |
+| [0148: Forward pitch increase](0148-forward-pitch-increase.md) | Raise camera-approach forward pitch baseline from 18 to 22 degrees. | Implemented; focused suite has 3 unrelated fixture failures | Pending |
 | [0117: merge Iris example task](0117-merge-iris-example-task.md) | Move PX4 Iris into the shared example picker. | Implemented and verified; uncommitted | Pending |
 | [0116: example task color](0116-example-task-color.md) | Add a green play icon to Bullet: Run example. | Implemented and verified; uncommitted | Pending |
 | [0003: control diagram SVG](0003-control-diagram-svg.md) | Replace obsolete PNG with current RC/internal-control diagram. | Implemented and verified; uncommitted | Pending |

@@ -24,7 +24,7 @@ not used by the outer controller. Betaflight closes its gyro loop internally.
 
 ## Camera steering
 
-Forward pitch increases toward 18 degrees when horizontal camera error is small,
+Forward pitch increases toward 22 degrees when horizontal camera error is small,
 and decreases as horizontal error grows. Vertical error adds pitch correction.
 Final pitch stays between 5 and 30 degrees and slews at 40 degrees/s. Roll combines 12 degrees times normalized horizontal error with a filtered
 30 degree-second error-rate term, limited to 30 degrees. This is an
@@ -141,7 +141,7 @@ to 30 degrees.
 Forward pitch combines a baseline and the vertical image correction:
 
 ```text
-forward baseline = 18 deg * max(0.2, 1 - abs(dx))
+forward baseline = 22 deg * max(0.2, 1 - abs(dx))
 pitch target = forward baseline + 10 deg * dy * altitude scale
 ```
 

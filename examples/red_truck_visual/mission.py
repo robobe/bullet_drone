@@ -9,7 +9,7 @@ from bullet_drone.rc import RcCodec
 from examples.red_truck_visual.vision import TargetOffset
 
 
-TARGET_ALTITUDE_AGL_M = 30.0
+TARGET_ALTITUDE_AGL_M = 70.0
 SEARCH_TIMEOUT_S = 30.0
 MAX_MISSION_TIME_S = 150.0
 LOW_ALTITUDE_APPROACH_DESCENT_M_S = 3.0
@@ -34,7 +34,7 @@ REACQUIRE_YAW_RATE_RAD_S = 0.25
 MAX_TILT_RAD = radians(30.0)
 MAX_BODY_RATES_RAD_S = (2.0, 2.0, 1.0)
 ATTITUDE_KP_S_INV = (4.0, 4.0, 4.0)
-MAX_FORWARD_PITCH_RAD = radians(18.0)
+MAX_FORWARD_PITCH_RAD = radians(22.0)
 IMAGE_ROLL_GAIN_RAD = radians(12.0)
 IMAGE_PITCH_GAIN_RAD = radians(10.0)
 IMAGE_ROLL_D_GAIN_RAD_S = radians(30.0)
