@@ -101,6 +101,7 @@ Start the external-controller launcher with `uv run --locked --all-packages --al
 | [Betaflight SITL altitude hold](#betaflight-sitl-altitude-hold-example) | Altitude hold using Betaflight firmware for stabilization and motor output. | Betaflight SITL |
 | [Position square](#position-square-example) | Fly a square using internal position and velocity control with Angle mode. | Internal |
 | [Acro position square](#acro-position-square-example) | Fly a square using position navigation and Betaflight Acro rate control. | Betaflight SITL |
+| [Red truck visual approach](examples/red_truck_visual/README.md) | Search rendered camera frames, then descend and glide into the red truck using image feedback. | Betaflight SITL |
 | [Terrain following](examples/terrain_following_bt/README.md) | Follow uneven ground at 3 m rangefinder clearance and return to home. | Betaflight SITL |
 | [Terrain following with MAVLink](examples/terrain_following_mavlink/README.md) | Monitor Betaflight MAVLink telemetry while commanding Acro flight over MSP. | Betaflight SITL |
 | [GPS point-to-point with MAVLink](examples/gps_point_to_point_mavlink/README.md) | Fly 400 m using firmware GPS/attitude feedback, then land on mapped terrain. | Betaflight SITL |
@@ -187,6 +188,19 @@ rate stabilization, mixing, and motor output; the example owns XYZ navigation.
 Build firmware first with `tools/setup_betaflight_sitl.sh`. See
 [the Acro example and diagrams](examples/position_square_acro/README.md).
 
+### Red truck visual approach
+
+```bash
+uv run --locked --extra render --extra sitl python -m examples.red_truck_visual.main
+```
+
+This Acro example takes off to 30 m AGL, yaws in place for up to 30 seconds,
+then descends while steering from red-truck centroid error in actual Godot RGB
+frames copied from SHM. It caps forward navigation at 3 m/s. Losing the target
+brakes and starts reacquisition; search timeout lands and disarms. A swept
+renderer contact report for the red truck completes the flight. Build Betaflight
+and the packaged renderer first. See [the example guide](examples/red_truck_visual/README.md).
+
 ### VS Code tasks
 
 Press **Ctrl+Shift+B** or choose **Tasks: Run Build Task → Bullet: Build Godot
@@ -197,7 +211,8 @@ output in a dedicated terminal. It does not launch a flight. Install the
 
 Open **Tasks: Run Task → Bullet: Run example** and select a mission from the
 picker. Choices include internal and rendered altitude hold, camera viewer,
-wind control, Betaflight altitude hold, Angle/Iris/Acro squares, terrain following,
+wind control, Betaflight altitude hold, Angle/Iris/Acro squares, red-truck vision,
+terrain following,
 MAVLink/GPS missions. In the multi-folder workspace, the task
 appears under `bullet_drone`.
 

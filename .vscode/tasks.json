@@ -87,6 +87,10 @@
           "value": "examples.position_square_acro.main"
         },
         {
+          "label": "Red truck visual approach (Acro + camera SHM)",
+          "value": "examples.red_truck_visual.main"
+        },
+        {
           "label": "Terrain following (Betaflight SITL)",
           "value": "examples.terrain_following_bt.main"
         },

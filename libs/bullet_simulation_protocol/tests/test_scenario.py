@@ -3,7 +3,7 @@ import json
 import pytest
 from jsonschema import validate
 from bullet_simulation_protocol import schema_bytes
-from bullet_simulation_protocol.scenario import validate_collision
+from bullet_simulation_protocol.scenario import validate_collision, validate_contact
 
 
 def report():
@@ -16,6 +16,23 @@ def report():
 def test_collision_and_lifecycle_contracts():
     assert validate_collision(report()) == report()
     validate(report(), json.loads(schema_bytes('collision.json')))
+
+
+def contact():
+    return dict(schema_version=1, event_id='stream-42-hit', stream_id='stream', step_index=42,
+                target_id='red_truck', drone_position_m=[50., 0., 5.])
+
+
+def test_minimal_pose_contact_contract():
+    assert validate_contact(contact()) == contact()
+    validate(contact(), json.loads(schema_bytes('contact.json')))
+
+
+@pytest.mark.parametrize('changes', [dict(target_id='terrain'), dict(event_id='bad/id'),
+    dict(step_index=True), dict(drone_position_m=[0, 0]), dict(drone_position_m=[float('nan'), 0, 0])])
+def test_malformed_contact(changes):
+    with pytest.raises(ValueError):
+        validate_contact(dict(contact(), **changes))
 
 
 @pytest.mark.parametrize('changes', [dict(target_id='terrain'), dict(event_id='bad/id'), dict(issued_us=True),

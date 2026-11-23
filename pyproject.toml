@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-render = ["pyzmq>=27,<28", "bullet-simulation-protocol", "bullet-image-transport"]
+render = ["numpy>=2,<3", "pyzmq>=27,<28", "bullet-simulation-protocol", "bullet-image-transport"]
 sitl = []
 mavlink = ["pymavlink>=2.4,<3"]
 
