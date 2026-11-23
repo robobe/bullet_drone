@@ -11,6 +11,9 @@ from bullet_drone.models import ControlFeedback
 
 ENDPOINT = 'tcp:127.0.0.1:5762'
 MAX_AGE_S = 0.5
+MESSAGE_RATE_HZ = 50
+MESSAGE_INTERVAL_US = 1_000_000 // MESSAGE_RATE_HZ
+REQUESTED_MESSAGE_IDS = (30, 74)  # ATTITUDE, VFR_HUD
 
 
 @dataclass(frozen=True)
@@ -60,6 +63,16 @@ class SensorWorker:
         speed = 0.0
         try:
             connection = mavutil.mavlink_connection(self.endpoint, autoreconnect=False)
+            for message_id in REQUESTED_MESSAGE_IDS:
+                connection.mav.command_long_send(
+                    connection.target_system,
+                    connection.target_component,
+                    mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,
+                    0,
+                    message_id,
+                    MESSAGE_INTERVAL_US,
+                    0, 0, 0, 0, 0,
+                )
             while not self.stop.is_set():
                 message = connection.recv_match(type=['ATTITUDE', 'VFR_HUD'], blocking=True, timeout=.1)
                 if message is None:
