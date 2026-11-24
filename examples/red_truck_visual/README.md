@@ -43,7 +43,7 @@ error, the mission produces RC commands, and Betaflight closes the fast gyro and
 motor loop. The mission never receives the simulated world position or velocity.
 
 <p align="center">
-  <img src="control-loop.svg" width="100%" alt="Closed control loop from camera and MAVLink feedback through mission RC commands, Betaflight motor outputs and PyBullet physics.">
+  <img src="../../docs/red_truck_visual/control-loop.svg" width="100%" alt="Closed control loop from camera and MAVLink feedback through mission RC commands, Betaflight motor outputs and PyBullet physics.">
 </p>
 
 ### Camera error convention
@@ -66,7 +66,7 @@ are `-1` and `+1`.
 ```
 
 <p align="center">
-  <img src="camera-error-control.svg" width="70%" alt="Camera dx and dy errors mapped to roll, forward pitch, pitch correction and vertical-speed correction.">
+  <img src="../../docs/red_truck_visual/camera-error-control.svg" width="70%" alt="Camera dx and dy errors mapped to roll, forward pitch, pitch correction and vertical-speed correction.">
 </p>
 
 - Positive `dx` means the truck is right of center; negative `dx` means left.
@@ -111,10 +111,21 @@ These inputs are passed to `RedTruckMission.command()`. Ground-truth pose is use
 only by physics, rendering, frame matching and contact validation; it is not a
 mission-control input.
 
+### Controller modules
+
+- `controllers/image.py` maps camera `dx`/`dy` to roll, pitch and altitude
+  targets, including filtered horizontal error and pitch slew state.
+- `controllers/altitude.py` holds PID settings for the shared
+  `AltitudeController`.
+- `controllers/attitude.py` holds gains and body-rate limits for the shared
+  `AttitudeController`.
+- `mission.py` selects targets by phase, composes the shared controllers and
+  maps their outputs to RC channels.
+
 ### 3. Mission phase selects the targets
 
 <p align="center">
-  <img src="mission-phases.svg" width="45%" alt="Mission phases from prearm and takeoff through search, approach, reacquisition, landing and completion.">
+  <img src="../../docs/red_truck_visual/mission-phases.svg" width="45%" alt="Mission phases from prearm and takeoff through search, approach, reacquisition, landing and completion.">
 </p>
 
 The phase determines the outer-loop targets:
@@ -138,6 +149,55 @@ roll target = 12 deg * dx + 30 deg-s * filtered change of dx
 The derivative term damps rapid lateral movement in the image. Roll is limited
 to 30 degrees.
 
+#### Control idea, gains and filtering
+
+This is image-based visual servoing. The detector measures where the truck is
+relative to the image center; the outer controller converts that error into a
+desired tilt and descent. MAVLink attitude and altitude close the attitude and
+vertical cascades. There is no horizontal position or velocity feedback, so the
+controller steers the truck in the image without estimating its world-space
+distance or speed.
+
+The gains are hand-selected tuning values in `controllers/image.py`, with these
+roles:
+
+| Setting | Value | Effect |
+|---|---:|---|
+| `IMAGE_ROLL_GAIN_RAD` | 12 degrees per unit `dx` | Proportional lateral steering toward the image center. |
+| `IMAGE_ROLL_D_GAIN_RAD_S` | 30 degree-seconds per unit `dx` rate | Adds damping when horizontal image error is changing quickly. |
+| `MAX_FORWARD_PITCH_RAD` | 22 degrees | Forward-pitch baseline when `dx` is centered. |
+| `IMAGE_PITCH_GAIN_RAD` | 10 degrees per unit `dy` | Adds vertical image correction to pitch. |
+| `IMAGE_DESCENT_GAIN_M_S` | 4 m/s per unit `dy` | Changes requested vertical speed from vertical image error. |
+
+The `dx` derivative is the change in normalized image error per second. A raw
+derivative would amplify pixel-centroid jitter, so the controller filters it
+with a first-order low-pass update:
+
+```text
+raw dx rate = (dx now - dx previous) / dt
+filtered rate += dt / (0.2 s + dt) * (raw rate - filtered rate)
+```
+
+`IMAGE_D_FILTER_S = 0.2` s is the filter time constant. At the 240 Hz control
+step (`dt = 1/240` s), each update moves about 2.0% of the way from the previous
+filtered rate toward the new raw rate. This smooths frame-to-frame noise while
+still letting persistent image motion affect roll. The proportional roll term
+responds to current error; the derivative term responds to how quickly it is
+changing.
+
+The derivative currently uses the 240 Hz mission timestep and the latest
+available camera target. Since the vision worker polls at about 50 Hz, a new
+image error may appear between control ticks; that one-step change can make the
+raw derivative larger than the true camera-frame-to-frame rate. The low-pass
+filter softens the spike but does not correct its timestamp. Keep the derivative
+gain conservative, especially if camera timing or frame delivery changes.
+
+These gains are starting tuning choices, not gains derived from a vehicle model.
+Increasing a gain makes the corresponding correction stronger; too much
+proportional gain can cause overshoot, while too much derivative gain can turn
+image noise into roll commands. The filter trades noise rejection for delay, so
+it should be tuned together with derivative gain and camera update timing.
+
 Forward pitch combines a baseline and the vertical image correction:
 
 ```text
@@ -145,15 +205,54 @@ forward baseline = 22 deg * max(0.2, 1 - abs(dx))
 pitch target = forward baseline + 10 deg * dy * altitude scale
 ```
 
+These values come from `controllers/image.py`. The 22-degree forward baseline
+and 10-degree `dy` gain are tuning choices, not values calculated from the
+camera geometry. The detector normalizes `dx` to approximately `[-1, 1]`, so
+`1 - abs(dx)` makes the baseline decrease as the target moves away from image
+center. `MIN_FORWARD_PITCH_FACTOR = 0.2` prevents that baseline from falling
+below 20% of 22 degrees (4.4 degrees); the final 5-degree pitch floor still
+applies. For example, at `dx = 0` the baseline is 22 degrees, and at `dx = 0.5`
+it is 11 degrees, before adding the `dy` correction.
+
 The altitude scale is 0.5 at 20 m and below, rises linearly, and reaches 1.0 at
 40 m. Thus `dy` adds half as much pitch at 20 m as at 40 m. Final pitch is
 limited to 5–30 degrees and slew-limited to 40 degrees/s.
+
+#### Command limits
+
+The limits prevent image guidance from requesting arbitrarily large commands:
+
+- Roll target is clamped to ±30 degrees. Pitch is clamped to 5–30 degrees and
+  can change by at most 40 degrees per second. During reacquisition it slews
+  back toward level using the same rate limit.
+- The altitude controller clamps its requested vertical speed symmetrically:
+  to ±8 m/s during approach, ±4 m/s during takeoff, and ±1.5 m/s during
+  landing. Search and reacquisition use ±1 m/s while holding current altitude.
+- Attitude error is converted to body-rate requests with 4/s proportional gain
+  and per-axis limits `(2, 2, 1)` rad/s for roll, pitch and yaw. Search and
+  reacquisition replace only the yaw request with their fixed search rate.
+- The altitude controller bounds collective thrust between zero and maximum
+  motor thrust. Tilt compensation divides by `max(0.5, cos(roll) cos(pitch))`,
+  so the divisor floor caps compensation at 2. With both tilt targets limited
+  to 30 degrees, the current maximum factor is about 1.33; the maximum-thrust
+  clamp still applies afterward.
+
+These limits apply at different stages: image angles are bounded first, then
+attitude error becomes bounded body rates, altitude error becomes bounded
+vertical speed, and the final thrust is bounded by motor capacity.
 
 Vertical guidance deliberately keeps full `dy` authority at both altitudes:
 
 ```text
 descent request = base descent + 4 * dy
 ```
+
+The coefficient is `IMAGE_DESCENT_GAIN_M_S = 4.0` in `controllers/image.py`.
+Since `dy` is a normalized, unitless image error, this tuning value means a
+four-meter-per-second change in requested descent for each full unit of `dy`.
+It is selected to tune the camera response; it is not derived from altitude or
+camera field of view. The base descent is separately interpolated from 3.0 to
+3.5 m/s as altitude guidance scales from 0.5 to 1.0.
 
 Base descent is 3.0 m/s at 20 m and below, rises linearly, and reaches 3.5 m/s
 at 40 m. Positive descent means down. For a 20 m approach:
@@ -172,13 +271,21 @@ the existing altitude cascade:
 altitude target = measured altitude - descent request / altitude position gain
 ```
 
+The position gain is `ALTITUDE_POSITION_PID.kp = 1.5 /s`, configured in
+`controllers/altitude.py`. Dividing the requested speed by this gain converts
+meters per second into meters. For example, at 20 m with `dy = +0.5`, the
+request is `3.0 + 4.0 × 0.5 = 5.0 m/s` down, so the target becomes
+`20 - 5.0 / 1.5 = 16.67 m`. The altitude position loop then requests
+`1.5 × (16.67 - 20) = -5.0 m/s`, matching the desired descent direction and
+magnitude before phase limits.
+
 This is how `dy` influences thrust: it does not directly set throttle. It moves
 the altitude target, and the altitude controller decides the required thrust.
 
 ### 5. Altitude target becomes collective thrust
 
 <p align="center">
-  <img src="altitude-thrust-loop.svg" width="100%" alt="Altitude target cascade through position and velocity control, gravity and tilt compensation to throttle PWM.">
+  <img src="../../docs/red_truck_visual/altitude-thrust-loop.svg" width="100%" alt="Altitude target cascade through position and velocity control, gravity and tilt compensation to throttle PWM.">
 </p>
 
 The position controller converts altitude error to target vertical velocity.
@@ -368,6 +475,23 @@ sequenceDiagram
     Main->>BF: MSP rates and throttle
     BF-->>Main: Motor outputs
 ```
+
+### Worker threads and what they do
+
+The main thread owns the 240 Hz simulation and mission loop. Blocking reads and
+frame processing run in dedicated workers so they do not stall physics:
+
+| Worker | Input and work | Output to the main loop | Why it is separate |
+|---|---|---|---|
+| `red-truck-vision` | Polls renderer shared memory every 20 ms, checks frame IDs, detects red pixels and computes normalized `dx`/`dy`. | Capacity-one queue containing the newest `(frame_id, target)` result; stale frame results are ignored. | Frame polling and image detection can take longer than a physics step. |
+| `red-truck-mavlink` | Owns TCP `5762`, requests 50 Hz `ATTITUDE` and `VFR_HUD`, validates messages and estimates filtered vertical speed. | Capacity-one queue with the newest complete attitude/altitude sample; samples older than 0.5 s are rejected. | MAVLink reads block and arrive asynchronously. |
+| `red-truck-status` | Reads MSP arming and status flags initially, then polls status every 0.1 s. | Latest status object plus any polling error. | MSP request/response latency must not pause FDM and physics stepping. |
+| `example-msp` | Owns the MSP TCP transport, processes queued MSP requests and sends latest RC frames at 50 Hz. | Request futures/results, connection state, and RC delivery records. | Serial-like firmware processing and acknowledgements are asynchronous; RC updates are kept latest-value instead of queued. |
+
+The worker results are snapshots rather than histories. Each producer replaces
+an older queued result if the main loop has not consumed it, keeping control
+focused on recent measurements. Worker failures are surfaced to the caller, and
+the workers are stopped and joined during normal resource cleanup.
 
 ## Parameters and logs
 

@@ -9,7 +9,7 @@ from loguru import logger
 from bullet_drone.betaflight.backend import BetaflightBackend
 from examples.red_truck_visual.timing import PacedSitlBridge
 from bullet_drone.config import ControlSettings, DroneSettings, SimulationConfig, SimulationSettings, _number
-from bullet_drone.controllers import AltitudeController, PidSettings
+from bullet_drone.controllers import AltitudeController
 from bullet_drone.controllers.internal import AttitudeController
 from bullet_drone.environment import DroneEnvironment
 from bullet_drone.models import DroneObservation
@@ -19,8 +19,13 @@ from bullet_drone.sensors import BarometerSensor, ImuSensor
 from bullet_drone.vehicle import load_racer_parameters
 from examples.red_truck_visual.demo_cli import DEFAULT_RENDER_CONFIG, DEFAULT_RENDERER, DEFAULT_SITL_BINARY
 from examples.red_truck_visual.mission import (
-    ATTITUDE_KP_S_INV, MAX_BODY_RATES_RAD_S, ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID,
     Phase, RedTruckMission,
+)
+from examples.red_truck_visual.controllers.altitude import (
+    ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID,
+)
+from examples.red_truck_visual.controllers.attitude import (
+    ATTITUDE_KP_S_INV, MAX_BODY_RATES_RAD_S,
 )
 from examples.red_truck_visual.renderer import ExternalRenderer
 from examples.red_truck_visual.vision import VisionWorker

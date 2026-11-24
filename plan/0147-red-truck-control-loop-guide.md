@@ -14,9 +14,10 @@ next PyBullet physics step.
 3. Include concrete `dy` examples for the 20 m and 40 m tuning.
 4. Explain the altitude position gain, its units, initial calculation and role
    in converting approach descent speed to an altitude target.
-5. Generate and embed SVG versions of the end-to-end loop, camera-error mapping,
+5. Document each example worker thread, its input, output and purpose.
+6. Generate and embed SVG versions of the end-to-end loop, camera-error mapping,
    mission phases and altitude-to-throttle cascade.
-6. Parse and render every Mermaid block in the example README, then visually
+7. Parse and render every Mermaid block in the example README, then visually
    inspect the generated SVG assets.
 
 ## Interface changes

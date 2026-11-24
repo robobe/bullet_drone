@@ -2,21 +2,39 @@
 from enum import StrEnum
 from math import cos, degrees, radians, sqrt, tan
 
-from bullet_drone.controllers import AltitudeController, PidSettings
+from bullet_drone.controllers import AltitudeController
 from bullet_drone.controllers.internal import AttitudeController
 from bullet_drone.geometry import yaw_from_quaternion
 from bullet_drone.rc import RcCodec
+from examples.red_truck_visual.controllers.altitude import (
+    ALTITUDE_POSITION_PID as ALTITUDE_POSITION_PID,
+    ALTITUDE_VELOCITY_PID as ALTITUDE_VELOCITY_PID,
+)
+from examples.red_truck_visual.controllers.attitude import (
+    ATTITUDE_KP_S_INV as ATTITUDE_KP_S_INV,
+    MAX_BODY_RATES_RAD_S as MAX_BODY_RATES_RAD_S,
+)
+from examples.red_truck_visual.controllers.image import (
+    FULL_ALTITUDE_APPROACH_DESCENT_M_S as FULL_ALTITUDE_APPROACH_DESCENT_M_S,
+    FULL_IMAGE_GUIDANCE_ALTITUDE_M as FULL_IMAGE_GUIDANCE_ALTITUDE_M,
+    IMAGE_DESCENT_GAIN_M_S as IMAGE_DESCENT_GAIN_M_S,
+    IMAGE_D_FILTER_S as IMAGE_D_FILTER_S,
+    IMAGE_PITCH_GAIN_RAD as IMAGE_PITCH_GAIN_RAD,
+    IMAGE_ROLL_D_GAIN_RAD_S as IMAGE_ROLL_D_GAIN_RAD_S,
+    IMAGE_ROLL_GAIN_RAD as IMAGE_ROLL_GAIN_RAD,
+    LOW_ALTITUDE_APPROACH_DESCENT_M_S as LOW_ALTITUDE_APPROACH_DESCENT_M_S,
+    MAX_FORWARD_PITCH_RAD as MAX_FORWARD_PITCH_RAD,
+    MAX_TILT_RAD as MAX_TILT_RAD,
+    MIN_IMAGE_GUIDANCE_SCALE as MIN_IMAGE_GUIDANCE_SCALE,
+    PITCH_SLEW_RAD_S as PITCH_SLEW_RAD_S,
+    ImageGuidanceController,
+)
 from examples.red_truck_visual.vision import TargetOffset
 
 
 TARGET_ALTITUDE_AGL_M = 70.0
 SEARCH_TIMEOUT_S = 30.0
 MAX_MISSION_TIME_S = 150.0
-LOW_ALTITUDE_APPROACH_DESCENT_M_S = 3.0
-FULL_ALTITUDE_APPROACH_DESCENT_M_S = 3.5
-IMAGE_DESCENT_GAIN_M_S = 4.0
-FULL_IMAGE_GUIDANCE_ALTITUDE_M = 40.0
-MIN_IMAGE_GUIDANCE_SCALE = 0.5
 TAKEOFF_SPEED_M_S = 4.0
 DESCENT_SPEED_M_S = 8.0
 LANDING_SPEED_M_S = 1.5
@@ -31,15 +49,6 @@ VERTICAL_SPEED_TOLERANCE_M_S = 0.5
 TOUCHDOWN_ALTITUDE_M = 0.03
 SEARCH_YAW_RATE_RAD_S = 0.35
 REACQUIRE_YAW_RATE_RAD_S = 0.25
-MAX_TILT_RAD = radians(30.0)
-MAX_BODY_RATES_RAD_S = (2.0, 2.0, 1.0)
-ATTITUDE_KP_S_INV = (4.0, 4.0, 4.0)
-MAX_FORWARD_PITCH_RAD = radians(22.0)
-IMAGE_ROLL_GAIN_RAD = radians(12.0)
-IMAGE_PITCH_GAIN_RAD = radians(10.0)
-IMAGE_ROLL_D_GAIN_RAD_S = radians(30.0)
-IMAGE_D_FILTER_S = 0.2
-PITCH_SLEW_RAD_S = radians(40.0)
 RC_MIN_PWM = 1000
 RC_MAX_PWM = 2000
 RC_NEUTRAL_PWM = 1500
@@ -49,8 +58,6 @@ ACTUAL_CENTER_RATE_DPS = 70.0
 ACTUAL_MAX_RATE_DPS = 670.0
 ACTUAL_RATE_CURVE_DPS = ACTUAL_MAX_RATE_DPS - ACTUAL_CENTER_RATE_DPS
 UNUSED_CHANNELS = (RC_MIN_PWM,) * 12
-ALTITUDE_POSITION_PID = PidSettings(1.5, 0.0, 0.0, 8.0, 0.0)
-ALTITUDE_VELOCITY_PID = PidSettings(2.0, 1.0, 0.0, 5.0, 2.0)
 
 
 class Phase(StrEnum):
@@ -97,10 +104,8 @@ class RedTruckMission:
         self.dwell_started_s = None
         self.search_started_s = 0.0
         self.heading_rad = 0.0
-        self.last_pitch_rad = 0.0
+        self.image_guidance = ImageGuidanceController()
         self.transitions = []
-        self.last_dx = None
-        self.dx_rate = 0.0
 
     def reset(self, now, sensors):
         self.altitude.reset()
@@ -109,7 +114,7 @@ class RedTruckMission:
         self.dwell_started_s = None
         self.search_started_s = 0.0
         self.heading_rad = yaw_from_quaternion(sensors.attitude.orientation_xyzw)
-        self.last_pitch_rad = 0.0
+        self.image_guidance.reset()
         self.transitions = [(self.phase, self.phase_started_s)]
 
     def _transition(self, phase, now):
@@ -122,9 +127,7 @@ class RedTruckMission:
         if phase == Phase.SEARCH:
             self.search_started_s = now
         if phase == Phase.APPROACH:
-            self.last_dx = None
-            self.dx_rate = 0.0
-            self.last_pitch_rad = 0.0
+            self.image_guidance.reset()
 
     def _settled(self, condition, now, duration):
         if not condition:
@@ -199,35 +202,12 @@ class RedTruckMission:
             yaw_rate_override = SEARCH_YAW_RATE_RAD_S if self.phase == Phase.SEARCH else REACQUIRE_YAW_RATE_RAD_S
             vertical_target = self._altitude_m
             if self.phase == Phase.REACQUIRE:
-                pitch_target = 0.0
-                max_change = PITCH_SLEW_RAD_S * dt_s
-                pitch_target = max(self.last_pitch_rad - max_change,
-                                   min(self.last_pitch_rad + max_change, pitch_target))
-                self.last_pitch_rad = pitch_target
+                pitch_target = self.image_guidance.level_pitch(dt_s)
         elif self.phase == Phase.APPROACH:
             if target is None:
                 target = TargetOffset(0.0, 0.0, 0)
-            if self.last_dx is not None:
-                rate = (target.dx - self.last_dx) / dt_s
-                self.dx_rate += dt_s / (IMAGE_D_FILTER_S + dt_s) * (rate - self.dx_rate)
-            self.last_dx = target.dx
-            image_guidance_scale = max(MIN_IMAGE_GUIDANCE_SCALE,
-                                       min(1.0, self._altitude_m / FULL_IMAGE_GUIDANCE_ALTITUDE_M))
-            approach_descent_m_s = LOW_ALTITUDE_APPROACH_DESCENT_M_S + (
-                (image_guidance_scale - MIN_IMAGE_GUIDANCE_SCALE) / (1.0 - MIN_IMAGE_GUIDANCE_SCALE)
-                * (FULL_ALTITUDE_APPROACH_DESCENT_M_S - LOW_ALTITUDE_APPROACH_DESCENT_M_S))
-            roll_target = max(-MAX_TILT_RAD, min(MAX_TILT_RAD,
-                target.dx * IMAGE_ROLL_GAIN_RAD + self.dx_rate * IMAGE_ROLL_D_GAIN_RAD_S))
-            pitch_target = max(radians(5.0), min(MAX_TILT_RAD,
-                MAX_FORWARD_PITCH_RAD * max(0.2, 1.0 - abs(target.dx))
-                + target.dy * IMAGE_PITCH_GAIN_RAD * image_guidance_scale))
-            max_change = PITCH_SLEW_RAD_S * dt_s
-            pitch_target = max(self.last_pitch_rad - max_change,
-                               min(self.last_pitch_rad + max_change, pitch_target))
-            self.last_pitch_rad = pitch_target
-            vertical_target = max(GROUND_ALTITUDE_M, self._altitude_m - (approach_descent_m_s
-                + target.dy * IMAGE_DESCENT_GAIN_M_S)
-                / ALTITUDE_POSITION_PID.kp)
+            roll_target, pitch_target, vertical_target = self.image_guidance.approach(
+                target, self._altitude_m, dt_s)
         elif self.phase == Phase.LAND:
             vertical_target = GROUND_ALTITUDE_M
 

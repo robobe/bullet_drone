@@ -12,8 +12,12 @@ from examples.red_truck_visual.telemetry import SensorSample
 from bullet_drone.rc import RcCodec
 from bullet_drone.vehicle import load_racer_parameters
 from examples.red_truck_visual.mission import (
-    ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID, MAX_BODY_RATES_RAD_S, Phase, RedTruckMission,
+    Phase, RedTruckMission,
 )
+from examples.red_truck_visual.controllers.altitude import (
+    ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID,
+)
+from examples.red_truck_visual.controllers.attitude import MAX_BODY_RATES_RAD_S
 from examples.red_truck_visual.vision import TargetOffset, detect_target
 
 
