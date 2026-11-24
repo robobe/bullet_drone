@@ -18,6 +18,12 @@ class TargetOffset:
     pixels: int
 
 
+@dataclass(frozen=True, slots=True)
+class VisionSample:
+    frame_step: int
+    target: TargetOffset | None
+
+
 def detect_target(metadata, pixels):
     width, height, step = metadata['width'], metadata['height'], metadata['step']
     if len(pixels) != step * height or metadata['encoding'] not in ('rgb8', 'bgr8'):
@@ -56,7 +62,7 @@ class VisionWorker:
         self.stop.set()
         self.thread.join()
 
-    def target(self, current_step, max_age_steps):
+    def sample(self, current_step, max_age_steps):
         if self.error is not None:
             raise RuntimeError(f'Camera vision worker failed: {self.error}') from self.error
         try:
@@ -69,7 +75,11 @@ class VisionWorker:
         frame_id, target = result
         if not 0 <= current_step - frame_id <= max_age_steps:
             return None
-        return target
+        return VisionSample(frame_id, target)
+
+    def target(self, current_step, max_age_steps):
+        sample = self.sample(current_step, max_age_steps)
+        return None if sample is None else sample.target
 
     def _run(self):
         last_frame_id = -1

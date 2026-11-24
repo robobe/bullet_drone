@@ -10,7 +10,8 @@ REPORT_PERIOD_S = 0.1
 RATE_REPORT_PERIOD_S = 1.0
 PHASE_COLORS = {
     Phase.PREARM: 'yellow', Phase.ARMING: 'magenta', Phase.TAKEOFF: 'cyan',
-    Phase.SEARCH: 'blue', Phase.APPROACH: 'green', Phase.REACQUIRE: 'yellow',
+    Phase.SEARCH: 'blue', Phase.CENTER: 'white', Phase.APPROACH: 'green',
+    Phase.REACQUIRE: 'yellow',
     Phase.LAND: 'magenta', Phase.DISARMED: 'yellow', Phase.COMPLETE: 'green',
 }
 

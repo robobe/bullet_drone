@@ -45,7 +45,7 @@ MASS_KG = 1.0
 GRAVITY_M_S2 = 9.81
 GRAVITY_VECTOR_M_S2 = (0.0, 0.0, -GRAVITY_M_S2)
 # Negative world Y offsets the launch to the right of the original track.
-INITIAL_POSITION_M = (-50.0, -58.0, 0.015)
+INITIAL_POSITION_M = (-50.0, 38.0, 0.015)
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,12 +109,16 @@ def run_demo(*, renderer=DEFAULT_RENDERER, render_config=None, sitl_binary=DEFAU
                 raise RuntimeError('Betaflight status is stale')
             state = observation.ground_truth
             viewer.consume(observation)
-            latest_target = vision.target(state.step_index, VISION_TIMEOUT_STEPS)
+            vision_sample = vision.sample(state.step_index, VISION_TIMEOUT_STEPS)
+            latest_target = None if vision_sample is None else vision_sample.target
             contact = viewer.poll_contact(stream_id=viewer.publisher.stream,
                 current_step=state.step_index, max_age_steps=CONTACT_MAX_AGE_STEPS)
             try:
                 channels = mission.command(state.simulation_time_s, status, TIMESTEP_S,
-                                           latest_target, contact=contact,
+                                           latest_target,
+                                           target_frame_step=(None if vision_sample is None
+                                                              else vision_sample.frame_step),
+                                           contact=contact,
                                            sensors=sensor_feedback)
             except RuntimeError as error:
                 if status.armed:

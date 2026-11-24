@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from math import radians
 import socket
 import time
 
@@ -18,7 +19,8 @@ from examples.red_truck_visual.controllers.altitude import (
     ALTITUDE_POSITION_PID, ALTITUDE_VELOCITY_PID,
 )
 from examples.red_truck_visual.controllers.attitude import MAX_BODY_RATES_RAD_S
-from examples.red_truck_visual.vision import TargetOffset, detect_target
+from examples.red_truck_visual.controllers.image import ImageGuidanceController, MAX_TILT_RAD
+from examples.red_truck_visual.vision import TargetOffset, VisionSample, detect_target
 
 
 def frame(width=5, height=5, step=None, encoding='rgb8'):
@@ -69,6 +71,29 @@ def test_vision_worker_polls_and_exposes_only_fresh_detection():
         assert vision.target(13, 2) is None
 
 
+def test_vision_sample_preserves_source_frame_step():
+    from examples.red_truck_visual.vision import VisionWorker
+
+    metadata, pixels = frame()
+    metadata['header'] = {'fid': 10}
+
+    class Viewer:
+        def poll_frame(self, timeout_ms):
+            time.sleep(timeout_ms / 1000)
+            if hasattr(self, 'returned'):
+                return None
+            self.returned = True
+            return metadata, pixels
+
+    with VisionWorker(Viewer()) as vision:
+        deadline = time.monotonic() + 1
+        sample = None
+        while sample is None and time.monotonic() < deadline:
+            sample = vision.sample(10, 2)
+            time.sleep(.001)
+        assert sample == VisionSample(10, None)
+
+
 class MissionFixture(RedTruckMission):
     def command(self, observation, status, dt_s, target=None, **kwargs):
         state = observation.ground_truth
@@ -115,6 +140,63 @@ def test_image_errors_drive_roll_pitch_and_vertical_thrust():
     assert codec.decode(RcInput(positive), 'episode', 25).mode == 'acro'
 
 
+def test_roll_centering_gain_frame_timing_and_limit():
+    guidance = ImageGuidanceController()
+    dt_s = 1 / 240
+
+    first = guidance.approach(TargetOffset(.5, 0, 100), 30, dt_s, frame_step=0)
+    repeated = guidance.approach(TargetOffset(.5, 0, 100), 30, dt_s, frame_step=0)
+    next_frame = guidance.approach(TargetOffset(.6, 0, 100), 30, dt_s, frame_step=24)
+    saturated = guidance.approach(TargetOffset(1.0, 0, 100), 30, dt_s, frame_step=48)
+
+    assert first[0] == pytest.approx(radians(12.0))
+    assert repeated[0] == pytest.approx(first[0])
+    assert next_frame[0] == pytest.approx(radians(24.4))
+    assert saturated[0] == MAX_TILT_RAD
+
+
+@pytest.mark.parametrize(('dx', 'expected_direction'), [(1.0, -1), (-1.0, 1)])
+def test_center_phase_yaws_toward_target_while_holding_altitude_and_level(dx, expected_direction):
+    value, _ = mission()
+    value.phase = Phase.CENTER
+    channels = value.command(observation(30.0, 1.0), status(), 1 / 240,
+                            TargetOffset(dx, .5, 100))
+
+    assert value.phase == Phase.CENTER
+    assert channels[0:2] == (1500, 1500)
+    assert (channels[3] - 1500) * expected_direction > 0
+    assert value.control_targets[0] == 0.0
+    assert value.control_targets[1] == pytest.approx(30.0)
+    assert value.altitude.last_output.velocity_target_m_s == pytest.approx(0.0)
+
+
+def test_center_phase_requires_stable_alignment_before_approach():
+    value, _ = mission()
+    value.phase = Phase.CENTER
+    target = TargetOffset(.05, 0, 100)
+
+    value.command(observation(30.0, 1.0), status(), 1 / 240, target)
+    assert value.phase == Phase.CENTER
+    value.command(observation(30.0, 1.29), status(), 1 / 240, target)
+    assert value.phase == Phase.CENTER
+    value.command(observation(30.0, 1.31), status(), 1 / 240, target)
+
+    assert value.phase == Phase.APPROACH
+    assert value.control_targets[0] > 0.0
+    assert value.control_targets[1] < 30.0
+
+
+def test_reacquired_target_enters_center_instead_of_approach():
+    value, _ = mission()
+    value.phase = Phase.REACQUIRE
+
+    value.command(observation(30.0, 1.0), status(), 1 / 240, TargetOffset(.3, .5, 100))
+
+    assert value.phase == Phase.CENTER
+    assert value.control_targets[0] == 0.0
+    assert value.control_targets[1] == pytest.approx(30.0)
+
+
 def test_dy_guidance_is_reduced_at_20_m_and_full_at_40_m():
     low, _ = mission()
     low.command(observation(20.0, 0.1), status(), 1.0, TargetOffset(0, .5, 100))
@@ -122,8 +204,8 @@ def test_dy_guidance_is_reduced_at_20_m_and_full_at_40_m():
     high.command(observation(40.0, 0.1), status(), 1.0, TargetOffset(0, .5, 100))
 
     assert low.control_targets[0] < high.control_targets[0]
-    assert low.altitude.last_output.velocity_target_m_s == pytest.approx(-5.0)
-    assert high.altitude.last_output.velocity_target_m_s == pytest.approx(-5.5)
+    assert low.altitude.last_output.velocity_target_m_s == pytest.approx(-6.0)
+    assert high.altitude.last_output.velocity_target_m_s == pytest.approx(-6.5)
 
 
 def test_lost_target_reacquires_search_timeout_lands_and_contact_completes():
@@ -240,6 +322,7 @@ def test_diagnostics_rate_limits_errors_but_reports_state_changes(monkeypatch):
     from loguru import logger
     from examples.red_truck_visual import diagnostics
 
+    assert set(diagnostics.PHASE_COLORS) == set(Phase)
     value, _ = mission()
     obs = observation(30, .1)
     target = TargetOffset(.2, .3, 100)
@@ -251,6 +334,8 @@ def test_diagnostics_rate_limits_errors_but_reports_state_changes(monkeypatch):
     try:
         reporter = diagnostics.Diagnostics()
         reporter.report(value, obs.ground_truth, target, channels)
+        value.transitions.append((Phase.CENTER, .15))
+        reporter.report(value, obs.ground_truth, None, channels)
         value.transitions.append((Phase.REACQUIRE, .2))
         reporter.report(value, obs.ground_truth, None, channels)
         clock[0] += .11
@@ -259,6 +344,7 @@ def test_diagnostics_rate_limits_errors_but_reports_state_changes(monkeypatch):
         logger.remove(sink)
     assert sum('VISION phase=' in message for message in messages) == 2
     assert any('REACQUIRE' in message and 'STATE' in message for message in messages)
+    assert any('CENTER' in message and 'STATE' in message for message in messages)
     assert any('dx=+0.2000 dy=+0.3000' in message for message in messages)
     assert any('target=LOST' in message for message in messages)
 
@@ -348,4 +434,4 @@ def test_takeoff_allows_sensor_noise_before_los_acquisition():
     value.command(observation(19.5, 1.31, velocity=(0, 0, .8)), status(), 1 / 240, target)
     assert value.phase == Phase.SEARCH
     value.command(observation(29.5, 1.32), status(), 1 / 240, target)
-    assert value.phase == Phase.APPROACH
+    assert value.phase == Phase.CENTER

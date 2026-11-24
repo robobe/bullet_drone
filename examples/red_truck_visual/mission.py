@@ -49,6 +49,10 @@ VERTICAL_SPEED_TOLERANCE_M_S = 0.5
 TOUCHDOWN_ALTITUDE_M = 0.03
 SEARCH_YAW_RATE_RAD_S = 0.35
 REACQUIRE_YAW_RATE_RAD_S = 0.25
+CENTER_YAW_GAIN_RAD_S_PER_DX = 1.5
+CENTER_MAX_YAW_RATE_RAD_S = 0.6
+CENTER_DX_TOLERANCE = 0.08
+CENTER_SETTLE_S = 0.3
 RC_MIN_PWM = 1000
 RC_MAX_PWM = 2000
 RC_NEUTRAL_PWM = 1500
@@ -65,6 +69,7 @@ class Phase(StrEnum):
     ARMING = 'arming'
     TAKEOFF = 'takeoff'
     SEARCH = 'search'
+    CENTER = 'center'
     APPROACH = 'approach'
     REACQUIRE = 'reacquire'
     LAND = 'land'
@@ -137,7 +142,8 @@ class RedTruckMission:
         return self.dwell_started_s is not None and now - self.dwell_started_s >= duration
 
     def command(self, now, status, dt_s: float, target: TargetOffset | None = None,
-                *, contact: bool = False, sensors=None) -> tuple[int, ...]:
+                *, target_frame_step: int | None = None,
+                contact: bool = False, sensors=None) -> tuple[int, ...]:
         if sensors is None:
             raise RuntimeError('Betaflight MAVLink sensor data is required')
         self._altitude_m = sensors.altitude_m
@@ -167,14 +173,20 @@ class RedTruckMission:
         elif self.phase == Phase.SEARCH:
             if target is not None:
                 self.heading_rad = yaw
-                self._transition(Phase.APPROACH, now)
+                self._transition(Phase.CENTER, now)
             elif now - self.search_started_s >= SEARCH_TIMEOUT_S:
                 self._transition(Phase.LAND, now)
+        elif self.phase == Phase.CENTER:
+            if target is None:
+                self._transition(Phase.REACQUIRE, now)
+            elif self._settled(abs(target.dx) <= CENTER_DX_TOLERANCE,
+                               now, CENTER_SETTLE_S):
+                self._transition(Phase.APPROACH, now)
         elif self.phase == Phase.APPROACH and target is None:
             self._transition(Phase.REACQUIRE, now)
         elif self.phase == Phase.REACQUIRE and target is not None:
             self.heading_rad = yaw
-            self._transition(Phase.APPROACH, now)
+            self._transition(Phase.CENTER, now)
         elif self.phase == Phase.LAND:
             if self._settled(self._altitude_m <= TOUCHDOWN_ALTITUDE_M
                              and abs(vertical_speed) <= VERTICAL_SPEED_TOLERANCE_M_S,
@@ -183,8 +195,10 @@ class RedTruckMission:
         elif self.phase == Phase.DISARMED and not status.armed and now - self.phase_started_s >= DISARMED_SETTLE_S:
             self._transition(Phase.COMPLETE, now)
 
-        flight = self.phase in (Phase.TAKEOFF, Phase.SEARCH, Phase.APPROACH, Phase.REACQUIRE, Phase.LAND)
-        arm = self.phase in (Phase.ARMING, Phase.TAKEOFF, Phase.SEARCH, Phase.APPROACH, Phase.REACQUIRE, Phase.LAND)
+        flight = self.phase in (Phase.TAKEOFF, Phase.SEARCH, Phase.CENTER, Phase.APPROACH,
+                                Phase.REACQUIRE, Phase.LAND)
+        arm = self.phase in (Phase.ARMING, Phase.TAKEOFF, Phase.SEARCH, Phase.CENTER,
+                             Phase.APPROACH, Phase.REACQUIRE, Phase.LAND)
         if flight and not status.armed:
             raise RuntimeError(
                 f'Betaflight disarmed during {self.phase} at {now:.2f}s, '
@@ -203,11 +217,19 @@ class RedTruckMission:
             vertical_target = self._altitude_m
             if self.phase == Phase.REACQUIRE:
                 pitch_target = self.image_guidance.level_pitch(dt_s)
+        elif self.phase == Phase.CENTER:
+            vertical_target = self._altitude_m
+            pitch_target = self.image_guidance.level_pitch(dt_s)
+            if target is not None:
+                yaw_rate_override = (0.0 if abs(target.dx) <= CENTER_DX_TOLERANCE else
+                    max(-CENTER_MAX_YAW_RATE_RAD_S,
+                        min(CENTER_MAX_YAW_RATE_RAD_S,
+                            -target.dx * CENTER_YAW_GAIN_RAD_S_PER_DX)))
         elif self.phase == Phase.APPROACH:
             if target is None:
                 target = TargetOffset(0.0, 0.0, 0)
             roll_target, pitch_target, vertical_target = self.image_guidance.approach(
-                target, self._altitude_m, dt_s)
+                target, self._altitude_m, dt_s, target_frame_step)
         elif self.phase == Phase.LAND:
             vertical_target = GROUND_ALTITUDE_M
 

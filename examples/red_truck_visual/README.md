@@ -125,7 +125,7 @@ mission-control input.
 ### 3. Mission phase selects the targets
 
 <p align="center">
-  <img src="../../docs/red_truck_visual/mission-phases.svg" width="45%" alt="Mission phases from prearm and takeoff through search, approach, reacquisition, landing and completion.">
+  <img src="../../docs/red_truck_visual/mission-phases.svg" width="65%" alt="Mission phases with a level yaw-centering step before approach and descent.">
 </p>
 
 The phase determines the outer-loop targets:
@@ -133,17 +133,28 @@ The phase determines the outer-loop targets:
 - **Takeoff:** hold level and climb to the configured altitude, limited to
   4 m/s.
 - **Search:** hold the measured altitude and rotate at 0.35 rad/s.
+- **Center:** hold measured altitude with level roll/pitch, and yaw toward the
+  visible truck until horizontal image error remains within the alignment band.
 - **Approach:** use `dx` and `dy` for roll, pitch and vertical guidance.
 - **Reacquire:** slew pitch back to level, hold measured altitude and rotate at
   0.25 rad/s.
 - **Land:** target ground altitude with descent limited to 1.5 m/s.
+
+Search and reacquisition no longer enter the descending approach directly. Both
+route a detected target through the center phase. While centering, the yaw-rate
+request is `-1.5 rad/s per dx` and is capped at ±0.6 rad/s; a positive `dx`
+therefore turns the nose right toward the target. Inside `abs(dx) <= 0.08`, yaw
+stops; the target must stay in that band for 0.3 s before approach starts. Pitch
+remains level and the altitude target remains the measured altitude throughout
+this phase, so `dy` cannot request pitch or descent until horizontal alignment
+is confirmed. Losing the target during centering returns to reacquisition.
 
 ### 4. Image guidance produces roll, pitch and altitude targets
 
 During approach, horizontal image error produces a roll target:
 
 ```text
-roll target = 12 deg * dx + 30 deg-s * filtered change of dx
+roll target = 24 deg * dx + 30 deg-s * filtered change of dx
 ```
 
 The derivative term damps rapid lateral movement in the image. Roll is limited
@@ -163,37 +174,33 @@ roles:
 
 | Setting | Value | Effect |
 |---|---:|---|
-| `IMAGE_ROLL_GAIN_RAD` | 12 degrees per unit `dx` | Proportional lateral steering toward the image center. |
+| `IMAGE_ROLL_GAIN_RAD` | 24 degrees per unit `dx` | Proportional lateral steering toward the image center. |
 | `IMAGE_ROLL_D_GAIN_RAD_S` | 30 degree-seconds per unit `dx` rate | Adds damping when horizontal image error is changing quickly. |
 | `MAX_FORWARD_PITCH_RAD` | 22 degrees | Forward-pitch baseline when `dx` is centered. |
 | `IMAGE_PITCH_GAIN_RAD` | 10 degrees per unit `dy` | Adds vertical image correction to pitch. |
 | `IMAGE_DESCENT_GAIN_M_S` | 4 m/s per unit `dy` | Changes requested vertical speed from vertical image error. |
 
-The `dx` derivative is the change in normalized image error per second. A raw
-derivative would amplify pixel-centroid jitter, so the controller filters it
-with a first-order low-pass update:
+The `dx` derivative is the change in normalized image error per second. The
+vision worker carries the source simulation step with each target sample. The
+controller updates the derivative only when that step changes, using elapsed
+camera-frame time instead of the faster mission-loop timestep:
 
 ```text
-raw dx rate = (dx now - dx previous) / dt
-filtered rate += dt / (0.2 s + dt) * (raw rate - filtered rate)
+frame dt = (frame step now - frame step previous) * physics timestep
+raw dx rate = (dx now - dx previous) / frame dt
+filtered rate += frame dt / (0.2 s + frame dt) * (raw rate - filtered rate)
 ```
 
-`IMAGE_D_FILTER_S = 0.2` s is the filter time constant. At the 240 Hz control
-step (`dt = 1/240` s), each update moves about 2.0% of the way from the previous
-filtered rate toward the new raw rate. This smooths frame-to-frame noise while
-still letting persistent image motion affect roll. The proportional roll term
-responds to current error; the derivative term responds to how quickly it is
-changing.
-
-The derivative currently uses the 240 Hz mission timestep and the latest
-available camera target. Since the vision worker polls at about 50 Hz, a new
-image error may appear between control ticks; that one-step change can make the
-raw derivative larger than the true camera-frame-to-frame rate. The low-pass
-filter softens the spike but does not correct its timestamp. Keep the derivative
-gain conservative, especially if camera timing or frame delivery changes.
+`IMAGE_D_FILTER_S = 0.2` s is the filter time constant. With the configured
+30 fps camera, a typical frame interval is about 1/30 s, so each new frame moves
+about 14% of the way toward the new raw rate. Repeated mission ticks that use
+the same image do not create artificial derivative updates. The proportional
+roll term responds to current error; the derivative term responds to its
+camera-frame-to-camera-frame movement.
 
 These gains are starting tuning choices, not gains derived from a vehicle model.
-Increasing a gain makes the corresponding correction stronger; too much
+The roll proportional gain is 24 degrees per unit `dx`; increasing it makes
+lateral correction stronger. Too much
 proportional gain can cause overshoot, while too much derivative gain can turn
 image noise into roll commands. The filter trades noise rejection for delay, so
 it should be tuned together with derivative gain and camera update timing.
@@ -251,18 +258,18 @@ The coefficient is `IMAGE_DESCENT_GAIN_M_S = 4.0` in `controllers/image.py`.
 Since `dy` is a normalized, unitless image error, this tuning value means a
 four-meter-per-second change in requested descent for each full unit of `dy`.
 It is selected to tune the camera response; it is not derived from altitude or
-camera field of view. The base descent is separately interpolated from 3.0 to
-3.5 m/s as altitude guidance scales from 0.5 to 1.0.
+camera field of view. The base descent is separately interpolated from 4.0 to
+4.5 m/s as altitude guidance scales from 0.5 to 1.0.
 
-Base descent is 3.0 m/s at 20 m and below, rises linearly, and reaches 3.5 m/s
+Base descent is 4.0 m/s at 20 m and below, rises linearly, and reaches 4.5 m/s
 at 40 m. Positive descent means down. For a 20 m approach:
 
 | `dy` | Calculation | Requested vertical motion |
 |---:|---:|---|
-| `+0.5` | `3.0 + 4 × 0.5 = 5.0` | descend at 5.0 m/s |
-| `0.0` | `3.0 + 4 × 0.0 = 3.0` | descend at 3.0 m/s |
-| `-0.5` | `3.0 - 4 × 0.5 = 1.0` | descend at 1.0 m/s |
-| `-0.9` | `3.0 - 4 × 0.9 = -0.6` | climb at 0.6 m/s |
+| `+0.5` | `4.0 + 4 × 0.5 = 6.0` | descend at 6.0 m/s |
+| `0.0` | `4.0 + 4 × 0.0 = 4.0` | descend at 4.0 m/s |
+| `-0.5` | `4.0 - 4 × 0.5 = 2.0` | descend at 2.0 m/s |
+| `-0.9` | `4.0 - 4 × 0.9 = 0.4` | descend at 0.4 m/s |
 
 The vertical-speed request is converted into an equivalent altitude target for
 the existing altitude cascade:
@@ -274,9 +281,9 @@ altitude target = measured altitude - descent request / altitude position gain
 The position gain is `ALTITUDE_POSITION_PID.kp = 1.5 /s`, configured in
 `controllers/altitude.py`. Dividing the requested speed by this gain converts
 meters per second into meters. For example, at 20 m with `dy = +0.5`, the
-request is `3.0 + 4.0 × 0.5 = 5.0 m/s` down, so the target becomes
-`20 - 5.0 / 1.5 = 16.67 m`. The altitude position loop then requests
-`1.5 × (16.67 - 20) = -5.0 m/s`, matching the desired descent direction and
+request is `4.0 + 4.0 × 0.5 = 6.0 m/s` down, so the target becomes
+`20 - 6.0 / 1.5 = 16.0 m`. The altitude position loop then requests
+`1.5 × (16.0 - 20) = -6.0 m/s`, matching the desired descent direction and
 magnitude before phase limits.
 
 This is how `dy` influences thrust: it does not directly set throttle. It moves
@@ -499,7 +506,7 @@ the workers are stopped and joined during normal resource cleanup.
 |---|---|
 | Launch position | (-20, -18, 0.015) m, body/world Y points left |
 | Takeoff | 20 m altitude target, 4 m/s climb cap |
-| Approach | descent request = altitude-scaled 3.0–3.5 + 4 × dy m/s, limited to ±8 m/s |
+| Approach | descent request = altitude-scaled 4.0–4.5 + 4 × dy m/s, limited to ±8 m/s |
 | `dy` pitch scaling | 50% at 20 m and below, rising to 100% at 40 m |
 | Landing | 1.5 m/s descent cap |
 | Search/reacquire yaw | 0.35 / 0.25 rad/s |
